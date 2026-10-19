@@ -34,6 +34,19 @@ target_include_directories(planner_collision PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
 target_link_libraries(planner_collision PUBLIC planner::common)
 
+# 判空金字塔层数（块边长 1、2、4…）。0 表示关闭该加速；默认 2 由实验
+# （A1/A2/A3）选定。仅影响本组件库的编译定义。
+#
+# 注意：这里不能用 option()——CMake 的 BOOL cache 会把数值 2/3 归一化为
+# OFF，只有 1 会变成 ON。层数是计数而非布尔量，故用 STRING cache。
+set(PLANNER_COLLISION_PREFIX_LEVELS "2" CACHE STRING
+  "Number of prefix-sum emptiness pyramid levels (block sizes 1,2,4,...; 0 disables)")
+set_property(CACHE PLANNER_COLLISION_PREFIX_LEVELS PROPERTY STRINGS 0 1 2 3 4)
+if(PLANNER_COLLISION_PREFIX_LEVELS GREATER 0)
+  target_compile_definitions(planner_collision PRIVATE
+    PLANNER_COLLISION_PREFIX_LEVELS=${PLANNER_COLLISION_PREFIX_LEVELS})
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(planner_collision PRIVATE -Wall -Wextra -Wpedantic)
 endif()

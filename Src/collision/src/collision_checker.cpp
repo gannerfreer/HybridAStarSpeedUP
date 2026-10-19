@@ -38,6 +38,17 @@ using planner::common::normalize_angle_rad;
 constexpr double kMaxAbsCurvature_inv_m = 1.0e6;  // 半径 >= 1 um
 constexpr double kSincSeriesBound = 1e-8;
 constexpr int kGridChunkCells = 8;
+
+// “判空金字塔”层数：层 ℓ 的块边长为 2^ℓ（1、2、4…）。默认 2（块尺寸
+// 1、2）由 A1/A2/A3 全量计时实验选定：A2 相对 main 的 166 例几何平均
+// 1.0399×、ΣP50 1.0449×，优于 A1（1.0354×/1.0379×）与 A3
+// （1.0347×/1.0372×）。由 CMake cache 变量
+// PLANNER_COLLISION_PREFIX_LEVELS 配置，0 表示关闭该加速。
+#ifndef PLANNER_COLLISION_PREFIX_LEVELS
+#define PLANNER_COLLISION_PREFIX_LEVELS 2
+#endif
+constexpr int kPrefixLevels =
+    PLANNER_COLLISION_PREFIX_LEVELS > 0 ? PLANNER_COLLISION_PREFIX_LEVELS : 0;
 constexpr double kObstacleHashCell_m = 4.0;
 constexpr double kEnvelopeSafetyFactor = 1.0 + 1e-12;
 constexpr double kEnvelopeSafetyOffset_m = 1e-12;
@@ -184,9 +195,120 @@ struct CollisionCheckerImpl {
   int chunks_y{0};
   std::vector<std::uint8_t> chunk_blocked;
   bool use_chunk_index{false};
+
+  // 多分辨率块计数二维前缀和（“判空金字塔”）。层 ℓ 的块边长为
+  // block = 2^ℓ；rows/cols 是块级行列数；sum 是 (rows+1)×(cols+1) 的
+  // 积分图，元素为块内“被占格数”（cells != kCellFree，与逐单元扫描的
+  // 语义一致）。任一矩形块的计数和可从 4 个表项 O(1) 得到。
+  struct PrefixLevel {
+    int block{1};
+    int rows{0};
+    int cols{0};
+    std::vector<std::uint32_t> sum;
+  };
+  std::vector<PrefixLevel> prefix_levels;
 };
 
 namespace {
+
+// 构建判空金字塔：逐层统计每块内的被占格数，再原地做二维前缀和。
+// 无被占格时所有表项保持 0（查询恒判空，与“逐单元扫描无命中”一致）。
+void build_prefix_pyramid(const GridView& grid,
+                          std::vector<CollisionCheckerImpl::PrefixLevel>& levels) {
+  levels.clear();
+  levels.resize(static_cast<std::size_t>(kPrefixLevels));
+  for (int level = 0; level < kPrefixLevels; ++level) {
+    CollisionCheckerImpl::PrefixLevel& pyramid = levels[static_cast<std::size_t>(level)];
+    pyramid.block = 1 << level;
+    const int block = pyramid.block;
+    pyramid.rows = (grid.height + block - 1) / block;
+    pyramid.cols = (grid.width + block - 1) / block;
+    const std::size_t stride = static_cast<std::size_t>(pyramid.cols) + 1;
+    pyramid.sum.assign(static_cast<std::size_t>(pyramid.rows + 1) * stride, 0);
+    for (int row = 0; row < grid.height; ++row) {
+      const int block_row = row / block;
+      for (int col = 0; col < grid.width; ++col) {
+        if (grid.cells[static_cast<std::size_t>(row) * grid.width + col] ==
+            kCellFree) {
+          continue;
+        }
+        ++pyramid.sum[static_cast<std::size_t>(block_row + 1) * stride +
+                      static_cast<std::size_t>(col / block + 1)];
+      }
+    }
+    // 原地二维前缀和：sum[r][c] = 块计数(r-1,c-1) 的矩形和。
+    for (int r = 1; r <= pyramid.rows; ++r) {
+      for (int c = 1; c <= pyramid.cols; ++c) {
+        pyramid.sum[static_cast<std::size_t>(r) * stride +
+                    static_cast<std::size_t>(c)] +=
+            pyramid.sum[static_cast<std::size_t>(r - 1) * stride +
+                        static_cast<std::size_t>(c)] +
+            pyramid.sum[static_cast<std::size_t>(r) * stride +
+                        static_cast<std::size_t>(c - 1)] -
+            pyramid.sum[static_cast<std::size_t>(r - 1) * stride +
+                        static_cast<std::size_t>(c - 1)];
+      }
+    }
+  }
+}
+
+// 判断闭区间单元格范围 [row0,row1]×[col0,col1] 内没有被占格（保守上界）。
+// 范围先按块边长向外扩到块边界（floor 天然是超集），再夹取到块级范围；
+// 4 次查表求和为 0 即证明超集内没有被占格，因而查询框内也没有。空/非法
+// 范围按“无被占格”处理（与原枚举不执行任何单元一致）。
+bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0,
+                      int row1, int col0, int col1) noexcept {
+  if (row1 < row0 || col1 < col0) {
+    return true;
+  }
+  if (row1 < 0 || col1 < 0) {
+    return true;
+  }
+  if (level < 0 || level >= static_cast<int>(st.prefix_levels.size())) {
+    return false;
+  }
+  const CollisionCheckerImpl::PrefixLevel& pyramid =
+      st.prefix_levels[static_cast<std::size_t>(level)];
+  if (pyramid.rows <= 0 || pyramid.cols <= 0) {
+    return true;
+  }
+  const int block = pyramid.block;
+  row0 = std::max(row0, 0);
+  col0 = std::max(col0, 0);
+  int block_row0 = row0 / block;
+  int block_row1 = row1 / block;
+  int block_col0 = col0 / block;
+  int block_col1 = col1 / block;
+  block_row0 = std::min(block_row0, pyramid.rows - 1);
+  block_row1 = std::min(block_row1, pyramid.rows - 1);
+  block_col0 = std::min(block_col0, pyramid.cols - 1);
+  block_col1 = std::min(block_col1, pyramid.cols - 1);
+  if (block_row1 < block_row0 || block_col1 < block_col0) {
+    return true;
+  }
+  const std::size_t stride = static_cast<std::size_t>(pyramid.cols) + 1;
+  const auto at = [&](int r, int c) noexcept -> std::uint32_t {
+    return pyramid.sum[static_cast<std::size_t>(r) * stride +
+                       static_cast<std::size_t>(c)];
+  };
+  const std::uint32_t total = at(block_row1 + 1, block_col1 + 1) -
+                              at(block_row0, block_col1 + 1) -
+                              at(block_row1 + 1, block_col0) +
+                              at(block_row0, block_col0);
+  return total == 0;
+}
+
+// 按“粗 → 细”尝试各层；任一层可证明矩形内没有被占格即返回 true。
+bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
+                          int col0, int col1) noexcept {
+  for (int level = static_cast<int>(st.prefix_levels.size()) - 1; level >= 0;
+       --level) {
+    if (prefix_box_empty(st, level, row0, row1, col0, col1)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 struct PoseHit {
   bool hit{false};
@@ -309,6 +431,12 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     row0 = std::max(row0, 0);
     col1 = std::min(col1, grid_view.width - 1);
     row1 = std::min(row1, grid_view.height - 1);
+    // 多分辨率前缀和判空：从粗层到细层，任一层可证明查询框（闭区间）
+    // 内没有被占格，即可提前返回“无命中”——这与跳过下方逐单元/分块
+    // 枚举完全等价（块边界是查询框的向外超集）。
+    if (prefix_pyramid_empty(st, row0, row1, col0, col1)) {
+      return PoseHit{};
+    }
     const double scale =
         std::max(std::max(std::abs(min_x), std::abs(max_x)),
                  std::max(std::abs(min_y), std::abs(max_y)));
@@ -465,6 +593,11 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     row0 = std::max(row0, 0);
     col1 = std::min(col1, grid_view.width);
     row1 = std::min(row1, grid_view.height);
+    // 半开区间 [row0,row1)×[col0,col1) 转为闭区间后做多分辨率判空。任一
+    // 层证明查询框内没有被占格时，下方的逐单元/分块枚举不可能改变
+    // clear（恒为 true），因此整段枚举可以安全跳过；后续障碍物判定照常。
+    const bool grid_empty =
+        prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
     bool clear = true;
     const auto test_cell = [&](int row, int col) {
       const int value =
@@ -481,32 +614,34 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
         clear = false;
       }
     };
-    if (st.use_chunk_index && !st.chunk_blocked.empty()) {
-      const int chunk = st.chunk_size;
-      const int c0 = col0 / chunk;
-      const int c1 = col1 / chunk;
-      const int r0 = row0 / chunk;
-      const int r1 = row1 / chunk;
-      for (int cr = r0; cr <= r1 && clear; ++cr) {
-        for (int cc = c0; cc <= c1 && clear; ++cc) {
-          if (st.chunk_blocked[static_cast<std::size_t>(cr) * st.chunks_x + cc] == 0) {
-            continue;
-          }
-          const int cc0 = std::max(col0, cc * chunk);
-          const int cc1 = std::min(col1, (cc + 1) * chunk);
-          const int rr0 = std::max(row0, cr * chunk);
-          const int rr1 = std::min(row1, (cr + 1) * chunk);
-          for (int row = rr0; row < rr1 && clear; ++row) {
-            for (int col = cc0; col < cc1 && clear; ++col) {
-              test_cell(row, col);
+    if (!grid_empty) {
+      if (st.use_chunk_index && !st.chunk_blocked.empty()) {
+        const int chunk = st.chunk_size;
+        const int c0 = col0 / chunk;
+        const int c1 = col1 / chunk;
+        const int r0 = row0 / chunk;
+        const int r1 = row1 / chunk;
+        for (int cr = r0; cr <= r1 && clear; ++cr) {
+          for (int cc = c0; cc <= c1 && clear; ++cc) {
+            if (st.chunk_blocked[static_cast<std::size_t>(cr) * st.chunks_x + cc] == 0) {
+              continue;
+            }
+            const int cc0 = std::max(col0, cc * chunk);
+            const int cc1 = std::min(col1, (cc + 1) * chunk);
+            const int rr0 = std::max(row0, cr * chunk);
+            const int rr1 = std::min(row1, (cr + 1) * chunk);
+            for (int row = rr0; row < rr1 && clear; ++row) {
+              for (int col = cc0; col < cc1 && clear; ++col) {
+                test_cell(row, col);
+              }
             }
           }
         }
-      }
-    } else {
-      for (int row = row0; row < row1 && clear; ++row) {
-        for (int col = col0; col < col1 && clear; ++col) {
-          test_cell(row, col);
+      } else {
+        for (int row = row0; row < row1 && clear; ++row) {
+          for (int col = col0; col < col1 && clear; ++col) {
+            test_cell(row, col);
+          }
         }
       }
     }
@@ -863,6 +998,9 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
       state->obstacle_scale_m =
           std::max(state->obstacle_scale_m,
                    state->obstacle_boxes.back().max_abs_coordinate());
+    }
+    if (scene.has_grid() && kPrefixLevels > 0) {
+      build_prefix_pyramid(state->scene.grid, state->prefix_levels);
     }
     if (options.enable_acceleration) {
       state->use_obstacle_order = true;
