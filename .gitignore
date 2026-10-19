@@ -1,5 +1,7 @@
 # CMake build trees (tools/task_runner.py profiles: build/release, build/debug, ...)
 build/
+build-*/
+bin/
 
 # Experiment evidence, live status and archives (never committed)
 artifacts/
@@ -8,3 +10,7 @@ artifacts/
 __pycache__/
 *.pyc
 *.pyo
+
+profiling/
+
+timing/
