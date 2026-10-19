@@ -13,6 +13,36 @@ namespace {
 
 constexpr double kEpsScale = 1e-12;
 
+// 快速斜边（热路径上 std::hypot 占比高：callgrind 显示 case_39 约 22%，
+// 其中 90% 以上来自这里替换的四个距离函数）。取值范围：
+//   * 常规域 |dx|,|dy| ∈ [1e-150, 1e150)：dx²+dy² 无溢出（< 2e300 <
+//     DBL_MAX）且不会被舍入到 0（≥ 1e-300 ≫ 最小次正规 4.9e-324），
+//     sqrt 为 IEEE 正确舍入，与 glibc hypot 的差异仅在最后一位舍入
+//     （hypot 在 glibc 2.31 不保证正确舍入），位级对照见
+//     results/evidence/hypot_fast_domain_check.txt；
+//   * 该域之外（inf/nan/极大值/两分量同为极小值）一律回退 std::hypot，
+//     因此极端输入的返回值与标准库逐位一致。
+// 碰撞判定的所有比较阈值 ≥ 1e-12 * scale，ulp 级差值不改变判定方向
+// （差分验收 2000/2000 与全量组件测试见 A_B_RESULTS.md）。
+constexpr double kHypotFastMax = 1.0e150;   // (1e150)² = 1e300
+constexpr double kHypotFastMin = 1.0e-150;  // (1e-150)² = 1e-300
+
+double hypot_fast(double dx, double dy) noexcept {
+  const double ax = std::abs(dx);
+  const double ay = std::abs(dy);
+  // (0,0) 是热路径上最常见的退化输入（相交/包含判定直接得到 0 间隙），
+  // callgrind 显示不加此分支时约占 case_39 剩余 hypot 回退的 99.7%。
+  // std::hypot(±0,±0) 返回 +0，直接返回与其逐位一致。
+  if (ax == 0.0 && ay == 0.0) {
+    return 0.0;
+  }
+  if (ax >= kHypotFastMax || ay >= kHypotFastMax ||
+      (ax < kHypotFastMin && ay < kHypotFastMin)) {
+    return std::hypot(dx, dy);
+  }
+  return std::sqrt(dx * dx + dy * dy);
+}
+
 double abs_coordinate_scale(const std::vector<Point2d>& points) {
   double scale = 0.0;
   for (const Point2d& p : points) {
@@ -111,10 +141,10 @@ Point2d operator*(const Point2d& a, double s) noexcept {
   return Point2d{a.x_m * s, a.y_m * s};
 }
 
-double norm(const Point2d& a) noexcept { return std::hypot(a.x_m, a.y_m); }
+double norm(const Point2d& a) noexcept { return hypot_fast(a.x_m, a.y_m); }
 
 double distance(const Point2d& a, const Point2d& b) noexcept {
-  return std::hypot(a.x_m - b.x_m, a.y_m - b.y_m);
+  return hypot_fast(a.x_m - b.x_m, a.y_m - b.y_m);
 }
 
 Point2d transform_point(const Pose2d& pose, const Point2d& body_point) noexcept {
@@ -188,7 +218,7 @@ Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept {
 double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept {
   const double dx = std::max(0.0, std::max(a.min_x - b.max_x, b.min_x - a.max_x));
   const double dy = std::max(0.0, std::max(a.min_y - b.max_y, b.min_y - a.max_y));
-  return std::hypot(dx, dy);
+  return hypot_fast(dx, dy);
 }
 
 double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept {
@@ -196,7 +226,7 @@ double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept {
       std::max(std::max(box.min_x - p.x_m, 0.0), p.x_m - box.max_x);
   const double dy =
       std::max(std::max(box.min_y - p.y_m, 0.0), p.y_m - box.max_y);
-  return std::hypot(dx, dy);
+  return hypot_fast(dx, dy);
 }
 
 // ---------------------------------------------------------------------------
