@@ -55,10 +55,11 @@ bool verify_sweep_gap(const Footprint& footprint, const MotionSegment& motion,
 Obstacle place_at_edge(const Pose2d& pose, const Footprint& footprint,
                        int edge, double gap, double t0, double t1, double depth,
                        const std::string& id) {
-  const std::array<Point2d, 4> body = footprint.body_corners();
-  const Point2d a = transform_point(pose, body[static_cast<std::size_t>(edge)]);
-  const Point2d b =
-      transform_point(pose, body[static_cast<std::size_t>((edge + 1) % 4)]);
+  // 复用一次 world_corners（与逐角点 transform_point 位级一致），避免固定
+  // 位姿下重复计算 cos/sin。
+  const std::array<Point2d, 4> world = footprint.world_corners(pose);
+  const Point2d a = world[static_cast<std::size_t>(edge)];
+  const Point2d b = world[static_cast<std::size_t>((edge + 1) % 4)];
   const Point2d direction = b - a;
   const double length = norm(direction);
   const Point2d u{direction.x_m / length, direction.y_m / length};
@@ -73,12 +74,13 @@ Obstacle place_at_edge(const Pose2d& pose, const Footprint& footprint,
 Obstacle place_at_corner(const Pose2d& pose, const Footprint& footprint,
                          int corner, double gap, double depth, double width,
                          double tangent_sign, const std::string& id) {
-  const std::array<Point2d, 4> body = footprint.body_corners();
+  // 同上：固定位姿下一次 world_corners 替代多处 transform_point。
+  const std::array<Point2d, 4> world = footprint.world_corners(pose);
   const std::size_t previous = static_cast<std::size_t>((corner + 3) % 4);
   const std::size_t current = static_cast<std::size_t>(corner);
   const auto outward_normal = [&](std::size_t edge) {
-    const Point2d a = transform_point(pose, body[edge]);
-    const Point2d b = transform_point(pose, body[(edge + 1) % 4]);
+    const Point2d a = world[edge];
+    const Point2d b = world[(edge + 1) % 4];
     const Point2d d = b - a;
     const double len = norm(d);
     const Point2d u{d.x_m / len, d.y_m / len};
@@ -90,7 +92,7 @@ Obstacle place_at_corner(const Pose2d& pose, const Footprint& footprint,
   const double n_len = norm(n);
   n = Point2d{n.x_m / n_len, n.y_m / n_len};
   const Point2d t{n.y_m * tangent_sign, -n.x_m * tangent_sign};
-  const Point2d c = transform_point(pose, body[current]);
+  const Point2d c = world[current];
   const Point2d q = c + n * gap;
   std::vector<Point2d> vertices{q, q + n * depth, q + n * depth + t * width,
                                 q + t * width};

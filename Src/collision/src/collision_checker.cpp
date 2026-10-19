@@ -53,10 +53,14 @@ double sinc(double x) noexcept {
 
 // 从 `start` 出发、沿常曲率圆弧走过带符号弧长 `s` 后的位姿（倒车时为
 // 负）。yaw_change = kappa * s。
-Pose2d pose_on_arc(const Pose2d& start, double s, double kappa) noexcept {
+//
+// pose_on_arc_trig 与原 pose_on_arc 数值逐位一致，但 cos/sin(start.yaw_rad)
+// 由调用方预计算：同一次运动检查内起点 yaw 固定，递归中每次位姿都重算
+// cos/sin 是纯重复工作（callgrind 显示 sincos 曾占 case_39 约 7%）。本树中
+// 所有调用点都已预计算，原三参包装无调用者，故不再保留。
+Pose2d pose_on_arc_trig(const Pose2d& start, double s, double kappa,
+                        double cy, double sy) noexcept {
   const double b = kappa * s;
-  const double cy = std::cos(start.yaw_rad);
-  const double sy = std::sin(start.yaw_rad);
   const double limit = 0.5 * b;
   const double sb = sinc(b);
   const double half = limit * sinc(limit) * sinc(limit);
@@ -190,8 +194,8 @@ struct PoseHit {
   std::string detail;
 };
 
-std::array<Point2d, 4> grid_corners(const CollisionCheckerImpl& st, const Pose2d& pose) {
-  const std::array<Point2d, 4> world = st.footprint.world_corners(pose);
+std::array<Point2d, 4> grid_corners_from_world(
+    const CollisionCheckerImpl& st, const std::array<Point2d, 4>& world) {
   std::array<Point2d, 4> out;
   for (std::size_t i = 0; i < 4; ++i) {
     out[i] = st.frame.to_grid_frame(world[i]);
@@ -239,7 +243,9 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const Aabb2d& query,
 PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
   PoseHit result;
   const std::array<Point2d, 4> world = st.footprint.world_corners(pose);
-  const std::array<Point2d, 4> grid = grid_corners(st, pose);
+  // 世界角点复用：grid_corners 内部原先会再次计算同一组世界角点（多一次
+  // cos/sin）；这里直接对已算出的 world 做帧变换，数值逐位一致。
+  const std::array<Point2d, 4> grid = grid_corners_from_world(st, world);
   const Aabb2d world_box = aabb_of_raw(world.data(), world.size());
   const std::vector<Point2d> footprint_world(world.begin(), world.end());
 
@@ -529,6 +535,10 @@ struct SweepContext {
   Pose2d start;
   double kappa{0.0};
   double precision_m{1e-3};
+  // 起点 yaw 的 cos/sin（同一次运动检查内不变；预计算避免递归中每个位姿
+  // 都重算三角函数）。
+  double cos_yaw{1.0};
+  double sin_yaw{0.0};
 };
 
 struct Decision {
@@ -569,7 +579,8 @@ double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
 Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
                  double s1) {
   const CollisionCheckerImpl& st = *ctx.state;
-  const Pose2d p1 = pose_on_arc(ctx.start, s1, ctx.kappa);
+  const Pose2d p1 =
+      pose_on_arc_trig(ctx.start, s1, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
   const PoseHit hit1 = evaluate_pose(st, p1);
   const double delta_yaw = ctx.kappa * (s1 - s0);
   const bool at_floor =
@@ -587,7 +598,8 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
       return decision;
     }
     const double sm = 0.5 * (s0 + s1);
-    const Pose2d pm = pose_on_arc(ctx.start, sm, ctx.kappa);
+    const Pose2d pm =
+        pose_on_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
     const PoseHit hitm = evaluate_pose(st, pm);
     if (hitm.hit) {
       return resolve(ctx, s0, p0, sm);
@@ -615,7 +627,8 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
     return decision;
   }
   const double sm = 0.5 * (s0 + s1);
-  const Pose2d pm = pose_on_arc(ctx.start, sm, ctx.kappa);
+  const Pose2d pm =
+      pose_on_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
   const PoseHit hitm = evaluate_pose(st, pm);
   if (hitm.hit) {
     return resolve(ctx, s0, p0, sm);
@@ -699,6 +712,8 @@ CheckResult check_motion_impl(const CollisionCheckerImpl& st, const MotionSegmen
   ctx.start = segment.start;
   ctx.kappa = segment.curvature_inv_m;
   ctx.precision_m = st.options.sweep_precision_m;
+  ctx.cos_yaw = std::cos(segment.start.yaw_rad);
+  ctx.sin_yaw = std::sin(segment.start.yaw_rad);
   const double sign = segment.direction == Direction::kForward ? 1.0 : -1.0;
   const double sigma = sign * segment.length_m;
   return result_from_decision(resolve(ctx, 0.0, segment.start, sigma));
