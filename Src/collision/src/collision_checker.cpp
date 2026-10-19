@@ -196,6 +196,14 @@ struct CollisionCheckerImpl {
   std::vector<std::uint8_t> chunk_blocked;
   bool use_chunk_index{false};
 
+  // 非空闲单元的精确行索引（与 enable_acceleration 无关；只改变候选的
+  // 枚举方式，判定与“逐单元扫描”完全一致）：
+  //   * blocked_offsets[r] .. blocked_offsets[r+1] 是第 r 行被阻塞单元的
+  //     列号（升序）；总空间 O(#blocked)。
+  bool blocked_index_valid{false};
+  std::vector<int> blocked_offsets;
+  std::vector<int> blocked_cols;
+
   // 多分辨率块计数二维前缀和（“判空金字塔”）。层 ℓ 的块边长为
   // block = 2^ℓ；rows/cols 是块级行列数；sum 是 (rows+1)×(cols+1) 的
   // 积分图，元素为块内“被占格数”（cells != kCellFree，与逐单元扫描的
@@ -308,6 +316,26 @@ bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
     }
   }
   return false;
+}
+
+// 按行主序精确枚举 [row0,row1] x [col0,col1] 内的被阻塞单元（空闲单元在
+// `test_cell` 中立即返回，枚举它们不可能改变判定）。顺序与全单元扫描一致
+// （行升序、行内列升序），因此首个命中的单元及诊断字符串完全相同。
+// `fn(row, col)` 返回 false 立即终止整个枚举。
+template <typename Fn>
+void for_each_blocked_cell_in(const CollisionCheckerImpl& st, int row0, int row1,
+                              int col0, int col1, Fn&& fn) {
+  const int* cols = st.blocked_cols.data();
+  for (int row = row0; row <= row1; ++row) {
+    const int* begin = cols + st.blocked_offsets[static_cast<std::size_t>(row)];
+    const int* end = cols + st.blocked_offsets[static_cast<std::size_t>(row) + 1];
+    const int* it = std::lower_bound(begin, end, col0);
+    for (; it != end && *it <= col1; ++it) {
+      if (!fn(row, *it)) {
+        return;
+      }
+    }
+  }
 }
 
 struct PoseHit {
@@ -468,7 +496,15 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
                         " overlaps the vehicle footprint";
     };
 
-    if (st.use_chunk_index && !st.chunk_blocked.empty()) {
+    if (st.blocked_index_valid) {
+      // 精确候选枚举：只测试被阻塞单元。空闲单元在 `test_cell` 中立即
+      // 返回，跳过它们不改变判定；行主序短路顺序与原扫描一致。
+      for_each_blocked_cell_in(st, row0, row1, col0, col1,
+                               [&](int row, int col) {
+                                 test_cell(row, col);
+                                 return !cell_hit.hit;
+                               });
+    } else if (st.use_chunk_index && !st.chunk_blocked.empty()) {
       const int chunk = st.chunk_size;
       const int c0 = col0 / chunk;
       const int c1 = col1 / chunk;
@@ -615,7 +651,15 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       }
     };
     if (!grid_empty) {
-      if (st.use_chunk_index && !st.chunk_blocked.empty()) {
+      if (st.blocked_index_valid) {
+        // 与 evaluate_pose 相同的精确候选枚举：只测试被阻塞单元（空闲
+        // 单元在本 lambda 内立即返回），行主序短路顺序不变。
+        for_each_blocked_cell_in(st, row0, row1 - 1, col0, col1 - 1,
+                                 [&](int row, int col) {
+                                   test_cell(row, col);
+                                   return clear;
+                                 });
+      } else if (st.use_chunk_index && !st.chunk_blocked.empty()) {
         const int chunk = st.chunk_size;
         const int c0 = col0 / chunk;
         const int c1 = col1 / chunk;
@@ -998,6 +1042,47 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
       state->obstacle_scale_m =
           std::max(state->obstacle_scale_m,
                    state->obstacle_boxes.back().max_abs_coordinate());
+    }
+    if (scene.has_grid()) {
+      // 被阻塞单元的精确行索引（始终构建；与 enable_acceleration 无关，
+      // 只改变候选枚举方式，判定与逐单元扫描一致）。两遍扫描：先按行
+      // 计数得到行偏移，再按行内升序填充列号。
+      const int height = scene.grid.height;
+      const int width = scene.grid.width;
+      state->blocked_offsets.assign(static_cast<std::size_t>(height) + 1, 0);
+      std::size_t total = 0;
+      for (int row = 0; row < height; ++row) {
+        int count = 0;
+        for (int col = 0; col < width; ++col) {
+          const int value = scene.grid.cells[static_cast<std::size_t>(row) *
+                                                 width +
+                                             col];
+          if (value != kCellFree) {
+            ++count;
+          }
+        }
+        state->blocked_offsets[static_cast<std::size_t>(row) + 1] =
+            state->blocked_offsets[static_cast<std::size_t>(row)] + count;
+        total += static_cast<std::size_t>(count);
+      }
+      // 超大被阻塞集合时不建逐行索引，回退到原有枚举路径：内存上界
+      // （8M 条目 = 32 MB）之外保持原路径，判定不受影响。
+      constexpr std::size_t kMaxBlockedIndexEntries = 8u << 20;
+      if (total <= kMaxBlockedIndexEntries) {
+        state->blocked_cols.resize(total);
+        std::size_t cursor = 0;
+        for (int row = 0; row < height; ++row) {
+          for (int col = 0; col < width; ++col) {
+            const int value = scene.grid.cells[static_cast<std::size_t>(row) *
+                                                   width +
+                                               col];
+            if (value != kCellFree) {
+              state->blocked_cols[cursor++] = col;
+            }
+          }
+        }
+        state->blocked_index_valid = true;
+      }
     }
     if (scene.has_grid() && kPrefixLevels > 0) {
       build_prefix_pyramid(state->scene.grid, state->prefix_levels);
