@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "type": "validation_request",
+  "vehicle": {
+    "id": "default_test_vehicle",
+    "wheelbase_m": 2.8,
+    "width_m": 1.8,
+    "front_overhang_m": 0.9,
+    "rear_overhang_m": 1.0,
+    "max_steer_rad": 0.5,
+    "safety_margin_m": 0.1
+  },
+  "limits": {
+    "max_speed_mps": 2.0,
+    "max_acceleration_mps2": 2.0,
+    "max_deceleration_mps2": 2.0,
+    "max_curvature_inv_m": 0.2
+  },
+  "goal": {"x_m": 3.0, "y_m": 0.0, "yaw_rad": 0.0},
+  "obstacles": [
+    {
+      "id": "wall_beside_path",
+      "vertices": [
+        {"x_m": 0.5, "y_m": 3.0},
+        {"x_m": 2.0, "y_m": 3.0},
+        {"x_m": 2.0, "y_m": 4.0},
+        {"x_m": 0.5, "y_m": 4.0}
+      ]
+    }
+  ],
+  "corridor": {
+    "id": "corridor_example",
+    "map_id": "map_example",
+    "map_version": "v1",
+    "frame_id": "map",
+    "polygons": [
+      {
+        "s_start_m": 0.0,
+        "s_end_m": 1.5,
+        "vertices": [
+          {"x_m": -2.0, "y_m": -2.0},
+          {"x_m": 6.0, "y_m": -2.0},
+          {"x_m": 6.0, "y_m": 2.0},
+          {"x_m": -2.0, "y_m": 2.0}
+        ]
+      },
+      {
+        "s_start_m": 1.5,
+        "s_end_m": 3.0,
+        "vertices": [
+          {"x_m": 0.0, "y_m": -2.0},
+          {"x_m": 7.0, "y_m": -2.0},
+          {"x_m": 7.0, "y_m": 2.0},
+          {"x_m": 0.0, "y_m": 2.0}
+        ]
+      }
+    ]
+  },
+  "trajectory": [
+    {"t_s": 0.0, "pose": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 1.0, "curvature_inv_m": 0.0},
+    {"t_s": 1.0, "pose": {"x_m": 0.5, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 1.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 2.0, "pose": {"x_m": 1.5, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 1.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 3.0, "pose": {"x_m": 2.5, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 1.0, "acceleration_mps2": -1.0, "curvature_inv_m": 0.0},
+    {"t_s": 4.0, "pose": {"x_m": 3.0, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0}
+  ]
+}

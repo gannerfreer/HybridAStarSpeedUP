@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req-hybrid-failure-001",
+  "status": "no_path",
+  "reason": "目标位于四面封闭的房间内，不存在无碰撞路径",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "path": [],
+  "trajectory": [],
+  "statistics": {
+    "expanded_nodes": 258401,
+    "collision_checks": 3124432,
+    "planning_time_s": 1.73,
+    "budget_exhausted": false,
+    "reached_goal": false
+  },
+  "notes": [
+    "失败样例：status=no_path 且 path 为空；显示端不得绘制路径，只显示状态与原因。",
+    "统计数据为示例值；真实失败报告需按 §7.2 记录尝试/成功/失败/中断数量。"
+  ]
+}

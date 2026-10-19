@@ -1,0 +1,2038 @@
+{
+  "schema_version": 1,
+  "type": "path_case_set",
+  "fixture_version": "v7",
+  "source": "Docs/component_development_plan.md §7.1 + Hybrid A* 基准套件 v2（fixtures v7 统一画布 36 场景集，2026-10-16）",
+  "vehicle_ref": {
+    "file": "vehicles/default.json",
+    "id": "default_test_vehicle"
+  },
+  "grid_derivation": "grid 仅给几何（map_id/map_version/resolution_m/origin/width/height，width/height 为格数）；占据格由 obstacles 按“接触即占据”栅格化得到；无 unknown 格；地图外视为占据。obstacles 为世界坐标、米；矩形含边界，多边形顶点按给定顺序构成简单凸多边形（逆时针）。",
+  "expected_semantics": "expected.status 为 success 或 failure；failure 时 failure_reason ∈ {no_path, timeout, invalid_input, cancelled}，与 Src/common Status 枚举语义一致。request_overrides 可选，映射 PlanRequest 的 cancelled / time_budget_s / node_budget 字段；本场景集不使用 request_overrides（基准运行器按套件预算覆盖）。",
+  "classes": [
+    {
+      "name": "open",
+      "count": 6,
+      "description": "空旷直达：无障碍，6 种不同起终点位置/朝向（东西、南北、对角、对头、跨区、朝南停靠）"
+    },
+    {
+      "name": "obstacle",
+      "count": 6,
+      "description": "障碍绕行：居中块、偏左/偏右侧方障碍、两段交错侧墙、凸多边形、两墙门洞；含 ≥2 个侧方障碍场景"
+    },
+    {
+      "name": "corridor",
+      "count": 6,
+      "description": "通道通行：直通道、错位通道、S 形通道、侧向进出口（7 m 侧门）、入口横向偏移、最窄 2.6 m 通道"
+    },
+    {
+      "name": "park",
+      "count": 6,
+      "description": "倒车泊车：上向车位（含镜像与纯倒车变体）、下向车位（含旋转 180° 镜像）与平行车位；6 种不同起点位姿（朝东/朝西/朝南），均倒车入位"
+    },
+    {
+      "name": "deadend",
+      "count": 6,
+      "description": "死胡同脱困：口部朝下/朝上/朝西/朝东的袋形位，另含漏斗形与 L 形支路，均需倒车退出"
+    },
+    {
+      "name": "unreachable",
+      "count": 6,
+      "description": "不可达：封闭房间、全高隔断、1.5 m 缺口、实体环、堵死门洞、1.6 m 缺口隔断（expected=no_path）"
+    }
+  ],
+  "cases": [
+    {
+      "id": "b2-open-01",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 701,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "统一画布 30×16 m；东西向直线直达（同向直线）；起点足迹 x[0.90,5.80] y[7.00,9.00]、终点足迹 x[24.90,29.80] y[7.00,9.00]，四边余量 ≥2 m。"
+    },
+    {
+      "id": "b2-open-02",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 702,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 4.0,
+        "y_m": 2.0,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 4.0,
+        "y_m": 12.0,
+        "yaw_rad": 1.570796
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "南北向直线（车头朝 +y）；起点足迹 x[3.00,5.00] y[0.90,5.80]、终点足迹 x[3.00,5.00] y[10.90,15.80]，均在画布内。"
+    },
+    {
+      "id": "b2-open-03",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 703,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 2.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 25.0,
+        "y_m": 12.5,
+        "yaw_rad": 0.785398
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "对角机动、终点航向 45°；起点足迹 x[0.90,5.80] y[1.00,3.00]、终点足迹 x[23.52,28.39] y[11.02,15.89]，终点四边余量 ≥1.6 m。"
+    },
+    {
+      "id": "b2-open-04",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 704,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 27.0,
+        "y_m": 3.0,
+        "yaw_rad": 3.141593
+      },
+      "goal": {
+        "x_m": 3.0,
+        "y_m": 3.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "对头朝向（起点朝西、终点朝东）横穿画布；起点足迹 x[23.20,28.10] y[2.00,4.00]、终点足迹 x[1.90,6.80] y[2.00,4.00]。"
+    },
+    {
+      "id": "b2-open-05",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 705,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 3.0,
+        "y_m": 11.0,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 3.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "左上区起点朝北、右下区终点朝东的斜向跨区机动；起点足迹 x[2.00,4.00] y[9.90,14.80]、终点足迹 x[24.90,29.80] y[2.00,4.00]。"
+    },
+    {
+      "id": "b2-open-06",
+      "class": "open",
+      "vehicle": "default_test_vehicle",
+      "seed": 706,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-open-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 5.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 27.0,
+        "y_m": 14.0,
+        "yaw_rad": -1.570796
+      },
+      "obstacles": [],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "终点朝南（车头朝 -y）停靠上沿；起点足迹 x[0.90,5.80] y[4.00,6.00]、终点足迹 x[26.00,28.00] y[10.20,15.10]（上沿余量 0.9 m）。"
+    },
+    {
+      "id": "b2-obstacle-01",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 707,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "block_center_01",
+          "type": "rectangle",
+          "x_min_m": 13.5,
+          "y_min_m": 5.0,
+          "x_max_m": 16.5,
+          "y_max_m": 11.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "居中 3×6 m 矩形块；下方通行带净宽 5.0 m（车心带 y∈[1,4]）、上方净宽 5.0 m（车心带 y∈[12,15]），两侧均可绕行。"
+    },
+    {
+      "id": "b2-obstacle-02",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 708,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "block_upper_02",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 6.5,
+          "x_max_m": 16.0,
+          "y_max_m": 11.5
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "侧方障碍（偏上/偏左）：障碍 x[12,16] y[6.5,11.5]；下方绕行带净宽 6.5 m（车心带 y∈[1,5.5]）为主绕行侧，上方净宽 4.5 m（车心带 y∈[12.5,15]）亦可绕行。"
+    },
+    {
+      "id": "b2-obstacle-03",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 709,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "block_lower_03",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 4.5,
+          "x_max_m": 16.0,
+          "y_max_m": 9.5
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "侧方障碍（偏下/偏右）：障碍 x[12,16] y[4.5,9.5]；上方绕行带净宽 6.5 m（车心带 y∈[10.5,15]）为主绕行侧，下方净宽 4.5 m（车心带 y∈[1,3.5]）亦可绕行。"
+    },
+    {
+      "id": "b2-obstacle-04",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 710,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.3,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "stagger_top_04",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 8.4,
+          "x_max_m": 9.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "stagger_bottom_04",
+          "type": "rectangle",
+          "x_min_m": 19.5,
+          "y_min_m": 0.0,
+          "x_max_m": 22.5,
+          "y_max_m": 7.4
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "两段交错侧墙（上/下各一）：左侧需车心 y≤7.3（A 下沿 8.4），右侧需车心 y≥8.5（B 上沿 7.4）；过渡区 x[9,19.5]，车心窗口约 5.6 m，足以完成 1.2 m 的 S 形平移（两段 R≈5.125 m 圆弧纵向约 4.8 m）。"
+    },
+    {
+      "id": "b2-obstacle-05",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 711,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "poly_upper_05",
+          "type": "convex_polygon",
+          "vertices": [
+            {
+              "x_m": 12.5,
+              "y_m": 7.5
+            },
+            {
+              "x_m": 15.5,
+              "y_m": 6.5
+            },
+            {
+              "x_m": 16.5,
+              "y_m": 9.5
+            },
+            {
+              "x_m": 13.0,
+              "y_m": 10.5
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "单个凸四边形障碍（逆时针，外接盒 x[12.5,16.5] y[6.5,10.5]）；下方绕行带净宽 6.5 m（车心带 y∈[1,5.5]）、上方净宽 5.5 m（车心带 y∈[11.5,15]）。"
+    },
+    {
+      "id": "b2-obstacle-06",
+      "class": "obstacle",
+      "vehicle": "default_test_vehicle",
+      "seed": 712,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-obstacle-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.75,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.75,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "gate_lower_06",
+          "type": "rectangle",
+          "x_min_m": 10.0,
+          "y_min_m": 0.0,
+          "x_max_m": 14.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "gate_upper_06",
+          "type": "rectangle",
+          "x_min_m": 10.0,
+          "y_min_m": 9.5,
+          "x_max_m": 14.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "两段墙形成 3.5 m 门洞（y∈[6,9.5]，车心带 y∈[7,8.5]）；起终点与门洞轴线 y=7.75 对齐。"
+    },
+    {
+      "id": "b2-corridor-01",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 713,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_lower_01",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 0.0,
+          "x_max_m": 22.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_upper_01",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 9.0,
+          "x_max_m": 22.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "直通道：x∈[6,22]、净宽 3.0 m（车心带 y∈[7,8]）；起终点与通道轴线 y=7.5 对齐。"
+    },
+    {
+      "id": "b2-corridor-02",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 714,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_lower_a_02",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 0.0,
+          "x_max_m": 14.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_upper_a_02",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 9.0,
+          "x_max_m": 14.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "wall_lower_b_02",
+          "type": "rectangle",
+          "x_min_m": 14.0,
+          "y_min_m": 0.0,
+          "x_max_m": 22.0,
+          "y_max_m": 6.5
+        },
+        {
+          "id": "wall_upper_b_02",
+          "type": "rectangle",
+          "x_min_m": 14.0,
+          "y_min_m": 9.5,
+          "x_max_m": 22.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "错位通道：x=14 处整体上移 0.5 m；两段净宽均 3.0 m（车心带 A y∈[7,8]、B y∈[7.5,8.5]），接缝处连续通带净宽 2.5 m；起点对齐 A 轴、终点对齐 B 轴。"
+    },
+    {
+      "id": "b2-corridor-03",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 715,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_lower_1_03",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 0.0,
+          "x_max_m": 13.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_upper_1_03",
+          "type": "rectangle",
+          "x_min_m": 6.0,
+          "y_min_m": 9.0,
+          "x_max_m": 13.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "wall_lower_2_03",
+          "type": "rectangle",
+          "x_min_m": 13.0,
+          "y_min_m": 0.0,
+          "x_max_m": 19.0,
+          "y_max_m": 6.5
+        },
+        {
+          "id": "wall_upper_2_03",
+          "type": "rectangle",
+          "x_min_m": 13.0,
+          "y_min_m": 9.5,
+          "x_max_m": 19.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "wall_lower_3_03",
+          "type": "rectangle",
+          "x_min_m": 19.0,
+          "y_min_m": 0.0,
+          "x_max_m": 25.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_upper_3_03",
+          "type": "rectangle",
+          "x_min_m": 19.0,
+          "y_min_m": 9.0,
+          "x_max_m": 25.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "S 形通道：三段各净宽 3.0 m，x=13 上移 0.5 m、x=19 下移 0.5 m（车心带 7.5→8→7.5）；两处接缝连续通带净宽均 2.5 m，段长 6 m。"
+    },
+    {
+      "id": "b2-corridor-04",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 716,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 16.5,
+        "y_m": 2.5,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_upper_04",
+          "type": "rectangle",
+          "x_min_m": 8.0,
+          "y_min_m": 9.0,
+          "x_max_m": 24.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "wall_lower_a_04",
+          "type": "rectangle",
+          "x_min_m": 8.0,
+          "y_min_m": 0.0,
+          "x_max_m": 13.5,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_lower_b_04",
+          "type": "rectangle",
+          "x_min_m": 20.5,
+          "y_min_m": 0.0,
+          "x_max_m": 24.0,
+          "y_max_m": 6.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "侧向进出口：通道 x∈[8,24]、净宽 3.0 m；下墙在 x∈[13.5,20.5] 留 7.0 m 侧门，车由下方门腔（x[13.5,20.5] y[0,6]）北行经侧门进入通道，再右转东行驶出（7 m 侧门开口提供转向衔接空间）；起点足迹 x[15.50,17.50] y[1.40,6.30]、终点足迹 x[24.90,29.80] y[6.50,8.50]。"
+    },
+    {
+      "id": "b2-corridor-05",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 717,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 10.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_lower_05",
+          "type": "rectangle",
+          "x_min_m": 14.0,
+          "y_min_m": 0.0,
+          "x_max_m": 24.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "wall_upper_05",
+          "type": "rectangle",
+          "x_min_m": 14.0,
+          "y_min_m": 9.0,
+          "x_max_m": 24.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "入口横向偏移：起点在左端开阔区 y=10.5，需在 x∈[0,14] 内下潜 3 m 至通道轴 y=7.5（可用纵向约 8.2 m > 两段 R≈5.125 m 圆弧所需约 7.3 m）；通道净宽 3.0 m。"
+    },
+    {
+      "id": "b2-corridor-06",
+      "class": "corridor",
+      "vehicle": "default_test_vehicle",
+      "seed": 718,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-corridor-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 7.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "wall_lower_06",
+          "type": "rectangle",
+          "x_min_m": 8.0,
+          "y_min_m": 0.0,
+          "x_max_m": 24.0,
+          "y_max_m": 6.2
+        },
+        {
+          "id": "wall_upper_06",
+          "type": "rectangle",
+          "x_min_m": 8.0,
+          "y_min_m": 8.8,
+          "x_max_m": 24.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "最窄通道：x∈[8,24]、净宽 2.6 m（> 2.2 m 下限；车心带 y∈[7.2,7.8]）；起终点与轴线对齐。"
+    },
+    {
+      "id": "b2-park-01",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 719,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.5,
+        "y_m": 2.475,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 10.0,
+        "y_m": 12.7,
+        "yaw_rad": -1.570796
+      },
+      "obstacles": [
+        {
+          "id": "bay_left_01",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 8.8,
+          "x_max_m": 8.7,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_right_01",
+          "type": "rectangle",
+          "x_min_m": 11.3,
+          "y_min_m": 8.8,
+          "x_max_m": 12.1,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_back_01",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 13.9,
+          "x_max_m": 12.1,
+          "y_max_m": 14.7
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "上向车位（口部朝下）：净宽 2.6 m、内部深 5.1 m；起点 (2.5,2.475,0) 朝东，构造机动 = 前进至 (15.125,2.475,0) → 倒车四分之一圆弧 R≈5.125 m 至 (10,7.6,-90°) → 直线倒车 5.1 m 入位；终点足迹 x[9.00,11.00] y[8.90,13.80]（左右余量 0.3 m、后墙余量 0.1 m）。"
+    },
+    {
+      "id": "b2-park-02",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 720,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 27.5,
+        "y_m": 2.475,
+        "yaw_rad": 3.141593
+      },
+      "goal": {
+        "x_m": 20.0,
+        "y_m": 12.7,
+        "yaw_rad": -1.570796
+      },
+      "obstacles": [
+        {
+          "id": "bay_left_02",
+          "type": "rectangle",
+          "x_min_m": 17.9,
+          "y_min_m": 8.8,
+          "x_max_m": 18.7,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_right_02",
+          "type": "rectangle",
+          "x_min_m": 21.3,
+          "y_min_m": 8.8,
+          "x_max_m": 22.1,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_back_02",
+          "type": "rectangle",
+          "x_min_m": 17.9,
+          "y_min_m": 13.9,
+          "x_max_m": 22.1,
+          "y_max_m": 14.7
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "上向车位（偏右镜像）：起点 (27.5,2.475,π) 朝西；构造机动 = 前进至 (14.875,2.475,π) → 倒车四分之一圆弧（镜像）至 (20,7.6,-90°) → 直线倒车 5.1 m 入位；终点足迹 x[19.00,21.00] y[8.90,13.80]。"
+    },
+    {
+      "id": "b2-park-03",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 721,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.5,
+        "y_m": 13.525,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 10.0,
+        "y_m": 3.3,
+        "yaw_rad": 1.570796
+      },
+      "obstacles": [
+        {
+          "id": "bay_left_03",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 1.3,
+          "x_max_m": 8.7,
+          "y_max_m": 7.2
+        },
+        {
+          "id": "bay_right_03",
+          "type": "rectangle",
+          "x_min_m": 11.3,
+          "y_min_m": 1.3,
+          "x_max_m": 12.1,
+          "y_max_m": 7.2
+        },
+        {
+          "id": "bay_back_03",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 1.3,
+          "x_max_m": 12.1,
+          "y_max_m": 2.1
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "下向车位（口部朝上）：净宽 2.6 m；起点 (2.5,13.525,0) 朝东；构造机动 = 前进至 (15.125,13.525,0) → 倒车四分之一圆弧（镜像）至 (10,8.4,90°) → 直线倒车 5.1 m 入位；终点足迹 x[9.00,11.00] y[2.20,7.10]（后墙余量 0.1 m）。"
+    },
+    {
+      "id": "b2-park-04",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 722,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 27.5,
+        "y_m": 13.525,
+        "yaw_rad": 3.141593
+      },
+      "goal": {
+        "x_m": 20.0,
+        "y_m": 3.3,
+        "yaw_rad": 1.570796
+      },
+      "obstacles": [
+        {
+          "id": "bay_left_04",
+          "type": "rectangle",
+          "x_min_m": 17.9,
+          "y_min_m": 1.3,
+          "x_max_m": 18.7,
+          "y_max_m": 7.2
+        },
+        {
+          "id": "bay_right_04",
+          "type": "rectangle",
+          "x_min_m": 21.3,
+          "y_min_m": 1.3,
+          "x_max_m": 22.1,
+          "y_max_m": 7.2
+        },
+        {
+          "id": "bay_back_04",
+          "type": "rectangle",
+          "x_min_m": 17.9,
+          "y_min_m": 1.3,
+          "x_max_m": 22.1,
+          "y_max_m": 2.1
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "下向车位（旋转 180° 镜像）：起点 (27.5,13.525,π) 朝西；构造机动 = 前进至 (14.875,13.525,π) → 倒车四分之一圆弧至 (20,8.4,90°) → 直线倒车 5.1 m 入位；终点足迹 x[19.00,21.00] y[2.20,7.10]。"
+    },
+    {
+      "id": "b2-park-05",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 723,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 10.0,
+        "y_m": 4.0,
+        "yaw_rad": -1.570796
+      },
+      "goal": {
+        "x_m": 10.0,
+        "y_m": 12.7,
+        "yaw_rad": -1.570796
+      },
+      "obstacles": [
+        {
+          "id": "bay_left_05",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 8.8,
+          "x_max_m": 8.7,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_right_05",
+          "type": "rectangle",
+          "x_min_m": 11.3,
+          "y_min_m": 8.8,
+          "x_max_m": 12.1,
+          "y_max_m": 14.7
+        },
+        {
+          "id": "bay_back_05",
+          "type": "rectangle",
+          "x_min_m": 7.9,
+          "y_min_m": 13.9,
+          "x_max_m": 12.1,
+          "y_max_m": 14.7
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "上向车位（口部朝下，与 park-01 同款车位）：起点 (10,4,-90°) 朝南（与车位轴线对齐），构造机动 = 沿轴线直线倒车 8.7 m 入位（无换向）；起点足迹 x[9.00,11.00] y[0.20,5.10]（车道内）、终点足迹 x[9.00,11.00] y[8.90,13.80]（左右余量 0.3 m、后墙余量 0.1 m）。"
+    },
+    {
+      "id": "b2-park-06",
+      "class": "park",
+      "vehicle": "default_test_vehicle",
+      "seed": 724,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-park-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.5,
+        "y_m": 2.5,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 12.95,
+        "y_m": 4.5,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "parked_a_06",
+          "type": "rectangle",
+          "x_min_m": 5.0,
+          "y_min_m": 4.0,
+          "x_max_m": 9.8,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "parked_b_06",
+          "type": "rectangle",
+          "x_min_m": 18.8,
+          "y_min_m": 4.0,
+          "x_max_m": 23.6,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "curb_06",
+          "type": "rectangle",
+          "x_min_m": 0.0,
+          "y_min_m": 6.0,
+          "x_max_m": 30.0,
+          "y_max_m": 6.8
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "平行车位：车位净长 9.0 m（x∈[9.8,18.8]）；起点 (2.5,2.5,0) 朝东沿车道行驶至与前车并排（约 (18.03,2.5,0)）后倒车 S 形入位（两段 R≈5.125 m 倒车圆弧，横向 2.0 m）；终点足迹 x[11.85,16.75] y[3.50,5.50]（前后余量各 2.05 m、路缘间隙 0.5 m）。"
+    },
+    {
+      "id": "b2-deadend-01",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 725,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 7.5,
+        "y_m": 11.3,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 4.375,
+        "y_m": 1.275,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "pocket_left_01",
+          "type": "rectangle",
+          "x_min_m": 5.2,
+          "y_min_m": 9.8,
+          "x_max_m": 6.0,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "pocket_right_01",
+          "type": "rectangle",
+          "x_min_m": 9.0,
+          "y_min_m": 9.8,
+          "x_max_m": 9.8,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "pocket_back_01",
+          "type": "rectangle",
+          "x_min_m": 5.2,
+          "y_min_m": 15.2,
+          "x_max_m": 9.8,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "袋形死胡同（口部朝下，净宽 3.0 m、深 5.4 m）：车头朝封闭端（+y）；构造机动 = 直线倒车出位至 (7.5,6.4,90°) → 倒车四分之一圆弧 R≈5.125 m 至 (2.375,1.275,0°) → 前进 2 m 至终点；起点足迹 x[6.50,8.50] y[10.20,15.10]（后端余量 0.1 m、单侧 0.5 m）、终点足迹 x[3.27,8.18] y[0.27,2.27]。"
+    },
+    {
+      "id": "b2-deadend-02",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 726,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 7.5,
+        "y_m": 4.7,
+        "yaw_rad": -1.570796
+      },
+      "goal": {
+        "x_m": 4.375,
+        "y_m": 14.725,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "pocket_left_02",
+          "type": "rectangle",
+          "x_min_m": 5.2,
+          "y_min_m": 0.0,
+          "x_max_m": 6.0,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "pocket_right_02",
+          "type": "rectangle",
+          "x_min_m": 9.0,
+          "y_min_m": 0.0,
+          "x_max_m": 9.8,
+          "y_max_m": 6.0
+        },
+        {
+          "id": "pocket_back_02",
+          "type": "rectangle",
+          "x_min_m": 5.2,
+          "y_min_m": 0.0,
+          "x_max_m": 9.8,
+          "y_max_m": 0.8
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "袋形死胡同（口部朝上，上下镜像）：车头朝封闭端（-y）；构造机动 = 直线倒车出位至 (7.5,9.6,-90°) → 倒车四分之一圆弧（镜像）至 (2.375,14.725,0°) → 前进 2 m 至终点；起点足迹 x[6.50,8.50] y[0.90,5.80]、终点足迹 x[3.27,8.18] y[13.72,15.72]（圆弧包络顶点约 y=15.82）。"
+    },
+    {
+      "id": "b2-deadend-03",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 727,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 25.25,
+        "y_m": 8.2,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 14.875,
+        "y_m": 12.5,
+        "yaw_rad": -1.570796
+      },
+      "obstacles": [
+        {
+          "id": "pocket_top_03",
+          "type": "rectangle",
+          "x_min_m": 24.0,
+          "y_min_m": 9.5,
+          "x_max_m": 30.0,
+          "y_max_m": 10.3
+        },
+        {
+          "id": "pocket_bottom_03",
+          "type": "rectangle",
+          "x_min_m": 24.0,
+          "y_min_m": 6.1,
+          "x_max_m": 30.0,
+          "y_max_m": 6.9
+        },
+        {
+          "id": "pocket_back_03",
+          "type": "rectangle",
+          "x_min_m": 29.2,
+          "y_min_m": 6.1,
+          "x_max_m": 30.0,
+          "y_max_m": 10.3
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "袋形死胡同（口部朝西）：车头朝封闭端（+x）；构造机动 = 直线倒车出位至 (20,8.2,0°) → 倒车四分之一圆弧至 (14.875,13.325,-90°) → 前进 0.825 m 至终点；起点足迹 x[24.15,29.05] y[7.20,9.20]（前后余量各 0.15 m）、终点足迹 x[13.87,15.88] y[8.70,13.60]。"
+    },
+    {
+      "id": "b2-deadend-04",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 728,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 4.75,
+        "y_m": 8.2,
+        "yaw_rad": 3.141593
+      },
+      "goal": {
+        "x_m": 15.125,
+        "y_m": 5.5,
+        "yaw_rad": 1.570796
+      },
+      "obstacles": [
+        {
+          "id": "pocket_top_04",
+          "type": "rectangle",
+          "x_min_m": 0.0,
+          "y_min_m": 9.5,
+          "x_max_m": 6.0,
+          "y_max_m": 10.3
+        },
+        {
+          "id": "pocket_bottom_04",
+          "type": "rectangle",
+          "x_min_m": 0.0,
+          "y_min_m": 6.1,
+          "x_max_m": 6.0,
+          "y_max_m": 6.9
+        },
+        {
+          "id": "pocket_back_04",
+          "type": "rectangle",
+          "x_min_m": 0.0,
+          "y_min_m": 6.1,
+          "x_max_m": 0.8,
+          "y_max_m": 10.3
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "袋形死胡同（口部朝东，左右镜像）：车头朝封闭端（-x）；构造机动 = 直线倒车出位至 (10,8.2,180°) → 倒车四分之一圆弧至 (15.125,3.075,90°) → 前进 2.425 m 至终点；起点足迹 x[0.95,5.85] y[7.20,9.20]、终点足迹 x[14.12,16.13] y[4.40,9.30]。"
+    },
+    {
+      "id": "b2-deadend-05",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 729,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 7.5,
+        "y_m": 11.3,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 4.375,
+        "y_m": 1.275,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "neck_left_05",
+          "type": "rectangle",
+          "x_min_m": 5.3,
+          "y_min_m": 9.8,
+          "x_max_m": 6.1,
+          "y_max_m": 12.6
+        },
+        {
+          "id": "neck_right_05",
+          "type": "rectangle",
+          "x_min_m": 8.9,
+          "y_min_m": 9.8,
+          "x_max_m": 9.7,
+          "y_max_m": 12.6
+        },
+        {
+          "id": "chamber_left_05",
+          "type": "rectangle",
+          "x_min_m": 3.7,
+          "y_min_m": 12.6,
+          "x_max_m": 4.5,
+          "y_max_m": 15.2
+        },
+        {
+          "id": "chamber_right_05",
+          "type": "rectangle",
+          "x_min_m": 10.5,
+          "y_min_m": 12.6,
+          "x_max_m": 11.3,
+          "y_max_m": 15.2
+        },
+        {
+          "id": "chamber_back_05",
+          "type": "rectangle",
+          "x_min_m": 3.7,
+          "y_min_m": 15.2,
+          "x_max_m": 11.3,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "漏斗形死胡同（口部朝下）：颈部净宽 2.8 m、腔体净宽 6.0 m；车头朝封闭端；构造机动 = 直线倒车出颈至 (7.5,6.4,90°) → 倒车四分之一圆弧至 (2.375,1.275,0°) → 前进 2 m 至终点；起点足迹 x[6.50,8.50] y[10.20,15.10]（跨颈/腔、后端余量 0.1 m）。"
+    },
+    {
+      "id": "b2-deadend-06",
+      "class": "deadend",
+      "vehicle": "default_test_vehicle",
+      "seed": 730,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-deadend-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 7.5,
+        "y_m": 11.3,
+        "yaw_rad": 1.570796
+      },
+      "goal": {
+        "x_m": 4.375,
+        "y_m": 1.275,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "branch_left_06",
+          "type": "rectangle",
+          "x_min_m": 5.4,
+          "y_min_m": 9.8,
+          "x_max_m": 6.2,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "branch_right_06",
+          "type": "rectangle",
+          "x_min_m": 8.8,
+          "y_min_m": 9.8,
+          "x_max_m": 9.6,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "branch_back_06",
+          "type": "rectangle",
+          "x_min_m": 5.4,
+          "y_min_m": 15.2,
+          "x_max_m": 9.6,
+          "y_max_m": 16.0
+        },
+        {
+          "id": "lane_wall_06",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 9.8,
+          "x_max_m": 16.0,
+          "y_max_m": 10.6
+        }
+      ],
+      "expected": {
+        "status": "success"
+      },
+      "notes": "L 形支路死胡同（口部朝下，净宽 2.6 m）+ 右侧车道边界墙（x≥12）：车头朝封闭端；构造机动 = 直线倒车出位至 (7.5,6.4,90°) → 倒车四分之一圆弧至 (2.375,1.275,0°) → 前进 2 m 至终点；起点足迹 x[6.50,8.50] y[10.20,15.10]（单侧余量 0.3 m）。"
+    },
+    {
+      "id": "b2-unreachable-01",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 731,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-01",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 15.2,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "room_bottom_01",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 1.0,
+          "x_max_m": 20.0,
+          "y_max_m": 1.8
+        },
+        {
+          "id": "room_top_01",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 10.2,
+          "x_max_m": 20.0,
+          "y_max_m": 11.0
+        },
+        {
+          "id": "room_left_01",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 1.0,
+          "x_max_m": 12.8,
+          "y_max_m": 11.0
+        },
+        {
+          "id": "room_right_01",
+          "type": "rectangle",
+          "x_min_m": 19.2,
+          "y_min_m": 1.0,
+          "x_max_m": 20.0,
+          "y_max_m": 11.0
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "封闭房间：四墙正面积重叠封闭（无门洞）；目标足迹 x[14.10,19.00] y[5.00,7.00] 位于房内且不碰墙。"
+    },
+    {
+      "id": "b2-unreachable-02",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 732,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-02",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 8.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "full_wall_02",
+          "type": "rectangle",
+          "x_min_m": 14.0,
+          "y_min_m": 0.0,
+          "x_max_m": 14.8,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "全高隔断：竖墙 x∈[14,14.8] 贯穿画布全高（上下触界，地图外视为占据），无绕行通道。"
+    },
+    {
+      "id": "b2-unreachable-03",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 733,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-03",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "gap_lower_03",
+          "type": "rectangle",
+          "x_min_m": 13.0,
+          "y_min_m": 0.0,
+          "x_max_m": 14.0,
+          "y_max_m": 5.25
+        },
+        {
+          "id": "gap_upper_03",
+          "type": "rectangle",
+          "x_min_m": 13.0,
+          "y_min_m": 6.75,
+          "x_max_m": 14.0,
+          "y_max_m": 16.0
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "隔断缺口 1.5 m（y∈[5.25,6.75]）< 整车包络宽度 2.0 m，几何不可通过；两墙分别与上下边界相接。"
+    },
+    {
+      "id": "b2-unreachable-04",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 734,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-04",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 7.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 14.6,
+        "y_m": 7.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "ring_top_04",
+          "type": "rectangle",
+          "x_min_m": 12.6,
+          "y_min_m": 10.0,
+          "x_max_m": 19.4,
+          "y_max_m": 10.8
+        },
+        {
+          "id": "ring_bottom_04",
+          "type": "rectangle",
+          "x_min_m": 12.6,
+          "y_min_m": 3.2,
+          "x_max_m": 19.4,
+          "y_max_m": 4.0
+        },
+        {
+          "id": "ring_left_04",
+          "type": "rectangle",
+          "x_min_m": 12.2,
+          "y_min_m": 3.6,
+          "x_max_m": 13.0,
+          "y_max_m": 10.4
+        },
+        {
+          "id": "ring_right_04",
+          "type": "rectangle",
+          "x_min_m": 19.0,
+          "y_min_m": 3.6,
+          "x_max_m": 19.8,
+          "y_max_m": 10.4
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "实体环：四段墙两两正面积重叠封闭；目标足迹 x[13.50,18.40] y[6.00,8.00] 位于环内腔且不碰墙。"
+    },
+    {
+      "id": "b2-unreachable-05",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 735,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-05",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 15.2,
+        "y_m": 6.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "door_room_left_05",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 1.0,
+          "x_max_m": 12.8,
+          "y_max_m": 11.0
+        },
+        {
+          "id": "door_room_right_05",
+          "type": "rectangle",
+          "x_min_m": 19.2,
+          "y_min_m": 1.0,
+          "x_max_m": 20.0,
+          "y_max_m": 11.0
+        },
+        {
+          "id": "door_room_top_05",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 10.2,
+          "x_max_m": 20.0,
+          "y_max_m": 11.0
+        },
+        {
+          "id": "door_room_bottom_left_05",
+          "type": "rectangle",
+          "x_min_m": 12.0,
+          "y_min_m": 1.0,
+          "x_max_m": 15.2,
+          "y_max_m": 1.8
+        },
+        {
+          "id": "door_room_bottom_right_05",
+          "type": "rectangle",
+          "x_min_m": 16.8,
+          "y_min_m": 1.0,
+          "x_max_m": 20.0,
+          "y_max_m": 1.8
+        },
+        {
+          "id": "door_blocker_05",
+          "type": "rectangle",
+          "x_min_m": 14.9,
+          "y_min_m": 1.0,
+          "x_max_m": 18.1,
+          "y_max_m": 1.9
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "堵死门洞：底墙留 1.6 m 门洞（x∈[15.2,16.8]）被堵块 x[14.9,18.1] y[1,1.9] 与两段底墙实体重叠封死；目标足迹 x[14.10,19.00] y[5.00,7.00] 位于房内。"
+    },
+    {
+      "id": "b2-unreachable-06",
+      "class": "unreachable",
+      "vehicle": "default_test_vehicle",
+      "seed": 736,
+      "grid": {
+        "map_id": "hybrid_bench_v2_b2-unreachable-06",
+        "map_version": "v7",
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "width": 300,
+        "height": 160
+      },
+      "start": {
+        "x_m": 2.0,
+        "y_m": 3.0,
+        "yaw_rad": 0.0
+      },
+      "goal": {
+        "x_m": 26.0,
+        "y_m": 13.0,
+        "yaw_rad": 0.0
+      },
+      "obstacles": [
+        {
+          "id": "partition_left_06",
+          "type": "rectangle",
+          "x_min_m": 0.0,
+          "y_min_m": 7.5,
+          "x_max_m": 20.2,
+          "y_max_m": 8.3
+        },
+        {
+          "id": "partition_right_06",
+          "type": "rectangle",
+          "x_min_m": 21.8,
+          "y_min_m": 7.5,
+          "x_max_m": 30.0,
+          "y_max_m": 8.3
+        }
+      ],
+      "expected": {
+        "status": "failure",
+        "failure_reason": "no_path"
+      },
+      "notes": "横向隔断：两段墙分别触左/右边界，缺口 x∈[20.2,21.8] 仅 1.6 m < 2.0 m 包络宽度；起点在下半区、目标在上半区。"
+    }
+  ],
+  "self_check": {
+    "performed_by": "夹具设计代理（几何构造 + 独立 Python 校验脚本 /tmp/opencode/validate_v7.py）",
+    "canvas": "36 例同一画布：300×160 格 @0.1 m（30×16 m），origin (0,0)、row0 底行、yaw 0；grid.map_id 唯一（hybrid_bench_v2_<id>）、map_version=\"v7\"。",
+    "vehicle": "默认测试车辆（vehicles/default.json）：包络 4.9×2.0 m（后轴后 1.1 m、前 3.8 m、半宽 1.0 m，含 0.1 m 安全裕量）；最小转弯半径 R=2.8/tan(0.5)≈5.125 m。",
+    "checks": [
+      "36 例 = 6 类 × 6 变体，id（b2-<class>-01..06）与 seed（701–736）唯一；expected：30 例 success + 6 例 unreachable no_path。",
+      "起终点足迹（含 0.1 m 裕量包络）无碰撞且完整落在画布内（36/36）。",
+      "障碍几何合法：矩形范围正向、凸多边形简单凸且逆时针、均在画布内、id 唯一。",
+      "除 unreachable 外通道/门洞净宽 ≥2.2 m（设计值 2.5–7.0 m；通道类 2.6–3.0 m）；最大最小间隙路径（半径 1.0 m 圆盘）验证 30 例 success 全部连通，记录最窄瓶颈。",
+      "unreachable 封闭性：封闭腔/隔断/缺口（1.5–1.6 m）/堵死门洞对半径 1.0 m 圆盘均无通路。",
+      "侧方类场景合计 ≥6：obstacle-02/03/04（侧方障碍/交错侧墙）、corridor-04（侧门）、corridor-05（入口横移）、park-06（平行车位）、deadend-03/04（侧向口部）共 8 例。",
+      "各例可行构造机动（直线段 + 四分之一圆弧，R≈5.125 m）与逐段包络间隙见各例 notes；换向次数 ≤1（park-06 为两段倒车 S 形）。"
+    ],
+    "validation": {
+      "status": "passed",
+      "script": "validate_v7.py（独立 Python 脚本，仅标准库；临时位于 /tmp/opencode/，报告 validation_v7_report.json）",
+      "run_at_utc": "2026-10-16T11:24:18Z",
+      "checks": {
+        "canvas_uniform": "通过：36/36 同一画布 300×160 @0.1 m，origin (0,0)、yaw 0、row0 底行；map_id 唯一、map_version=v7。",
+        "footprint_start_goal": "通过：36/36 起终点含 0.1 m 裕量的 4.9×2.0 m 包络足迹与障碍不相交（SAT，接触即碰撞）且完整在画布内。",
+        "obstacle_geometry": "通过：全部矩形范围正向、凸多边形简单凸/逆时针/面积非零、均在画布内、障碍 id 唯一。",
+        "passage_width_success": "通过：30/30 success 例以半径 1.0 m 圆盘做最大最小间隙路径（0.1 m 栅格）全部连通；最窄瓶颈净宽 2.30 m（b2-park-03），满足 ≥2.2 m。",
+        "unreachable_closure": "通过：6/6 unreachable 例圆盘无通路（最大瓶颈净宽 1.50 m，b2-unreachable-06；其余 ≤1.4 m 或 0），封闭腔/隔断/窄缺口/堵死门洞成立。",
+        "ids_classes_expected": "通过：36 例 id/seed 唯一，6 类 × 6 变体；30 例 success + 6 例 unreachable/no_path。"
+      },
+      "bottleneck_net_width_m": {
+        "b2-corridor-01": 2.9,
+        "b2-corridor-02": 2.5,
+        "b2-corridor-03": 2.5,
+        "b2-corridor-04": 2.9,
+        "b2-corridor-05": 2.9,
+        "b2-corridor-06": 2.5,
+        "b2-deadend-01": 2.5,
+        "b2-deadend-02": 2.5,
+        "b2-deadend-03": 2.5,
+        "b2-deadend-04": 2.5,
+        "b2-deadend-05": 2.5,
+        "b2-deadend-06": 2.5,
+        "b2-obstacle-01": 4.1,
+        "b2-obstacle-02": 4.1,
+        "b2-obstacle-03": 4.1,
+        "b2-obstacle-04": 4.1,
+        "b2-obstacle-05": 4.1,
+        "b2-obstacle-06": 3.5,
+        "b2-open-01": 4.1,
+        "b2-open-02": 4.1,
+        "b2-open-03": 4.1,
+        "b2-open-04": 5.9,
+        "b2-open-05": 6.1,
+        "b2-open-06": 3.9,
+        "b2-park-01": 2.5,
+        "b2-park-02": 2.5,
+        "b2-park-03": 2.3,
+        "b2-park-04": 2.3,
+        "b2-park-05": 2.5,
+        "b2-park-06": 2.9,
+        "b2-unreachable-01": 0.0,
+        "b2-unreachable-02": 0.0,
+        "b2-unreachable-03": 1.4,
+        "b2-unreachable-04": 0.0,
+        "b2-unreachable-05": 0.0,
+        "b2-unreachable-06": 1.5
+      },
+      "note": "瓶颈净宽 = 2 × 最大最小间隙路径的最小间隙（圆盘直径模型）；受起终点自身间隙限制的用例给出保守下界。"
+    },
+    "not_a_validation": "以上为手写夹具的几何构造与独立脚本自查，未运行规划器；构造路径的存在性是几何论证，不构成 Hybrid A* 实测通过。"
+  },
+  "notes": [
+    "本文件为 Hybrid A* 基准套件 v2 的场景集（fixtures v7，统一画布 36 例），schema 与 tests/fixtures/v2/paths/cases.json 一致；消费方为 planner_hybrid_astar_bench --suite v2（tests/fixtures/v7 目录），加载路径 paths/cases_bench_v2.json。",
+    "grid 坐标为地图局部坐标系（origin 为 cell (0,0) 左下角的位姿，行 r 沿 origin 的 +y 方向递增，与 GridView 冻结语义一致）；分辨率 0.1 m、行主序。",
+    "单位后缀：_m（米）、_rad（弧度）；数值为十进制字面量。",
+    "容限（终点位置/航向、碰撞、数值）见 Docs/component_development_plan.md §7.1，不在用例内重复；基准运行器的逐 trial 预算由套件覆盖。",
+    "画布与场景为合成测试输入，不代表实车环境；除 unreachable 外 expected=success 为几何构造结论，实测可解性由基准运行记录。"
+  ]
+}

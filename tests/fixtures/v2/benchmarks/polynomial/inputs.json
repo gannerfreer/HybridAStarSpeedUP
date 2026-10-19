@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "type": "polynomial_benchmark_inputs",
+  "fixture_version": "v1",
+  "source": "Docs/component_development_plan.md §7.3（多项式构造/求值/导数）",
+  "dimension": 2,
+  "coefficient_layout": "每段系数按升幂保存：p(u) = c0 + c1*u + c2*u^2 + ...，两个维度分别存于 coefficients.x_m 与 coefficients.y_m 数组；局部时间 u 为该段内 [0,1] 归一化时间，段持续时间均为 1.0 s。",
+  "local_time_rule": "每段使用局部时间 u ∈ [0, 1]；段间无公共时间轴要求（构造基准逐段独立）；时间缩放在本基准中固定为 duration_s = 1.0。",
+  "boundary_condition_sets": {
+    "cubic": {
+      "description": "三次段边界条件：两端位置与速度（p0, v0, p1, v1），每维度独立。",
+      "segment_count": 1000,
+      "indexing": "k = 0..999",
+      "rule": "记 m8 = k mod 8，m5 = k mod 5，m3 = k mod 3，m2 = k mod 2；x: p0 = 0.5*k，v0 = 1.0，p1 = 0.5*k + 1.0 + 0.25*m5，v1 = 1.0 + 0.25*m3；y: p0 = 0.25*(m8 - 4)，v0 = 0.5，p1 = 0.25*(m8 - 2)，v1 = 0.5 + 0.25*m2。所有数值为 0.25 的整数倍，二进制精确可表示。"
+    },
+    "quintic": {
+      "description": "五次段边界条件：两端位置、速度与加速度（p0, v0, a0, p1, v1, a1），每维度独立。",
+      "segment_count": 1000,
+      "indexing": "k = 0..999",
+      "rule": "记 m8 = k mod 8，m4 = k mod 4；x: p0 = 0.5*k，v0 = 0.25*(m8 - 4)，a0 = 0.5，p1 = 0.5*k + 2.0，v1 = 0.5，a1 = -0.5；y: p0 = 0.25*(m8 - 4)，v0 = 0.5，a0 = 0.0，p1 = 0.25*(m8 - 2)，v1 = 0.25*(m4 - 2)，a1 = 0.0。所有数值为 0.25 的整数倍，二进制精确可表示。"
+    }
+  },
+  "construct_batch": {
+    "cubic": {"segments_per_batch": 1000, "source": "boundary_condition_sets.cubic", "measured": true, "notes": "构造含系数求解与内部存储；预分配段容器；JSON 解析与磁盘输出不计入。"},
+    "quintic": {"segments_per_batch": 1000, "source": "boundary_condition_sets.quintic", "measured": true, "notes": "与三次分开计时；五次系数按升幂保存。"}
+  },
+  "eval_batch": {
+    "cubic": {
+      "time_point_count": 10000,
+      "distribution_rule": "将 10,000 个局部时间点均匀分配到 1,000 段：段 k 使用 u = (j + 0.5) / 10，j = 0..9（均为段内部点，等距 0.1，避开段端点边界选择歧义）",
+      "derivative_orders": [0, 1, 2, 3],
+      "notes": "求值与各阶导数分别测量；输出缓冲预分配；Horner 求值为参考实现方式（§6.2）。"
+    },
+    "quintic": {
+      "time_point_count": 10000,
+      "distribution_rule": "与三次相同：段 k 使用 u = (j + 0.5) / 10，j = 0..9",
+      "derivative_orders": [0, 1, 2, 3],
+      "notes": "首版导数阶次 0～3（§6.1）；更高阶未定义时返回明确状态，不计入本批。"
+    }
+  },
+  "validation_examples": [
+    {
+      "id": "cubic_worked_example_1d",
+      "purpose": "无运行验证的公式自查样例：实现者可用它核对三次求解器",
+      "degree": 3,
+      "boundary": {"p0": 0.0, "v0": 1.0, "p1": 1.0, "v1": 0.0},
+      "expected_coefficients_ascending": [0.0, 1.0, 1.0, -1.0],
+      "check": "p(u)=u+u^2-u^3；p(0)=0，p'(0)=1，p(1)=1，p'(1)=0 精确成立"
+    },
+    {
+      "id": "quintic_worked_example_1d",
+      "purpose": "无运行验证的公式自查样例：实现者可用它核对五次求解器",
+      "degree": 5,
+      "boundary": {"p0": 0.0, "v0": 0.0, "a0": 0.0, "p1": 1.0, "v1": 0.0, "a1": 0.0},
+      "expected_coefficients_ascending": [0.0, 0.0, 0.0, 10.0, -15.0, 6.0],
+      "check": "p(u)=10u^3-15u^4+6u^5（smoothstep）；p(0)=0，p'(0)=p''(0)=0，p(1)=1，p'(1)=p''(1)=0 精确成立"
+    }
+  ],
+  "timing_boundaries": {
+    "warmup_batches": 5,
+    "measured_batches": 30,
+    "execution": "单线程顺序执行；正式测量使用独占工作负载窗口（§5.3、§7.3）",
+    "excluded": ["输入生成", "输出缓冲分配", "JSON 编解码", "磁盘输出"],
+    "reported": ["批大小", "批耗时 P50/P95", "批耗时 / 操作数（均摊）", "吞吐", "阶次与维度"],
+    "notes": [
+      "三次与五次、构造与求值/导数分别报告；均摊耗时不得称为单次调用 P95。",
+      "段间连续性与时间缩放的正确性属于功能测试，不在微基准计时内（§6.2）。"
+    ]
+  },
+  "notes": [
+    "本文件给边界条件集合与求值时间点规则，不预存求解后的系数（构造基准必须由实现求解）。",
+    "两个 validation_examples 为 1D 公式自查样例，不参与批计时，也不构成本阶段已执行的验证。",
+    "本阶段未执行任何构造、求值或基准。"
+  ]
+}

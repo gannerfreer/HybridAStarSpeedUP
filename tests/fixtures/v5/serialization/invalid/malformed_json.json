@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "type": "pose2d",
+  "x_m": 1.0,
+  "y_m": 2.0,
+  "yaw_rad": 0.0,

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "type": "plan_request",
+  "request_id": "req_0001",
+  "map_id": "fixture_map_001",
+  "map_version": "v1",
+  "vehicle": {
+    "id": "default_test_vehicle",
+    "wheelbase_m": 2.8,
+    "width_m": 1.8,
+    "front_overhang_m": 0.9,
+    "rear_overhang_m": 1.0,
+    "max_steer_rad": 0.5,
+    "safety_margin_m": 0.1
+  },
+  "start": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0},
+  "goal": {"x_m": 10.0, "y_m": 5.0, "yaw_rad": 0.0},
+  "time_budget_s": "5s"
+}

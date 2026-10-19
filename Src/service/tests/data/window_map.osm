@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="planner-service-test-fixture">
+  <!-- 服务场景测试的合成小地图（只读夹具）。
+       道路：约 4 m 宽、40 m 长，沿 +y 方向，x 大致在 [-2, 2]。
+       节点 5 是约 100 m 外的孤立点，把地图边界向东扩展，供
+       "窗口裁剪到地图边界" 与 "道路外单元占据" 测试使用。
+       原点（PLANNER_SERVICE_TEST_ORIGIN_*）为 (49.0, 8.4)。 -->
+  <node id="1" lat="49.00000" lon="8.3999725" visible="true" version="1"/>
+  <node id="2" lat="49.00036" lon="8.3999725" visible="true" version="1"/>
+  <node id="3" lat="49.00000" lon="8.4000275" visible="true" version="1"/>
+  <node id="4" lat="49.00036" lon="8.4000275" visible="true" version="1"/>
+  <node id="5" lat="49.00010" lon="8.40137" visible="true" version="1"/>
+
+  <way id="101" visible="true" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+  </way>
+  <way id="102" visible="true" version="1">
+    <nd ref="3"/>
+    <nd ref="4"/>
+  </way>
+
+  <relation id="100" visible="true" version="1">
+    <member type="way" ref="101" role="left"/>
+    <member type="way" ref="102" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="location" v="urban"/>
+    <tag k="one_way" v="yes"/>
+  </relation>
+</osm>

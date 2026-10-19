@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="planner-map-test-fixture">
+  <node id="1" lat="49.00000" lon="8.40000" visible="true" version="1"/>
+  <node id="2" lat="49.00010" lon="8.40010" visible="true" version="1"/>
+  <node id="3" lat="49.00020" lon="8.40020" visible="true" version="1"/>
+  <way id="10" visible="true" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="type" v="barrier"/>
+    <tag k="barrier" v="fence"/>
+  </way>
+</osm>

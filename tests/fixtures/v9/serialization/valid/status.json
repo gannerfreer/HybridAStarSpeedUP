@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "type": "status",
+  "status": "validation_failed",
+  "detail": "未知可选字段被容忍"
+}

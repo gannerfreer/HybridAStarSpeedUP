@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "type": "vehicle_model",
+  "id": "parking_bench_vehicle",
+  "wheelbase_m": 2.8,
+  "width_m": 1.942,
+  "front_overhang_m": 0.96,
+  "rear_overhang_m": 0.929,
+  "max_steer_rad": 0.75,
+  "safety_margin_m": 0.0,
+  "footprint_shape": "rectangle",
+  "source": "ParkingMotionPlanningTITS21 InitializeParams.m / TITS 2022 论文参数（cpp/tools/export_cases.py 导出）",
+  "notes": "论文停车基准车辆：轴距 2.8 m、宽 1.942 m、前悬 0.96 m、后悬 0.929 m、满舵 0.75 rad；安全边距 0（论文口径，与 v1–v7 默认测试车辆的 0.1 m 边距不同）。最小转弯半径 = 2.8 / tan(0.75) ≈ 3.0170 m。"
+}

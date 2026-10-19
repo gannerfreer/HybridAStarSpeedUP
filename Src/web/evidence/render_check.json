@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "type": "web_render_check",
+  "generated_by": "Src/web/src/core/evidence.ts",
+  "source": {
+    "rel_path": "tests/fixtures/v3/map/mapping_example.snapshot.json",
+    "kind": "fixture_v3",
+    "sha256": "fa1c5ed1aeef73c14b2f698460f54622216eee0d4e2522629d96396cd17d8b62",
+    "bytes": 436381
+  },
+  "map": {
+    "map_id": "mapping_example",
+    "map_version": "11561c763ed50322185139ec2dd041d6da72e1bd4e5fc3bb66f6b340d92c088f"
+  },
+  "counts": {
+    "lanelets": 371,
+    "lanelets_with_centerline": 371,
+    "areas": 76,
+    "areas_with_inner": 0,
+    "boundary_points": 2413,
+    "centerline_points": 1920,
+    "area_points": 635,
+    "regulatory_elements": 9
+  },
+  "bounds_m": {
+    "min_x_m": -899.4944769139984,
+    "min_y_m": -185.262257614173,
+    "max_x_m": 2526.1362360325875,
+    "max_y_m": 855.8350301543251
+  },
+  "canvas": {
+    "width_px": 1280,
+    "height_px": 720,
+    "padding_px": 24
+  },
+  "viewport": {
+    "scale_px_per_m": 0.3596418012437437,
+    "meters_per_pixel": 2.780544409859242,
+    "center_x_m": 813.3208795592946,
+    "center_y_m": 335.28638627007604
+  },
+  "screen_bounds": {
+    "min_x_px": 24,
+    "max_x_px": 1256,
+    "min_y_px": 172.78894807848062,
+    "max_y_px": 547.2110519215194
+  },
+  "scale_bar": {
+    "length_m": 200,
+    "width_px": 71.92836024874873,
+    "label": "200 m",
+    "max_width_px": 140
+  },
+  "layers": {
+    "areas": 76,
+    "boundaries": 742,
+    "centerline": 371,
+    "selection": 0,
+    "topology": 0,
+    "route": 0,
+    "poses": 0,
+    "window": 0,
+    "obstacles": 0,
+    "vehicle": 0,
+    "result_path": 0,
+    "result_curve": 0,
+    "corridor": 0,
+    "trajectory": 0,
+    "collision": 0
+  },
+  "commands": {
+    "total": 1189,
+    "by_op": {
+      "polyline": 1113,
+      "polygon": 76,
+      "circle": 0,
+      "text": 0
+    },
+    "total_points": 4968
+  },
+  "checks": {
+    "bounds_within_canvas": true,
+    "roundtrip_max_error_m": 1.1368683772161603e-13,
+    "roundtrip_ok": true,
+    "roundtrip_max_error_px": 0,
+    "roundtrip_px_ok": true,
+    "scale_bar_width_within_limit": true,
+    "counts_match_top_level": true,
+    "commands_all_finite": true,
+    "all_layers_nonempty": true
+  }
+}

@@ -1,0 +1,9 @@
+# npm 依赖与构建产物（由统一入口管理，不入 Git）
+node_modules/
+dist/
+coverage/
+reports/
+*.local
+
+# 渲染检查产物（evidence/ 下的确定性报告保留在树中；临时输出不入 Git）
+evidence/tmp/

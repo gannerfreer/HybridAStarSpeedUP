@@ -1,0 +1,692 @@
+{
+  "format": "planner.dependency-lock",
+  "format_version": 1,
+  "format_description": "自描述依赖锁。CMake 通过 string(JSON) 读取 dependencies.<key>.{tag,commit,source.url,source.sha256} 并用 FetchContent + URL_HASH 校验；sha256 为 null 时 status 必须为 pending，构建跳过哈希校验并给出警告。新增上游按同一结构追加。",
+  "hash_algorithm": "SHA256",
+  "generated_at_utc": "2026-10-09T14:24:37Z",
+  "generated_by": "E0 执行代理 B 组（根工程、公共类型与依赖锁）",
+  "status_values": {
+    "verified": "sha256 与上游公布值一致（已对账）",
+    "locked": "sha256 在锁定时刻从上游下载后计算并写入，构建时由 URL_HASH 再次校验",
+    "pending": "尚未取得 sha256（例如网络不可用）；sha256 为 null，构建会跳过校验并发出警告"
+  },
+  "consumers": {
+    "cmake": "根 CMakeLists.txt：googletest 与 nlohmann_json 经 FetchContent 消费；RS 消费 OMPL，B-spline 消费 TinySpline，地图消费 Lanelet2/pugixml/GeographicLib/httplib，Dftpav 组件消费 Dftpav；曲线库内部对照额外消费 Eigen（B-spline Eigen Splines 候选与多项式 mav_trajectory_generation 候选）、glog 与 mav_trajectory_generation；B-spline 的 EGO UniformBspline 对照不 FetchContent（锁条目仅固定来源，组件内最小复制由对照库 planner_bspline_ego 编译）；Wave 3 搜索组件（X-S1..X-S4 接线）：graph_search 经 FetchContent 消费 igraph（GPL-2.0-or-later 隔离组）并 vendored lmrp/justinhj/lemon（另用系统 Boost 1.71 头），grid_search 全部来源为 vendored/抽取副本（不 FetchContent；系统 Eigen3/Boost 头），sampling_search 经 FetchContent 消费 Klamp't 并复用 OMPL/pugixml，Ch0p1k3/vss2sn/nanoflann 为 vendored/抽取副本（ai-winter 适配延期不消费）；均按同一格式。",
+    "task_runner": "tools/task_runner.py 可按 format_version 1 读取本文件生成依赖版本报告。"
+  },
+  "dependencies": {
+    "nlohmann_json": {
+      "name": "nlohmann/json",
+      "version": "3.11.3",
+      "tag": "v3.11.3",
+      "commit": "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03",
+      "commit_note": "轻量 tag v3.11.3 直接指向该 commit；GitHub API refs 校验（2026-10-09）",
+      "status": "verified",
+      "source": {
+        "url": "https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz",
+        "archive": "json.tar.xz",
+        "extract_prefix": "json/",
+        "sha256": "d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d",
+        "sha256_evidence": "与上游 v3.11.3 release notes 公布的 json.tar.xz SHA-256 一致（2023-11-28）；2026-10-09 从同一 release asset URL 重新下载并复算一致"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "json/LICENSE.MIT",
+        "url": "https://github.com/nlohmann/json/blob/v3.11.3/LICENSE.MIT"
+      },
+      "used_by": [
+        "planner_common 序列化编解码（Src/common/serialization）"
+      ],
+      "fetchcontent": {
+        "name": "nlohmann_json",
+        "cmake_target": "nlohmann_json::nlohmann_json"
+      }
+    },
+    "googletest": {
+      "name": "GoogleTest",
+      "version": "1.15.2",
+      "tag": "v1.15.2",
+      "commit": "b514bdc898e2951020cbdca1304b75f5950d1f59",
+      "commit_note": "轻量 tag v1.15.2 直接指向该 commit；GitHub API refs 校验（2026-10-09）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz",
+        "archive": "googletest-1.15.2.tar.gz",
+        "extract_prefix": "googletest-1.15.2/",
+        "sha256": "7b42b4d6ed48810c5362c265a17faebe90dc2373c885e5216439d37927f02926",
+        "sha256_evidence": "锁定时刻从官方 release asset 下载计算；2026-10-09 从同一 URL 重新下载复算一致；同一内容也等于 https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "googletest-1.15.2/LICENSE",
+        "url": "https://github.com/google/googletest/blob/v1.15.2/LICENSE"
+      },
+      "used_by": [
+        "Src/common/tests",
+        "后续组件测试（GoogleTest + CTest）"
+      ],
+      "fetchcontent": {
+        "name": "googletest",
+        "cmake_target": "GTest::gtest_main"
+      }
+    },
+    "ompl": {
+      "name": "OMPL",
+      "version": "1.6.0",
+      "tag": "1.6.0",
+      "commit": "e2994e580fcba0eb117e38bd1dc7439c4beb35ef",
+      "commit_note": "附注 tag 对象 89dcc9341aafb86bfe9e4360704746ffd63c5946 指向该 commit；GitHub API 校验（2026-10-09）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/ompl/ompl/archive/refs/tags/1.6.0.tar.gz",
+        "archive": "1.6.0.tar.gz",
+        "extract_prefix": "ompl-1.6.0/",
+        "sha256": "f03daa95d2bbf1c21e91a38786242c245f4740f16aa9e9adbf7c7e0236e3c625",
+        "sha256_evidence": "锁定时刻与 2026-10-09 两次从该 URL 下载并复算一致；E0 不构建该依赖",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；RS 阶段首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "ompl-1.6.0/LICENSE",
+        "url": "https://github.com/ompl/ompl/blob/1.6.0/LICENSE"
+      },
+      "used_by": [
+        "RS 对照（ReedsSheppStateSpace 距离/分段/插值，E0 未接入）"
+      ],
+      "fetchcontent": {
+        "name": "ompl",
+        "cmake_target": "上游 CMake 目标（接入方式由 RS 阶段确定）"
+      }
+    },
+    "tinyspline": {
+      "name": "TinySpline",
+      "version": "0.6.0",
+      "tag": "v0.6.0",
+      "commit": "5f0e8fad34e86771cfae3dac4beef5f1858d5610",
+      "commit_note": "轻量 tag v0.6.0 直接指向该 commit（非附注 tag）；GitHub API refs/commits 校验（2026-10-09）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/msteinbeck/tinyspline/archive/refs/tags/v0.6.0.tar.gz",
+        "archive": "tinyspline-v0.6.0-tag.tar.gz",
+        "extract_prefix": "tinyspline-0.6.0/",
+        "sha256": "3ea31b610dd279266f26fd7ad5b5fca7a20c0bbe05c7c32430ed6aa54d57097a",
+        "sha256_evidence": "E0 Wave 3（A 组）锁定：2026-10-09 两次从该 URL 独立下载并复算一致；归档内含 tinyspline-0.6.0/CMakeLists.txt、src/ 与 LICENSE（MIT）。注意官方 release asset tinyspline-0.6.0.tgz（SHA256 50b53cc430c3aabd…）实为 npm 包（package/lib/…），不可作为 C++ 源码消费",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；B-spline 阶段首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "tinyspline-0.6.0/LICENSE",
+        "url": "https://github.com/msteinbeck/tinyspline/blob/v0.6.0/LICENSE"
+      },
+      "used_by": [
+        "Src/bspline（首版封装基线，计划 §3.3；独立于其他曲线库）"
+      ],
+      "fetchcontent": {
+        "name": "tinyspline",
+        "cmake_target": "上游 CMake 目标（接入方式由 B-spline 阶段确定）"
+      }
+    },
+    "lanelet2": {
+      "name": "Lanelet2",
+      "version": "1.2.3",
+      "tag": "1.2.3",
+      "commit": "ae39c8d673264afac2339c4f0252df53a7ba82dd",
+      "commit_note": "轻量 tag 1.2.3 直接指向该 commit（GitHub API refs 校验，2026-10-10）；release 1.2.3 发布于 2026-06-18，提交消息 Release 1.2.3 (#421)",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/fzi-forschungszentrum-informatik/Lanelet2/archive/refs/tags/1.2.3.tar.gz",
+        "archive": "1.2.3.tar.gz",
+        "extract_prefix": "Lanelet2-1.2.3/",
+        "sha256": "7617046cdb4aa8893df1f4c396051903a3f2d9783fd7dad434f5b084bfb47dac",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（3,692,709 B）；归档含 Lanelet2-1.2.3/LICENSE（BSD-3-Clause）与 CMakeLists.txt",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；地图组件首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "Lanelet2-1.2.3/LICENSE",
+        "url": "https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/1.2.3/LICENSE"
+      },
+      "used_by": [
+        "Src/map（Lanelet2 导入、查询、投影、裁剪与公共地图快照；计划 §3.6）"
+      ],
+      "fetchcontent": {
+        "name": "lanelet2",
+        "cmake_target": "上游以 Catkin 为主、无标准 CMake 导出目标；独立 CMake 适配由地图组件负责（首版默认不构建 Python 绑定）"
+      }
+    },
+    "dftpav": {
+      "name": "Dftpav",
+      "version": "main@87f63ad2f67506e090b36eac38f5d247c51a330e",
+      "commit": "87f63ad2f67506e090b36eac38f5d247c51a330e",
+      "commit_note": "上游无 release/tag；2026-10-10 选择 main 分支最新提交（提交日期 2023-06-21，消息 fix bugs；仓库此后无更新）。固定完整 SHA 作为可复现来源",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/ZJU-FAST-Lab/Dftpav/archive/87f63ad2f67506e090b36eac38f5d247c51a330e.tar.gz",
+        "archive": "87f63ad2f67506e090b36eac38f5d247c51a330e.tar.gz",
+        "extract_prefix": "Dftpav-87f63ad2f67506e090b36eac38f5d247c51a330e/",
+        "sha256": "061dea3f948e86414a5dc2f3bd3475cb1cb2d34d567a2786d3b9dd2153f2d77a",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（90,181,649 B）；归档含 Dftpav-<sha>/LICENSE（GPL-3.0 全文）与 src/",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；Dftpav 组件首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录；归档内 DecompROS/Sim 等子目录自带第三方 LICENSE，随上游保留"
+      },
+      "license": {
+        "spdx": "GPL-3.0",
+        "path": "Dftpav-87f63ad2f67506e090b36eac38f5d247c51a330e/LICENSE",
+        "url": "https://github.com/ZJU-FAST-Lab/Dftpav/blob/87f63ad2f67506e090b36eac38f5d247c51a330e/LICENSE",
+        "note": "GitHub 检测为 GPL-3.0；源文件无逐文件版权头，以上游根 LICENSE 全文为准；实验后端独立隔离构建并保留归属与许可证说明（计划 §2/§3.5）"
+      },
+      "used_by": [
+        "Src/dftpav（隔离实验优化后端；抽离 ROS 通信、参数加载与可视化依赖）"
+      ],
+      "fetchcontent": {
+        "name": "dftpav",
+        "cmake_target": "上游为 ROS/catkin 工作空间、无独立 CMake 目标；接入方式由 Dftpav 组件确定"
+      }
+    },
+    "ego_planner": {
+      "name": "EGO-Planner（UniformBspline 对照复制）",
+      "version": "master@bfda51284c8c1b476043255a8145ef925a3778a5",
+      "tag": null,
+      "commit": "bfda51284c8c1b476043255a8145ef925a3778a5",
+      "commit_note": "上游无 release/tag；2026-10-11 选择 master 分支 HEAD（提交日期 2025-03-08，GitHub API refs 校验）。固定完整 SHA 作为可复现来源",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/ZJU-FAST-Lab/ego-planner/archive/bfda51284c8c1b476043255a8145ef925a3778a5.tar.gz",
+        "archive": "ego-planner-bfda5128.tar.gz",
+        "extract_prefix": "ego-planner-bfda51284c8c1b476043255a8145ef925a3778a5/",
+        "sha256": "848e6cbe403a4a0e0cf44a30704ad47535a076c958c77ca551391040fb6fb573",
+        "sha256_evidence": "2026-10-11 两次独立下载复算一致（17,534,024 B）；与 raw.githubusercontent.com 同 commit 的 uniform_bspline.h/.cpp 逐文件 SHA256 一致（见 Src/bspline/src/upstream_ego/PROVENANCE.md §1）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "GPL-3.0",
+        "path": "ego-planner-bfda51284c8c1b476043255a8145ef925a3778a5/LICENSE",
+        "url": "https://github.com/ZJU-FAST-Lab/ego-planner/blob/bfda51284c8c1b476043255a8145ef925a3778a5/LICENSE",
+        "note": "对照后端只保留 uniform_bspline.h/.cpp 的最小复制（去未使用的 ros/ros.h 包含，见 PROVENANCE.md §2）；planner_bspline_ego 独立静态库按 GPL-3.0 处理，仅被测试与基准链接；主库 planner_bspline 不包含该代码（PROVENANCE.md §4）"
+      },
+      "used_by": [
+        "Src/bspline（B-spline 对照后端 ego_uniform；GPL-3.0 隔离，仅测试/基准链接）"
+      ],
+      "fetchcontent": {
+        "name": "ego_planner",
+        "cmake_target": "上游为 ROS/catkin 工作空间、无独立 CMake 目标；不 FetchContent，组件内保留最小复制并由对照库 planner_bspline_ego 编译"
+      }
+    },
+    "pugixml": {
+      "name": "pugixml",
+      "version": "1.16",
+      "tag": "v1.16",
+      "commit": "c8033ce9d039e7f9d134877c363397b3cfe20816",
+      "commit_note": "轻量 tag v1.16 直接指向该 commit（GitHub API refs 校验，2026-10-10）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/zeux/pugixml/releases/download/v1.16/pugixml-1.16.tar.gz",
+        "archive": "pugixml-1.16.tar.gz",
+        "extract_prefix": "pugixml-1.16/",
+        "sha256": "4cee1ca4aad395170f4c7a07824f3bdd41f28316c6e1e1090a1425b278ec0b4b",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（398,377 B），与 Src/map 组件内 pin 相同；归档含 pugixml-1.16/CMakeLists.txt 与 LICENSE.md（MIT）",
+        "stability_note": "GitHub release asset 相对稳定；构建始终由 URL_HASH 校验，若上游重新上传导致不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "pugixml-1.16/LICENSE.md",
+        "url": "https://github.com/zeux/pugixml/blob/v1.16/LICENSE.md"
+      },
+      "used_by": [
+        "Src/map（Lanelet2 IO 的 XML 解析；地图 M1–M3）"
+      ],
+      "fetchcontent": {
+        "name": "pugixml",
+        "cmake_target": "pugixml::pugixml"
+      }
+    },
+    "geographiclib": {
+      "name": "GeographicLib",
+      "version": "2.5",
+      "tag": "v2.5",
+      "commit": "b0719910da478da8e8885f52a580ac3a754a4b65",
+      "commit_note": "附注 tag 对象 c4e83a991b70e48b6e4dd23dfa6efaf1dcb505b8 指向该 commit；GitHub API 校验（2026-10-10）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/geographiclib/geographiclib/archive/refs/tags/v2.5.tar.gz",
+        "archive": "v2.5.tar.gz",
+        "extract_prefix": "geographiclib-2.5/",
+        "sha256": "347319e3dc5dd2d58116ff1ecb8c0ae11c9f095c655fe289992b3208bc7a32fc",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（1,464,284 B），与 Src/map 组件内 pin 相同；归档含 geographiclib-2.5/CMakeLists.txt 与 LICENSE.txt（MIT）",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；地图组件首次接入锁条目时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "geographiclib-2.5/LICENSE.txt",
+        "url": "https://github.com/geographiclib/geographiclib/blob/v2.5/LICENSE.txt"
+      },
+      "used_by": [
+        "Src/map（Lanelet2 UTM 投影；地图 M1–M3）"
+      ],
+      "fetchcontent": {
+        "name": "geographiclib",
+        "cmake_target": "GeographicLib::GeographicLib"
+      }
+    },
+    "httplib": {
+      "name": "cpp-httplib",
+      "version": "0.60.1",
+      "tag": "v0.60.1",
+      "commit": "00afaaed6aaba592e4d079742dfecfba2dcd1196",
+      "commit_note": "轻量 tag v0.60.1 直接指向该 commit（GitHub API refs 校验，2026-10-10）；release 发布日 2026-10-08，提交消息 Release v0.60.1",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.60.1.tar.gz",
+        "archive": "v0.60.1.tar.gz",
+        "extract_prefix": "cpp-httplib-0.60.1/",
+        "sha256": "f42fc046e55f968a9dd43b272251f033b08538d3e359235608f980f551053215",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（2,007,855 B）；归档含 cpp-httplib-0.60.1/{CMakeLists.txt,httplib.h,LICENSE}（MIT）",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；地图服务首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "cpp-httplib-0.60.1/LICENSE",
+        "url": "https://github.com/yhirose/cpp-httplib/blob/v0.60.1/LICENSE"
+      },
+      "used_by": [
+        "Src/map（本地 HTTP/JSON 地图加载/查询服务，W2）"
+      ],
+      "fetchcontent": {
+        "name": "httplib",
+        "cmake_target": "httplib::httplib（上游 header-only 以 INTERFACE 目标导出，project 名为 httplib；是否编译 httplib.cc 由地图组件消费方式决定）"
+      }
+    },
+    "eigen": {
+      "name": "Eigen",
+      "version": "3.4.0",
+      "tag": "3.4.0",
+      "commit": "3147391d946bb4b6c68edd901f2add6ac1f31f8c",
+      "commit_note": "GitLab tag 3.4.0 指向该 commit；GitLab API 校验（2026-10-10）",
+      "status": "locked",
+      "source": {
+        "url": "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz",
+        "archive": "eigen-3.4.0.tar.gz",
+        "extract_prefix": "eigen-3.4.0/",
+        "sha256": "8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72",
+        "sha256_evidence": "2026-10-10 两次从该 GitLab archive URL 独立下载并复算一致（2,705,005 B）；归档含 COPYING.MPL2、Eigen/Core 与 unsupported/Eigen/Splines",
+        "stability_note": "GitLab 自动生成的 tag 归档不保证长期字节稳定；曲线库对照首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MPL-2.0",
+        "path": "eigen-3.4.0/COPYING.MPL2",
+        "url": "https://gitlab.com/libeigen/eigen/-/blob/3.4.0/COPYING.MPL2",
+        "note": "核心许可为 MPL-2.0；归档同时含 COPYING.BSD / COPYING.LGPL / COPYING.MINPACK / COPYING.README，各子模块以随源码的许可为准并原样保留；本项目只使用与 MPL-2.0 兼容的部分"
+      },
+      "used_by": [
+        "Src/bspline 内部对照候选（Eigen Splines 后端）",
+        "Src/polynomial 内部对照候选（mav_trajectory_generation 求值核心）"
+      ],
+      "fetchcontent": {
+        "name": "eigen",
+        "cmake_target": "Eigen3::Eigen（头文件库；组件以 FetchContent 关闭上游测试/文档后消费）"
+      }
+    },
+    "glog": {
+      "name": "glog",
+      "version": "0.6.0",
+      "tag": "v0.6.0",
+      "commit": "b33e3bad4c46c8a6345525fd822af355e5ef9446",
+      "commit_note": "轻量 tag v0.6.0 指向该 commit；GitHub API 校验（2026-10-10）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/google/glog/archive/refs/tags/v0.6.0.tar.gz",
+        "archive": "glog-v0.6.0.tar.gz",
+        "extract_prefix": "glog-0.6.0/",
+        "sha256": "8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（193,267 B）；归档含 CMakeLists.txt 与 COPYING",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；多项式对照首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "glog-0.6.0/COPYING",
+        "url": "https://github.com/google/glog/blob/v0.6.0/COPYING"
+      },
+      "used_by": [
+        "Src/polynomial 内部对照候选（mav_trajectory_generation 求值核心的 CHECK 依赖）"
+      ],
+      "fetchcontent": {
+        "name": "glog",
+        "cmake_target": "glog::glog（上游 CMake；对照目标设置 WITH_GFLAGS=OFF、WITH_UNWIND=OFF、BUILD_TESTING=OFF）"
+      }
+    },
+    "mav_trajectory_generation": {
+      "name": "mav_trajectory_generation",
+      "version": "master@7aeebd9f819217502fd1c5489da49efadf90d411",
+      "tag": null,
+      "commit": "7aeebd9f819217502fd1c5489da49efadf90d411",
+      "commit_note": "上游无 release/tag；2026-10-10 选择 master 最新提交（提交日期 2021-01-11，Merge pull request #116 from ethz-asl/fix/installation）。固定完整 SHA 作为可复现来源",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/ethz-asl/mav_trajectory_generation/archive/7aeebd9f819217502fd1c5489da49efadf90d411.tar.gz",
+        "archive": "mtg-7aeebd9.tar.gz",
+        "extract_prefix": "mav_trajectory_generation-7aeebd9f819217502fd1c5489da49efadf90d411/",
+        "sha256": "ac2f28202a735e6e509b38e926c8a4a12b7dc97ae3f9687b52bbf2abc395706b",
+        "sha256_evidence": "2026-10-10 两次独立下载复算一致（713,427 B）；归档含 LICENSE（Apache-2.0）与 mav_trajectory_generation/{include,src}",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；多项式对照首次接入时 URL_HASH 必须复核，若不匹配则按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "path": "mav_trajectory_generation-7aeebd9f819217502fd1c5489da49efadf90d411/LICENSE",
+        "url": "https://github.com/ethz-asl/mav_trajectory_generation/blob/7aeebd9f819217502fd1c5489da49efadf90d411/LICENSE"
+      },
+      "used_by": [
+        "Src/polynomial 内部对照候选（分段多项式求值与导数；仅核心求值子集）"
+      ],
+      "fetchcontent": {
+        "name": "mav_trajectory_generation",
+        "cmake_target": "上游为 catkin_simple 包且依赖 yaml-cpp/nlopt/glog，无独立 CMake 导出目标；多项式组件仅以自定义目标编译求值核心（src/polynomial.cpp、src/rpoly/rpoly_ak1.cpp、src/motion_defines.cpp）"
+      }
+    },
+    "igraph": {
+      "name": "igraph",
+      "version": "1.0.1",
+      "tag": "1.0.1",
+      "commit": "7b4ae766cbdee6b2017aa5b76752457db2a2972f",
+      "commit_note": "轻量 tag 1.0.1 直接指向该 commit（2025-12-23）；Src/graph_search/provenance.md §6 记录（探针 commit 5e04f852… 为 1.0.1+87 历史预筛，不采用）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/igraph/igraph/releases/download/1.0.1/igraph-1.0.1.tar.gz",
+        "archive": "igraph-1.0.1.tar.gz",
+        "extract_prefix": "igraph-1.0.1/",
+        "sha256": "969f2d7d22f67e788d8638c9a8c96615f50d7819c08978b3ef4a787bb6daa96c",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（5,390,675 B），并与 graph_search 构建缓存归档（run 20261012T125450070954Z_graph_search_6145094f / 20261012T130057481571Z_graph_search_5610649f）及 provenance §6 一致；发布 tar 包含预生成解析器，无需 flex/bison",
+        "stability_note": "GitHub release asset 不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录（不静默放宽 URL_HASH）"
+      },
+      "license": {
+        "spdx": "GPL-2.0-or-later",
+        "path": "igraph-1.0.1/COPYING",
+        "url": "https://github.com/igraph/igraph/blob/1.0.1/COPYING",
+        "sha256": "b499eddebda05a8859e32b820a64577d91f1de2b52efa2a1575a2cb4000bc259",
+        "note": "GPL 隔离组：仅独立目标 planner_graph_search_igraph 静态链接；绝不链入默认库/在线服务；构建隔离不代替许可证核查"
+      },
+      "used_by": [
+        "Src/graph_search（S-05 Dijkstra 点到点+距离场；GPL-2.0-or-later 隔离组）"
+      ],
+      "fetchcontent": {
+        "name": "igraph",
+        "cmake_target": "igraph",
+        "cmake_options": "BUILD_SHARED_LIBS=OFF（目录作用域普通变量）、BUILD_TESTING=OFF、IGRAPH_GLPK_SUPPORT=OFF、IGRAPH_GRAPHML_SUPPORT=OFF、IGRAPH_INFOMAP_SUPPORT=OFF、IGRAPH_OPENMP_SUPPORT=OFF",
+        "component_switch": "PLANNER_GRAPH_SEARCH_WITH_IGRAPH（OFF 不下载/不链接）"
+      }
+    },
+    "lmrp": {
+      "name": "libMultiRobotPlanning（单机器人 A* 头文件子集）",
+      "version": "main@4c75fa20c435c440d8b6bd6dc81668ddc7296ba0",
+      "tag": null,
+      "commit": "4c75fa20c435c440d8b6bd6dc81668ddc7296ba0",
+      "commit_note": "上游无 release/tag；2026-10-12 选择 main HEAD（2023-07-28；仓库此后无更新）。固定完整 SHA 作为可复现来源（graph_search provenance §3、grid_search provenance §4）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/whoenig/libMultiRobotPlanning/archive/4c75fa20c435c440d8b6bd6dc81668ddc7296ba0.tar.gz",
+        "archive": "libMultiRobotPlanning-4c75fa20c435c440d8b6bd6dc81668ddc7296ba0.tar.gz",
+        "extract_prefix": "libMultiRobotPlanning-4c75fa20c435c440d8b6bd6dc81668ddc7296ba0/",
+        "sha256": "081fcba3d37cd221350546f02947a8a5cb18099a5d318f89ca7a036d7ab640a0",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（1,186,737 B）；与 graph_search provenance §9.2 记录一致；归档仅供来源核对（构建使用组件内 vendored 副本）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "libMultiRobotPlanning-4c75fa20c435c440d8b6bd6dc81668ddc7296ba0/LICENSE",
+        "url": "https://github.com/whoenig/libMultiRobotPlanning/blob/4c75fa20c435c440d8b6bd6dc81668ddc7296ba0/LICENSE",
+        "sha256": "bfd2f9d2b3efd2af6b4517c561b52707ad71807944a4bb3b47ba0519e583cacc"
+      },
+      "used_by": [
+        "Src/graph_search（S-02 图 A*，vendored 3 头文件 + LICENSE）",
+        "Src/grid_search（S-02 栅格 A*，vendored 3 头文件 + LICENSE）"
+      ],
+      "fetchcontent": {
+        "name": "lmrp",
+        "cmake_target": "不 FetchContent：组件内 vendored include/libMultiRobotPlanning/{a_star,neighbor,planresult}.hpp + LICENSE，构建不下载；多机器人算法（CBS/ECBS）不纳入"
+      }
+    },
+    "justinhj": {
+      "name": "justinhj/astar-algorithm-cpp",
+      "version": "v1.4.2@875bbd8ba4cdf75463cb30424d0ab4b2a8db9653",
+      "tag": "v1.4.2",
+      "commit": "875bbd8ba4cdf75463cb30424d0ab4b2a8db9653",
+      "commit_note": "轻量 tag v1.4.2 直接指向该 commit（2026-09-30）；graph_search provenance §4、grid_search provenance §5。master 25b05a33 相对 tag 仅增基准，核心头一致（探针记录）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/justinhj/astar-algorithm-cpp/archive/875bbd8ba4cdf75463cb30424d0ab4b2a8db9653.tar.gz",
+        "archive": "astar-algorithm-cpp-875bbd8ba4cdf75463cb30424d0ab4b2a8db9653.tar.gz",
+        "extract_prefix": "astar-algorithm-cpp-875bbd8ba4cdf75463cb30424d0ab4b2a8db9653/",
+        "sha256": "54df0eeea1aa921b3bf84a5040d4716e4a1a080b912c7391844b0b173177cb05",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（31,750 B）；与 graph_search provenance §9.2 记录一致；归档仅供来源核对（构建使用组件内 vendored 副本）",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "astar-algorithm-cpp-875bbd8ba4cdf75463cb30424d0ab4b2a8db9653/license.txt",
+        "url": "https://github.com/justinhj/astar-algorithm-cpp/blob/875bbd8ba4cdf75463cb30424d0ab4b2a8db9653/license.txt",
+        "sha256": "417efafe07c1723ee6322cf11604cbce87eed6c4eb66fe15b838dfb0a76ebe91",
+        "note": "stlastar.h/fsa.h 文件头另有自定义宽松署名声明（保留）；vendored 副本含 1 行 USE_FSA_MEMORY 守卫补丁（默认行为不变）"
+      },
+      "used_by": [
+        "Src/graph_search（S-03 图 A*，vendored；池开/关两组配置）",
+        "Src/grid_search（S-03 栅格 A*，vendored；池开/关两组配置）"
+      ],
+      "fetchcontent": {
+        "name": "justinhj",
+        "cmake_target": "不 FetchContent：组件内 vendored include/{stlastar.h,fsa.h} + license.txt + stlastar_pool_guard.patch，构建不下载"
+      }
+    },
+    "lemon_graph": {
+      "name": "LEMON（OpenROAD lemon-graph 副本）",
+      "version": "31d79d686f776a62ace1925cb2e40e84a80d1394（基线 LEMON 1.3.1）",
+      "tag": null,
+      "commit": "31d79d686f776a62ace1925cb2e40e84a80d1394",
+      "commit_note": "OpenROAD lemon-graph 副本 commit（探针 family_b §2.1：与官方 LEMON 1.3.1 发布版 2465 文件逐字节相同；HEAD 9 文件 C++20 兼容补丁，dijkstra.h 及依赖无算法性修改）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/The-OpenROAD-Project/lemon-graph/archive/31d79d686f776a62ace1925cb2e40e84a80d1394.tar.gz",
+        "archive": "lemon-graph-31d79d686f776a62ace1925cb2e40e84a80d1394.tar.gz",
+        "extract_prefix": "lemon-graph-31d79d686f776a62ace1925cb2e40e84a80d1394/",
+        "sha256": "7c1624db8c1e4078ee25aba9cbacfa6f6abfa5d855602ba5178a3826646008d5",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（4,478,197 B）；与 graph_search provenance §9.2 记录一致；归档仅供来源核对（构建使用组件内 vendored Dijkstra 传递包含集 22 头 + config.h）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录",
+        "baseline_note": "基线 LEMON 1.3.1 官方 tarball SHA256 71b7c725f4c0b4a8ccb92eb87b208701586cf7a96156ebd821ca3ed855bad3c8（探针记录，本次 wiring 未复核；vendored 包含集与基线逐字节一致）"
+      },
+      "license": {
+        "spdx": "BSL-1.0",
+        "path": "lemon-graph-31d79d686f776a62ace1925cb2e40e84a80d1394/LICENSE",
+        "url": "https://github.com/The-OpenROAD-Project/lemon-graph/blob/31d79d686f776a62ace1925cb2e40e84a80d1394/LICENSE",
+        "sha256": "0057760df95992e06a0bc78f5632a389a03744f6725e497cedd85bc21e39b28a",
+        "note": "文件级例外：lemon/bits/enable_if.h（Boost/Indiana，BSL-1.0，在包含集内）、lemon/random.h（Matsumoto BSD-3 式，不在包含集内、未复制）；未发现著佐权污染（graph_search provenance §5）"
+      },
+      "used_by": [
+        "Src/graph_search（S-04 Dijkstra 点到点/距离场，vendored；单线程 config.h 偏差已登记）"
+      ],
+      "fetchcontent": {
+        "name": "lemon_graph",
+        "cmake_target": "不 FetchContent：组件内 vendored include 集 + LICENSE，构建不下载"
+      }
+    },
+    "vss2sn": {
+      "name": "vss2sn/path_planning",
+      "version": "d8f9edaeae064ab4665350bf820d1d5ebbbfcc45",
+      "tag": null,
+      "commit": "d8f9edaeae064ab4665350bf820d1d5ebbbfcc45",
+      "commit_note": "上游无 release/tag；master HEAD（2022-11-15）。grid_search provenance §1 与 sampling_search provenance §5 锁定同一 commit",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/vss2sn/path_planning/archive/d8f9edaeae064ab4665350bf820d1d5ebbbfcc45.tar.gz",
+        "archive": "path_planning-d8f9edaeae064ab4665350bf820d1d5ebbbfcc45.tar.gz",
+        "extract_prefix": "path_planning-d8f9edaeae064ab4665350bf820d1d5ebbbfcc45/",
+        "sha256": "25f9d462c9910c6d193b0f643fb136cb37fdbf685902509355aeecf5819f145e",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（6,853,625 B）；与 sampling_search provenance §5 的单次记录一致；归档仅供来源核对（构建使用组件内 vendored 抽取副本）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "path_planning-d8f9edaeae064ab4665350bf820d1d5ebbbfcc45/LICENSE.md",
+        "url": "https://github.com/vss2sn/path_planning/blob/d8f9edaeae064ab4665350bf820d1d5ebbbfcc45/LICENSE.md",
+        "sha256": "878e9cb40c3bccfaf4b15a4929a635eb4d725e75638bdaa5f1f77e274f4955ed",
+        "note": "三个角色源文件与 utils、planner.hpp 均无独立版权头，根 LICENSE.md 覆盖（grid_search provenance §1）"
+      },
+      "used_by": [
+        "Src/grid_search（S-06 栅格 Dijkstra 点到点+距离场、栅格 A*；vendored 抽取副本 + 适配补丁 P1–P4）",
+        "Src/sampling_search（S-06 栅格 RRT*；vendored 最小抽取副本 + 种子/预算/取消补丁）"
+      ],
+      "fetchcontent": {
+        "name": "vss2sn",
+        "cmake_target": "不 FetchContent：两个组件各自 vendored 抽取副本（保留 LICENSE.md 与 PATCHES.md），构建不下载"
+      }
+    },
+    "nav2_smac_planner": {
+      "name": "Nav2 SmacPlanner2D（自 navigation2 抽取的 nav2_smac_planner 子集）",
+      "version": "main@3286119753ce1fab9d2ff411ea6d439b823fe18d（包版本 1.5.0）",
+      "tag": null,
+      "commit": "3286119753ce1fab9d2ff411ea6d439b823fe18d",
+      "commit_note": "上游为滚动 main 分支；2026-10-09 快照 commit（grid_search provenance §2）。接线/复验不得跟随分支移动",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/ros-navigation/navigation2/archive/3286119753ce1fab9d2ff411ea6d439b823fe18d.tar.gz",
+        "archive": "navigation2-3286119753ce1fab9d2ff411ea6d439b823fe18d.tar.gz",
+        "extract_prefix": "navigation2-3286119753ce1fab9d2ff411ea6d439b823fe18d/",
+        "sha256": "398f59dc7ae6e841d34488cc4a4359e7f3ec427828b0ad1fe3e5d2634831f00a",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（66,397,651 B）；归档仅供来源核对（构建使用 thirdparty/nav2_smac_planner/ 抽取副本 + 最小桩集，不构建整仓）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "path": "navigation2-3286119753ce1fab9d2ff411ea6d439b823fe18d/LICENSE",
+        "url": "https://github.com/ros-navigation/navigation2/blob/3286119753ce1fab9d2ff411ea6d439b823fe18d/LICENSE",
+        "sha256": "e71fcb65bd31cdbdcf50cf43ab87a0c600ea3ec407495c2e15d1e68bc9c3bfc1",
+        "note": "按包声明 Apache-2.0（package.xml）；仓库整体为混合许可，抽取文件保留上游 Apache-2.0 文件头；LICENSE 随目录保留"
+      },
+      "used_by": [
+        "Src/grid_search（S-07 栅格 A*（几何口径统一组）；抽取 AStarAlgorithm<Node2D> + 最小桩集 + 补丁 P1–P4）"
+      ],
+      "fetchcontent": {
+        "name": "nav2_smac_planner",
+        "cmake_target": "不 FetchContent：组件内 thirdparty/nav2_smac_planner/ 抽取副本（未修改文件与探针 nav2_extract_sha256.txt 一致），构建不下载"
+      }
+    },
+    "jps3d": {
+      "name": "jps3d（KumarRobotics）",
+      "version": "master@ef65e36a8930395535e4683b1710e514b81d2f43",
+      "tag": null,
+      "commit": "ef65e36a8930395535e4683b1710e514b81d2f43",
+      "commit_note": "上游无 release/tag；master HEAD（2019-03-11，此后未更新）。grid_search provenance §3 锁定；接口稳定（正面），无上游修复来源（风险登记）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/KumarRobotics/jps3d/archive/ef65e36a8930395535e4683b1710e514b81d2f43.tar.gz",
+        "archive": "jps3d-ef65e36a8930395535e4683b1710e514b81d2f43.tar.gz",
+        "extract_prefix": "jps3d-ef65e36a8930395535e4683b1710e514b81d2f43/",
+        "sha256": "9de7b0c2d5e8df5dbdff7ea4037b7629998c4901f9c4ef1022877e56b53895ea",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（1,534,607 B）；归档仅供来源核对（构建使用组件内 vendored 抽取副本）",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "jps3d-ef65e36a8930395535e4683b1710e514b81d2f43/LICENSE",
+        "url": "https://github.com/KumarRobotics/jps3d/blob/ef65e36a8930395535e4683b1710e514b81d2f43/LICENSE",
+        "sha256": "cb06c2c22ac7c551c6160706752abc41bae0ea68ce5a6c3bf342f01baa995641",
+        "note": "抽取文件无独立 Copyright 头，根 LICENSE 覆盖；依赖系统 Eigen3 头与 Boost heap 头（无锁条目，已登记例外）"
+      },
+      "used_by": [
+        "Src/grid_search（S-08 普通 A*（use_jps=false）+ JPS 单列变体；vendored 抽取副本 + 补丁 P1–P4 与终止钩子）"
+      ],
+      "fetchcontent": {
+        "name": "jps3d",
+        "cmake_target": "不 FetchContent：组件内 thirdparty/jps3d/ 抽取副本（最小编译单元，不链接 jps_lib/yaml-cpp），构建不下载"
+      }
+    },
+    "ch0p1k3": {
+      "name": "Ch0p1k3/path-planning-algorithms-rrt-rrtstar",
+      "version": "4ae8c935f985097e50976e75220c27dac57ffa61",
+      "tag": null,
+      "commit": "4ae8c935f985097e50976e75220c27dac57ffa61",
+      "commit_note": "上游无 release/tag；2023-04-22 master HEAD（sampling_search provenance §3 与探针 supplement_ch0p1k3_probe.md）",
+      "status": "pending",
+      "source": {
+        "url": "https://github.com/Ch0p1k3/path-planning-algorithms-rrt-rrtstar/archive/4ae8c935f985097e50976e75220c27dac57ffa61.tar.gz",
+        "archive": "path-planning-algorithms-rrt-rrtstar-4ae8c935f985097e50976e75220c27dac57ffa61.tar.gz",
+        "extract_prefix": "path-planning-algorithms-rrt-rrtstar-4ae8c935f985097e50976e75220c27dac57ffa61/",
+        "sha256": null,
+        "sha256_evidence": "未取得：上游 tests/ 约 2.9 GB（MovingAI 场景数据），整仓 FetchContent 不可行且本轮不下载；来源为组件内最小抽取副本（src/ 23 文件 + LICENSE + sfml_stub + PATCHES.md，文件级 SHA256 与逐文件 diff 见 Src/sampling_search/provenance.md §3）。extract_prefix 按 GitHub 命名约定（未下载整仓验证）。如后续需要整仓归档，下载复算后将 status 改为 locked",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；若未来接入 FetchContent 必须先复算并更新锁文件"
+      },
+      "license": {
+        "spdx": "MIT",
+        "path": "path-planning-algorithms-rrt-rrtstar-4ae8c935f985097e50976e75220c27dac57ffa61/LICENSE",
+        "url": "https://github.com/Ch0p1k3/path-planning-algorithms-rrt-rrtstar/blob/4ae8c935f985097e50976e75220c27dac57ffa61/LICENSE",
+        "sha256": "5ccc37ecd73c384b567808acd569b0dca5b6c3ec17942ddd8b43a0b91478e368",
+        "note": "sha256 复核自组件内抽取副本 third_party/ch0p1k3/LICENSE（与上游逐字节一致，见 provenance §3）；上游归档路径按 GitHub 命名约定（未下载验证）。src/ 全部文件保留原始 MIT 版权头；唯一上游修改为 rrt.hpp 的 4 行种子钩子（PATCHES.md diff）"
+      },
+      "used_by": [
+        "Src/sampling_search（连续空间组补源；vendored 最小抽取副本 + 种子钩子；nanoflann/pugixml 依赖另列）"
+      ],
+      "fetchcontent": {
+        "name": "ch0p1k3",
+        "cmake_target": "不 FetchContent：组件内 third_party/ch0p1k3/ 最小抽取副本（上游整仓因 2.9 GB tests/ 不可行），构建不下载"
+      }
+    },
+    "klampt": {
+      "name": "Klamp't / KrisLibrary",
+      "version": "master@f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f",
+      "tag": null,
+      "commit": "f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f",
+      "commit_note": "上游无 release/tag；2025-08-06 master HEAD（sampling_search provenance §4）",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/krishauser/KrisLibrary/archive/f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f.tar.gz",
+        "archive": "KrisLibrary-f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f.tar.gz",
+        "extract_prefix": "KrisLibrary-f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f/",
+        "sha256": "e1b36dac98ff5df1fda5aa597559b6ff42373d8551bac99d22c358e7c04960e2",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（2,158,334 B），并与 sampling_search 构建缓存归档（run 20261012T125556171514Z_sampling_search_34b4075d）及 provenance §4 一致；支持 FETCHCONTENT_SOURCE_DIR_SAMPLING_SEARCH_KLAMPT 离线源码树",
+        "stability_note": "GitHub 自动生成的 commit 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-3-Clause",
+        "path": "KrisLibrary-f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f/LICENSE",
+        "url": "https://github.com/krishauser/KrisLibrary/blob/f1c9ba76e287d9a3966b1ab3f870fa96e159ef7f/LICENSE",
+        "sha256": "1fe78dbfd662971b898dfc85b54f36896e7f3051884e7b55c9b2d438631d5421",
+        "note": "Indiana University 2013；另有 LICENSE.txt（SHA256 f09bf96e59e8214cf5187ffecc0b9699978f13ce76559df821f1f39f1ac5408c）"
+      },
+      "used_by": [
+        "Src/sampling_search（连续空间组补源；FetchContent 仅拉源码（SOURCE_SUBDIR 指向不存在的子目录，不构建上游工程），48 文件最小构建清单由 planner_sampling_search_klampt_upstream 编译）"
+      ],
+      "fetchcontent": {
+        "name": "sampling_search_klampt",
+        "cmake_target": "不构建上游工程：SOURCE_SUBDIR cmake/planner-sampling-search-no-upstream-build；组件内自建静态库（48 文件；不含 GLdraw/robotics/meshing/image/ROS/OMPL）",
+        "component_switch": "PLANNER_SAMPLING_SEARCH_WITH_KLAMPT（OFF 不下载/不链接）"
+      }
+    },
+    "nanoflann": {
+      "name": "nanoflann",
+      "version": "1.4.3",
+      "tag": "v1.4.3",
+      "commit": "2f54b8eb07c719bc605445e4ec44d61240f5a2ce",
+      "commit_note": "探针 supplement_ch0p1k3_probe.md §3 与 PATCHES.md 记录：与 Ch0p1k3 上游 FetchContent pin 一致的 v1.4.3 commit",
+      "status": "locked",
+      "source": {
+        "url": "https://github.com/jlblancoc/nanoflann/archive/2f54b8eb07c719bc605445e4ec44d61240f5a2ce.tar.gz",
+        "archive": "nanoflann-2f54b8eb07c719bc605445e4ec44d61240f5a2ce.tar.gz",
+        "extract_prefix": "nanoflann-2f54b8eb07c719bc605445e4ec44d61240f5a2ce/",
+        "sha256": "bcd7dc5ab543fb1f9c54eb8846f339351efd31ea5018c85f72321c2fa2837a7e",
+        "sha256_evidence": "2026-10-12 wiring：两次独立下载复算一致（688,872 B）；组件内 vendored 单头文件 nanoflann.hpp SHA256 b63dac5a2b1f1058013a501cc51d22b151dcbab45df58cb023795b26a46a54e5（与上游 pin 一致）",
+        "stability_note": "GitHub 自动生成的 tag 归档不保证长期字节稳定；首次复核不匹配时按实际字节更新锁文件并记录"
+      },
+      "license": {
+        "spdx": "BSD-2-Clause",
+        "path": "nanoflann-2f54b8eb07c719bc605445e4ec44d61240f5a2ce/COPYING",
+        "url": "https://github.com/jlblancoc/nanoflann/blob/2f54b8eb07c719bc605445e4ec44d61240f5a2ce/COPYING",
+        "sha256": "f8efea042b89cc7534abf51888747f87595e1616c63f0b42a2ead81da34e0237",
+        "note": "BSD-2-Clause 头保留在组件内 vendored 单头文件中"
+      },
+      "used_by": [
+        "Src/sampling_search（Ch0p1k3 最近邻 KD 树；vendored 单头文件 third_party/nanoflann/nanoflann.hpp）"
+      ],
+      "fetchcontent": {
+        "name": "nanoflann",
+        "cmake_target": "不 FetchContent：组件内 vendored 单头文件，构建不下载"
+      }
+    }
+  },
+  "updated_at_utc": "2026-10-12T13:28:00Z"
+}

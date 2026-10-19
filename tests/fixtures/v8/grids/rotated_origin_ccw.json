@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "type": "grid_view",
+  "map_id": "grid_rotated_origin_ccw",
+  "map_version": "v6",
+  "width": 4,
+  "height": 4,
+  "resolution_m": 0.5,
+  "origin": {"x_m": 10.0, "y_m": -5.0, "yaw_rad": 1.5707963267948966},
+  "cell_encoding": {"0": "free", "1": "occupied", "2": "unknown"},
+  "cells": [
+    1,0,0,0,
+    0,0,2,0,
+    0,0,0,0,
+    0,0,0,1
+  ],
+  "notes": "4×4、0.5 m、origin=(10.0,-5.0,π/2)。cell (0,0) 中心 (9.75,-4.75) occupied、(1,2) (9.25,-3.75) unknown、(3,3) (8.25,-3.25) occupied；cell (0,0) 四角 (10,-5)/(10,-4.5)/(9.5,-4.5)/(9.5,-5)。旋转原点按 origin 位姿换算，不得按轴对齐假设。"
+}

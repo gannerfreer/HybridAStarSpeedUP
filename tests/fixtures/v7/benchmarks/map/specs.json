@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "type": "map_benchmark_specs",
+  "fixture_version": "v5",
+  "source": "Docs/component_development_plan.md §7.3（地图属性/空间查询、局部裁剪/路由、加载）",
+  "synthetic_map_family": {
+    "description": "固定合成 maps：沿 +x 排列的直线 lanelet 网格，每行由连续 lanelet 串成一条可路由道路；几何、属性与拓扑全部由确定性整数规则给出。",
+    "parameters": {
+      "lanelet_length_m": 25.0,
+      "lanelet_width_m": 3.5,
+      "x_pitch_m": 25.0,
+      "y_pitch_m": 25.0,
+      "speed_limit_rule_kph": "30 + 10 * (k mod 3)（取值 30/40/50）",
+      "one_way": true,
+      "subtype": "road"
+    },
+    "geometry_rule": "lanelet 索引 k：column = k mod columns（整数除法取行 row = k div columns）；矩形区域 x ∈ [column*25.0, column*25.0+25.0]，y ∈ [row*25.0, row*25.0+3.5]；行驶方向 +x；左边界（北）y = row*25.0+3.5，右边界（南）y = row*25.0，中心线 y = row*25.0+1.75，全部为精确小数值。",
+    "topology_rule": "同一行相邻 lanelet 相连：column < columns-1 时 k 的后继为 k+1，前驱为 k-1；跨行无连接。所有 lanelet one_way=true。",
+    "id_rule": "ll_<k>（十进制，无前导零），区域/属性对象不使用整数 ID"
+  },
+  "maps": [
+    {
+      "scale": "small",
+      "lanelet_count": 1000,
+      "columns": 40,
+      "rows": 25,
+      "extent_m": [1000.0, 625.0],
+      "status": "rule_defined",
+      "notes": "按上述规则确定性生成；开发基准可直接使用。"
+    },
+    {
+      "scale": "medium",
+      "lanelet_count": 10000,
+      "columns": 200,
+      "rows": 50,
+      "extent_m": [5000.0, 1250.0],
+      "status": "rule_defined",
+      "notes": "按同一规则确定性生成（行/列参数不同）。"
+    },
+    {
+      "scale": "large",
+      "lanelet_count": 100000,
+      "columns": 500,
+      "rows": 200,
+      "extent_m": [12500.0, 5000.0],
+      "status": "generated",
+      "archive": {
+        "strategy": "按 §9：单文件超过 10 MiB 时使用按 SHA256 寻址的数据归档，并在运行 manifest 记录相对位置；离线归档必须包含被引用文件",
+        "sha256": "2d5d6b14451aad58a3a4493dff461a2d06d729aebc4a16594fe8000cee892ab9",
+        "relative_path": "artifacts/data/sha256/2d5d6b14451aad58a3a4493dff461a2d06d729aebc4a16594fe8000cee892ab9/large.osm",
+        "size_bytes": 72451416,
+        "generated_by_run_id": "20261010T182903322231Z_map_5bfca7d8",
+        "note": "由 planner_map_bench --generate-only 按本文件整数规则确定性生成（run 20261010T182903322231Z_map_5bfca7d8，2026-10-11，72,451,416 B > 10 MiB，按 §9 归档）；归档目录另含 large.sha256 与 large.meta.json；planner_map_bench 生成后强制校验生成文件 SHA256 与 archive.sha256 一致。"
+      }
+    }
+  ],
+  "query_batch": {
+    "queries_per_batch": 1000,
+    "applies_to": ["small", "medium", "large"],
+    "sequence_rule": "对每个地图规模，查询 j = 0..999 依下列固定序列执行（N = lanelet_count；索引与偏移均为整数运算，结果对 N 取模）：kind = j mod 5。kind 0 边界查询：索引 (7*j + 3) mod N；kind 1 中心线查询：索引 (13*j + 5) mod N；kind 2 区域查询：以索引 (17*j + 7) mod N 的 lanelet 矩形向四周外扩 5.0 m 的轴对齐矩形；kind 3 属性查询：索引 (23*j + 11) mod N，属性键 speed_limit_kph；kind 4 邻接查询：索引 (29*j + 13) mod N，返回前驱与后继 ID 列表。",
+    "purpose": "固定查询序列排除不可实现的任意输入差异；结果长度与命中数量逐例记录，不对结果做跨实现内容比较以外的解读。",
+    "timing": "计时只包含查询执行；输入生成、缓冲区分配、JSON 编解码与磁盘输出不计入。"
+  },
+  "crop_batch": {
+    "windows_per_batch": 100,
+    "window_size_m": [50.0, 50.0],
+    "sequence_rule": "窗口 w = 0..99，窗口中心：small：cx = 75.0 + ((137*w) mod 850.0)，cy = 75.0 + ((211*w) mod 475.0)；medium：cx = 375.0 + ((137*w) mod 4250.0)，cy = 75.0 + ((211*w) mod 1100.0)；large：cx = 375.0 + ((137*w) mod 11750.0)，cy = 75.0 + ((211*w) mod 4850.0)。所有窗口中心与边界均在对应地图范围内（已按 mod 上界核对）。",
+    "purpose": "验证局部窗口裁剪保留对象 ID 与语义引用、坐标变换正确（§2.1 M3/M4）。",
+    "recorded": ["窗口内对象 ID 列表", "裁剪后几何", "局部坐标到地图坐标变换", "窗口边界与地图范围关系"]
+  },
+  "route_batch": {
+    "pairs_per_batch": 100,
+    "sequence_rule": "第 r 对（r = 0..99）：row = (7*r) mod rows；col_start = (3*r) mod (columns div 2)；delta = (columns div 4) + (r mod (columns div 4))；col_end = col_start + delta（恒有 col_end < columns，同行直连可路由）。起点 lanelet = row*columns + col_start，终点 lanelet = row*columns + col_end。",
+    "reachability": "同行连续后继链保证可达；路由长度期望为 delta + 1 个 lanelet，结果长度写入运行输出用于报告。",
+    "recorded": ["起点/终点 lanelet ID", "路由 lanelet 数量", "路由几何长度（m）"]
+  },
+  "load_batch": {
+    "batches": 30,
+    "loads_per_batch": 1,
+    "definition": "每批创建全新地图对象并加载一次对应规模地图文件；文件读取与索引构建包含在加载时间；OS 文件缓存状态注明为未清理，不称物理冷盘测试（§7.3）。",
+    "applies_to": ["small", "medium", "large"]
+  },
+  "pending_items": [],
+  "timing_boundaries": {
+    "warmup_batches": 5,
+    "measured_batches": 30,
+    "execution": "单线程顺序执行；正式测量使用独占工作负载窗口（§5.3、§7.3）",
+    "excluded": ["输入生成", "输出缓冲分配", "JSON 编解码（除非该批本身就是加载批）", "磁盘输出"],
+    "reported": ["批大小", "批耗时 P50/P95", "批耗时 / 操作数（均摊）", "吞吐", "结果长度摘要"],
+    "notes": [
+      "查询、裁剪、路由、加载分开计时；加载批包含文件读取与索引构建。",
+      "均摊耗时不得称为单次调用 P95。"
+    ]
+  },
+  "notes": [
+    "v5 修订（§7.3/§9 large 待办闭环）：large（100,000 lanelet）地图由 planner_map_bench --generate-only 确定性物化（run 20261010T182903322231Z_map_5bfca7d8，2026-10-11，72,451,416 B，SHA256 2d5d6b14451aad58a3a4493dff461a2d06d729aebc4a16594fe8000cee892ab9），status 由 pending_generation 升为 generated，并按 §9 在 artifacts/data/sha256/<sha256>/ 建立 SHA256 寻址归档（large.osm / large.sha256 / large.meta.json；relative_path 以仓库根为基准）；bench 生成后强制校验 SHA256。",
+    "v4 修订（fixtures-002）：lanelet_length_m 由 20.0 改为 25.0，与 x_pitch_m 一致，geometry_rule 的 x 区间同步为 [+25.0]；原 v1–v3 文本两字段自相矛盾（Lanelet2 后继检测要求相邻 lanelet 共享端点对象），生成器一直按 x_pitch 共享端点解释并记录，v4 将该解释固化为规范文本。",
+    "本文件为规格与确定性生成规则；small/medium 由 planner_map_bench 每次运行确定性生成（不物化入库），large 物化文件按 archive.relative_path 引用（§9）。",
+    "拓扑、窗口与端点索引如物化入库，必须与本文件的整数规则完全一致，避免任意性。"
+  ]
+}

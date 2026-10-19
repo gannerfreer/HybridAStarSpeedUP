@@ -1,0 +1,635 @@
+{
+  "schema_version": 1,
+  "type": "planner_components",
+  "format": "planner.components",
+  "format_version": 1,
+  "format_description": "组件注册表。cmake/python 组件：cmake.options（传给 cmake -D 的键值）、cmake.target（构建目标名，信息性）、test.runner（ctest|unittest）、test.label（ctest -L）、test.start_dir/test.pattern（unittest）。npm 组件：dir（相对仓库根的包目录）、install、install_ci（可选，存在 package-lock.json 时优先）、build、test、test_junit（可选，相对 dir 的 JUnit XML 路径，运行后收入运行目录）、service.command/workers；npm 的 build 持有全局编译锁并默认占 1 个 worker 名额（可用 build_workers 覆盖）。公共字段：service.command（长驻服务 argv 模板）、benchmark_suites.<suite>.command （基准 argv 模板）与 .description。命令数组占位符：{repo_root}/{build_dir}/{run_dir}/{profile}/{dir}（{dir}=组件目录）。新增组件只需追加条目，不改 task_runner.py；cmake/python/benchmark 模板中的未知占位符会导致报错。",
+  "worker_cap": 4,
+  "max_parallel": 4,
+  "default_profile": "release",
+  "default_suite": "v1",
+  "fixtures": {
+    "root": "tests/fixtures",
+    "manifest_name": "fixture_manifest.sha256.json"
+  },
+  "components": {
+    "tools": {
+      "kind": "python",
+      "description": "E0 Python 工具与自身测试（标准库 unittest，无 pip 依赖）",
+      "test": {
+        "runner": "unittest",
+        "start_dir": "tools/tests",
+        "pattern": "test_*.py"
+      },
+      "benchmark_suites": {}
+    },
+    "common": {
+      "kind": "cmake",
+      "description": "公共类型与 JSON 编解码（planner_common，C++17，ROS-free）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_COMMON": "ON"
+        },
+        "target": "planner_common"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "common"
+      },
+      "benchmark_suites": {}
+    },
+    "grid": {
+      "kind": "cmake",
+      "description": "通用栅格数学与校验（planner_grid；依赖 common，不暴露 Lanelet2，不运行搜索）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_GRID": "ON"
+        },
+        "target": "planner_grid"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "grid"
+      },
+      "benchmark_suites": {}
+    },
+    "scene": {
+      "kind": "cmake",
+      "description": "地图窗口 + 可行驶域栅格 + 用户障碍的场景组合（planner_scene；依赖 map/grid/collision）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_SCENE": "ON",
+          "PLANNER_BUILD_MAP": "ON",
+          "PLANNER_BUILD_GRID": "ON",
+          "PLANNER_BUILD_COLLISION": "ON"
+        },
+        "target": "planner_scene"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "scene"
+      },
+      "benchmark_suites": {}
+    },
+    "rs": {
+      "kind": "cmake",
+      "description": "Reeds–Shepp 距离与曲线（OMPL 1.6.0 对照；对照开关默认 ON，OFF 不下载/不链接）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_RS": "ON",
+          "PLANNER_RS_WITH_OMPL": "ON"
+        },
+        "target": "planner_rs"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "rs"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/rs/planner_rs_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）；指标契约见 tools/README.md“基准输出契约”"
+        }
+      }
+    },
+    "collision": {
+      "kind": "cmake",
+      "description": "碰撞检测（位姿、运动段、路径）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_COLLISION": "ON"
+        },
+        "target": "planner_collision"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "collision"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/collision/planner_collision_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）；指标契约见 tools/README.md“基准输出契约”"
+        }
+      }
+    },
+    "bspline": {
+      "kind": "cmake",
+      "description": "B-spline 曲线库（TinySpline 0.6.0 首版封装基线；EGO 对照开关默认 ON，OFF 不编译/不链接 GPL 隔离库）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_BSPLINE": "ON",
+          "PLANNER_BSPLINE_WITH_EGO": "ON"
+        },
+        "target": "planner_bspline"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "bspline"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/bspline/planner_bspline_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）；指标契约见 tools/README.md“基准输出契约”"
+        }
+      }
+    },
+    "polynomial": {
+      "kind": "cmake",
+      "description": "三次/五次多项式轨迹库（mav 对照开关默认 ON，OFF 不下载 Eigen/glog/mtg）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_POLYNOMIAL": "ON",
+          "PLANNER_POLYNOMIAL_WITH_MAV_COMPARE": "ON"
+        },
+        "target": "planner_polynomial"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "polynomial"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/polynomial/planner_polynomial_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）；指标契约见 tools/README.md“基准输出契约”"
+        }
+      }
+    },
+    "corridor": {
+      "kind": "cmake",
+      "description": "安全走廊生成",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_CORRIDOR": "ON"
+        },
+        "target": "planner_corridor"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "corridor"
+      },
+      "benchmark_suites": {}
+    },
+    "hybrid_astar": {
+      "kind": "cmake",
+      "description": "Hybrid A*（Smac / KTH / zm0612 适配与选型）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_HYBRID_ASTAR": "ON",
+          "PLANNER_BUILD_RS": "ON",
+          "PLANNER_BUILD_COLLISION": "ON"
+        },
+        "target": "planner_hybrid_astar"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "hybrid_astar"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "taskset",
+            "-c",
+            "0-7",
+            "{build_dir}/Src/hybrid_astar/planner_hybrid_astar_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口，绑定 P 核 0-7 屏蔽大小核迁移）；指标契约见 tools/README.md“基准输出契约”"
+        },
+        "v2": {
+          "command": [
+            "taskset",
+            "-c",
+            "0-7",
+            "{build_dir}/Src/hybrid_astar/planner_hybrid_astar_bench",
+            "--suite",
+            "v2",
+            "--fixtures-dir",
+            "{repo_root}/tests/fixtures/v7",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "统一栅格档实验（2026-10-16，独占窗口，绑定 P 核 0-7 屏蔽大小核迁移）：fixtures v7 全量 36 场景（6 类 × 6 变体，统一画布）；4 个 normalized 后端（ros_free/kth_normalized/zm0612_normalized/smac_normalized）叠加统一 xy_resolution_m=0.5 / heading_bins=72 / motion_step_m=1.0 / reverse_motion_step_m=1.0，3 个 native 保持原配置作参考；门槛/选型用途保持默认 5.0 s 预算（实测 2.0 s 会把 300 个成功样本转为 timeout 并破坏门槛评估，故注册命令不降预算；纯速度实验可显式传 --time-budget-s 2.0，结果不用于门槛）；输出契约与 v1 相同，selection.json 标记 experimental=true，选择字段仅供实验参考、不替换 v1 正式选型"
+        },
+        "v3": {
+          "command": [
+            "{build_dir}/Src/hybrid_astar/planner_hybrid_astar_bench",
+            "--suite",
+            "v3",
+            "--fixtures-dir",
+            "{repo_root}/tests/fixtures/v8",
+            "--vehicle",
+            "parking_bench.json",
+            "--cold-only",
+            "--warmup-runs",
+            "0",
+            "--measured-runs",
+            "1",
+            "--time-budget-s",
+            "30",
+            "--jobs",
+            "8",
+            "--export-paths-dir",
+            "{run_dir}/outputs/paths",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "停车基准探索性套件（fixtures v8）：TITS 2022 论文 115 个停车场景 × 4 个 normalized 后端（ros_free/kth_normalized/zm0612_normalized/smac_normalized），统一栅格 overlay（同 v2）；协议：冷启动单次 + 路径导出，30 s 预算，8 并行 worker；expected 统一 success，失败只记录；选择字段仅供实验参考、不替换 v1 正式选型。对比图工具：tools/parking_compare_plots.py。"
+        },
+        "v4": {
+          "command": [
+            "{build_dir}/Src/hybrid_astar/planner_hybrid_astar_bench",
+            "--suite",
+            "v4",
+            "--fixtures-dir",
+            "{repo_root}/tests/fixtures/v9",
+            "--vehicle",
+            "parkbench_vehicle.json",
+            "--cold-only",
+            "--warmup-runs",
+            "0",
+            "--measured-runs",
+            "1",
+            "--time-budget-s",
+            "30",
+            "--jobs",
+            "8",
+            "--export-paths-dir",
+            "{run_dir}/outputs/paths",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "ParkBench 探索性套件（fixtures v9）：Constrained_Parking_Scenarios（arXiv:2601.22545，CC-BY-NC-4.0）限制倒车入库 51 场景× 4 个 normalized 后端，统一栅格 overlay（同 v2）；车辆 = ParkBench 论文车（4.95×2.00 m、轴距 3.0 m、满舵 32°）；协议：冷启动单次 + 路径导出，30 s 预算，8 并行 worker；选择字段仅供实验参考、不替换 v1 正式选型。"
+        }
+      }
+    },
+    "validation": {
+      "kind": "cmake",
+      "description": "优化后轨迹校验 V（复用碰撞接口）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_VALIDATION": "ON",
+          "PLANNER_BUILD_COLLISION": "ON",
+          "PLANNER_BUILD_CORRIDOR": "ON"
+        },
+        "target": "planner_validation"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "validation"
+      },
+      "benchmark_suites": {}
+    },
+    "map": {
+      "kind": "cmake",
+      "description": "Lanelet2 地图组件（导入、查询、裁剪、可行驶域栅格导出；服务开关默认 ON，OFF 不下载/不链接 httplib）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_MAP": "ON",
+          "PLANNER_BUILD_GRID": "ON",
+          "PLANNER_BUILD_SCENE": "ON",
+          "PLANNER_BUILD_COLLISION": "ON",
+          "PLANNER_MAP_WITH_SERVICE": "ON"
+        },
+        "target": "planner_map"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "map"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/map/planner_map_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）；指标契约见 tools/README.md“基准输出契约”"
+        }
+      },
+      "service": {
+        "command": [
+          "{build_dir}/Src/map/planner_map_service",
+          "--map",
+          "{repo_root}/tests/fixtures/v3/map/mapping_example.osm",
+          "--origin-lat",
+          "49.00345654351",
+          "--origin-lon",
+          "8.42427590707",
+          "--port",
+          "8765",
+          "--run-dir",
+          "{run_dir}"
+        ],
+        "workers": 1,
+        "description": "本地 C++ HTTP 地图加载/查询服务（W2；二进制由地图组件交付）"
+      }
+    },
+    "dftpav": {
+      "kind": "cmake",
+      "description": "Dftpav 独立实验优化后端（默认关闭；启用时同时开启其前置组件；E2E 链路开关默认 ON，OFF 不引入 hybrid_astar）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_DFTPAV": "ON",
+          "PLANNER_DFTPAV_WITH_E2E": "ON",
+          "PLANNER_BUILD_CORRIDOR": "ON",
+          "PLANNER_BUILD_VALIDATION": "ON",
+          "PLANNER_BUILD_HYBRID_ASTAR": "ON",
+          "PLANNER_BUILD_COLLISION": "ON"
+        },
+        "target": "planner_dftpav"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "dftpav"
+      },
+      "benchmark_suites": {}
+    },
+    "web": {
+      "kind": "npm",
+      "description": "浏览器工作台（TypeScript/React/Canvas；W1–W5）",
+      "dir": "Src/web",
+      "install": [
+        "npm",
+        "install",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "install_ci": [
+        "npm",
+        "ci",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "build": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "test": [
+        "npm",
+        "run",
+        "test"
+      ],
+      "service": {
+        "command": [
+          "npm",
+          "run",
+          "serve",
+          "--",
+          "--run-dir",
+          "{run_dir}"
+        ],
+        "workers": 1,
+        "description": "W5 本地服务（HTTP/WebSocket）；脚本名 serve 由前端包实现，改名时同步更新本条目"
+      },
+      "benchmark_suites": {
+        "grid_display": {
+          "command": [
+            "python3",
+            "Src/web/scripts/grid_display_bench.py",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "显示档性能基准（256²/512²/1024² 栅格显示；X-W1 首次实测，正式基准已复跑：20261012T211851904122Z_web_a7ccc602，15/15 门槛 pass）",
+          "output_contract": "指标文件 outputs/grid_display_metrics.csv（显示专有列：传输/解析/纹理/帧/内存等；不写通用 benchmark_metrics.csv，运行目录 metrics.csv 仅 task_summary 行，benchmark_metrics_missing 为预期事件）；另有 outputs/grid_display_bench.json、grid_display_{256,512,1024}.png、grid_display_dpr2_1024.png、cdp_chrome.log"
+        }
+      },
+      "test_junit": "reports/junit.xml"
+    },
+    "service": {
+      "kind": "cmake",
+      "description": "W5 规划服务（地图/规划/优化集成前端；HTTP 服务开关默认 ON，OFF 不下载/不链接 httplib）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_SERVICE": "ON",
+          "PLANNER_SERVICE_WITH_HTTP": "ON",
+          "PLANNER_BUILD_MAP": "ON",
+          "PLANNER_BUILD_RS": "ON",
+          "PLANNER_BUILD_COLLISION": "ON",
+          "PLANNER_BUILD_HYBRID_ASTAR": "ON",
+          "PLANNER_BUILD_CORRIDOR": "ON",
+          "PLANNER_BUILD_VALIDATION": "ON",
+          "PLANNER_BUILD_DFTPAV": "ON",
+          "PLANNER_BUILD_SCENE": "ON",
+          "PLANNER_BUILD_GRID": "ON"
+        },
+        "target": "planner_plan_service"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "service"
+      },
+      "service": {
+        "command": [
+          "{build_dir}/Src/service/planner_plan_service",
+          "--map",
+          "{repo_root}/tests/fixtures/v3/map/mapping_example.osm",
+          "--origin-lat",
+          "49.00345654351",
+          "--origin-lon",
+          "8.42427590707",
+          "--port",
+          "8766",
+          "--run-dir",
+          "{run_dir}"
+        ],
+        "workers": 1,
+        "description": "W5 规划服务（HTTP/JSON）；二进制由服务组件交付"
+      },
+      "benchmark_suites": {}
+    },
+    "graph_search": {
+      "kind": "cmake",
+      "description": "图搜索统一接口与多实现适配（planner_graph_search；五个适配器开关默认 ON，OFF 不下载/不链接对应上游；igraph 为 GPL-2.0-or-later 隔离组，仅隔离目标静态链接）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_GRAPH_SEARCH": "ON",
+          "PLANNER_BUILD_COMMON": "ON",
+          "PLANNER_GRAPH_SEARCH_WITH_BOOST": "ON",
+          "PLANNER_GRAPH_SEARCH_WITH_LMRP": "ON",
+          "PLANNER_GRAPH_SEARCH_WITH_JUSTINHJ": "ON",
+          "PLANNER_GRAPH_SEARCH_WITH_LEMON": "ON",
+          "PLANNER_GRAPH_SEARCH_WITH_IGRAPH": "ON"
+        },
+        "target": "planner_graph_search"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "graph_search",
+        "workers": 1
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/graph_search/benchmarks/planner_graph_search_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "图搜索正式基准（X-B1；独占窗口）：graph_gen v1 确定性生成 6 实例（1k/10k/100k × road/rand），点到点 7 主后端 + 4 零启发式对照（单列）+ 距离场 3 后端 × 2 源点；预热 5 + 测量 30，点到点预算 5 s、距离场 30 s，冷/热分列；>10 MiB 输入按 SHA256 寻址归档；指标契约见 tools/README.md §7.2 与 Src/graph_search/benchmarks/README.md"
+        },
+        "generate": {
+          "command": [
+            "{build_dir}/Src/graph_search/benchmarks/planner_graph_search_bench",
+            "--generate-only",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "物化 graph_gen v1 的 6 个确定性实例（graphs/*.graph.txt + SHA256 + meta + 实例表；>10 MiB 复制到 artifacts/data/sha256 归档，不入 Git），供 --suite v1 复用与独立核对"
+        }
+      }
+    },
+    "grid_search": {
+      "kind": "cmake",
+      "description": "栅格 A*/Dijkstra 与距离场统一契约及多来源适配（planner_grid_search；五个适配器开关默认 ON，构建不联网，jps3d 缺 Eigen3 时跳过并警告）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_GRID_SEARCH": "ON",
+          "PLANNER_BUILD_COMMON": "ON",
+          "PLANNER_GRID_SEARCH_WITH_VSS2SN": "ON",
+          "PLANNER_GRID_SEARCH_WITH_SMAC2D": "ON",
+          "PLANNER_GRID_SEARCH_WITH_JPS3D": "ON",
+          "PLANNER_GRID_SEARCH_WITH_LIBMULTIROBOT": "ON",
+          "PLANNER_GRID_SEARCH_WITH_JUSTINHJ": "ON"
+        },
+        "target": "planner_grid_search"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "grid_search",
+        "workers": 1
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "bash",
+            "{repo_root}/Src/grid_search/benchmarks/run_suite.sh",
+            "--build-dir",
+            "{build_dir}",
+            "--output-dir",
+            "{run_dir}/outputs",
+            "--mode",
+            "formal",
+            "--backends",
+            "smac_2d_astar,jps3d_astar,jps3d_jps,vss2sn_dijkstra,libmultirobot_astar,justinhj_astar,justinhj_astar_nopool"
+          ],
+          "description": "栅格正式档（6 类 × 128²/512²/1024² × 种子 0–4 = 90 实例；八邻域主组 + 四邻域对照组单列；点到点 5 s、距离场 30 s；预热 5 + 测量 30）。必须独占窗口运行；证据按 §9 封存。"
+        },
+        "capacity": {
+          "command": [
+            "bash",
+            "{repo_root}/Src/grid_search/benchmarks/run_suite.sh",
+            "--build-dir",
+            "{build_dir}",
+            "--output-dir",
+            "{run_dir}/outputs",
+            "--mode",
+            "capacity",
+            "--backends",
+            "smac_2d_astar,jps3d_astar,jps3d_jps,vss2sn_dijkstra,libmultirobot_astar,justinhj_astar,justinhj_astar_nopool"
+          ],
+          "description": "容量档（2048²/4096² 单次冷启动、种子 0；峰值 RSS 构成与 conversion_ms 单列；超时单列；扩重复按 benchmark_tiers.md §3.3 自动评估）。"
+        }
+      }
+    },
+    "sampling_search": {
+      "kind": "cmake",
+      "description": "二维 RRT* 多实现适配（planner_sampling_search；OMPL/Ch0p1k3/Klamp't/vss2sn 开关默认 ON，ai-winter GPL-3.0 适配延期保持 OFF）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_SAMPLING_SEARCH": "ON",
+          "PLANNER_BUILD_COMMON": "ON",
+          "PLANNER_SAMPLING_SEARCH_WITH_OMPL": "ON",
+          "PLANNER_SAMPLING_SEARCH_WITH_CH0P1K3": "ON",
+          "PLANNER_SAMPLING_SEARCH_WITH_KLAMPT": "ON",
+          "PLANNER_SAMPLING_SEARCH_WITH_VSS2SN": "ON"
+        },
+        "target": "planner_sampling_search"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "sampling_search",
+        "workers": 1
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/sampling_search/benchmarks/planner_sampling_search_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "正式基准（独占窗口）：连续组 4 目标（Informed 单列）× 6 场景 × 预算 0.1/0.5/1/5 s × 种子 0–29；栅格组 vss2sn × 6 类 × 3 规模（seed 0 几何）× 4 预算 × 30 种子；容量档单次（连续放大 2 实例 + 栅格 2048²/4096² 12 实例）；每 trial 独立子进程（OMPL 进程级种子）；指标契约见 tools/README.md §7.2 与 Docs/expansion/benchmark_tiers.md §5"
+        }
+      }
+    }
+  },
+  "extension_example": {
+    "example_component": {
+      "kind": "cmake",
+      "description": "示例：接入新的 CMake 组件",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_EXAMPLE": "ON"
+        },
+        "target": "planner_example"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "example"
+      },
+      "service": {
+        "command": [
+          "{build_dir}/Src/example/planner_example_server",
+          "--run-dir",
+          "{run_dir}"
+        ],
+        "workers": 1,
+        "description": "长驻 HTTP/WebSocket 服务（占 1 个 worker 名额）"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "{build_dir}/Src/example/planner_example_bench",
+            "--suite",
+            "v1",
+            "--output-dir",
+            "{run_dir}/outputs"
+          ],
+          "description": "示例：独占工作负载窗口内的正式基准"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "note": "X-B1 grid_search 注册片段：由 wiring 代理并入 tools/components.json 的 components.grid_search（本文件不修改 components.json）。占位符与 tools/README.md §7.1 一致；run_suite.sh 负责“生成实例 → 独立 Python 参考 → C++ 基准运行器”，全部证据写在 {run_dir}/outputs 内，并写出契约文件 benchmark_metrics.csv。",
+  "components": {
+    "grid_search": {
+      "kind": "cmake",
+      "description": "统一栅格搜索契约与多来源适配（X-S2 栅格 Dijkstra/距离场 + X-S3 栅格 A*；基准 X-B1）",
+      "cmake": {
+        "options": {
+          "PLANNER_BUILD_GRID_SEARCH": "ON"
+        },
+        "target": "planner_grid_search"
+      },
+      "test": {
+        "runner": "ctest",
+        "label": "grid_search"
+      },
+      "benchmark_suites": {
+        "v1": {
+          "command": [
+            "bash",
+            "{repo_root}/Src/grid_search/benchmarks/run_suite.sh",
+            "--build-dir",
+            "{build_dir}",
+            "--output-dir",
+            "{run_dir}/outputs",
+            "--mode",
+            "formal"
+          ],
+          "description": "栅格正式档（6 类 × 128²/512²/1024² × 种子 0–4 = 90 实例；八邻域主组 + 四邻域对照组单列；点到点 5 s、距离场 30 s；预热 5 + 测量 30）。必须独占窗口运行；证据按 §9 封存。"
+        },
+        "capacity": {
+          "command": [
+            "bash",
+            "{repo_root}/Src/grid_search/benchmarks/run_suite.sh",
+            "--build-dir",
+            "{build_dir}",
+            "--output-dir",
+            "{run_dir}/outputs",
+            "--mode",
+            "capacity"
+          ],
+          "description": "容量档（2048²/4096² 单次冷启动、种子 0；峰值 RSS 构成与 conversion_ms 单列；超时单列；扩重复按 benchmark_tiers.md §3.3 自动评估）。"
+        }
+      }
+    }
+  }
+}

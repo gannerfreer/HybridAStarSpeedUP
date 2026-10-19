@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req-hybrid-success-001",
+  "status": "success",
+  "reason": "",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "path": [
+    {
+      "points": [
+        {"pose": {"x_m": 6.0, "y_m": 18.0, "yaw_rad": 0.0}, "s_m": 0.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 9.0, "y_m": 18.0, "yaw_rad": 0.0}, "s_m": 3.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 12.0, "y_m": 18.0, "yaw_rad": 0.0}, "s_m": 6.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 15.0, "y_m": 18.0, "yaw_rad": 0.0}, "s_m": 9.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 18.0, "y_m": 18.0, "yaw_rad": 0.0}, "s_m": 12.0, "curvature_inv_m": 0.0, "direction": "forward"}
+      ]
+    }
+  ],
+  "trajectory": [],
+  "statistics": {
+    "expanded_nodes": 4123,
+    "collision_checks": 51234,
+    "planning_time_s": 0.031,
+    "segment_count": 1,
+    "direction_changes": 0,
+    "total_length_m": 12.0
+  },
+  "notes": [
+    "合成 Hybrid A* 成功样例：单段前进直线，位于地图北侧开阔区（y=18 m）。",
+    "仅用于 W4 显示；统计数据为示例值，不代表任何实现的实测性能。"
+  ]
+}

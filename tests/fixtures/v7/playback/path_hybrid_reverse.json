@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req-hybrid-reverse-001",
+  "status": "success",
+  "reason": "",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "path": [
+    {
+      "points": [
+        {"pose": {"x_m": 30.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 0.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 32.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 2.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 34.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 4.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 36.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 6.0, "curvature_inv_m": 0.0, "direction": "forward"}
+      ]
+    },
+    {
+      "points": [
+        {"pose": {"x_m": 36.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 6.0, "curvature_inv_m": 0.0, "direction": "reverse"},
+        {"pose": {"x_m": 34.5, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 7.5, "curvature_inv_m": 0.0, "direction": "reverse"},
+        {"pose": {"x_m": 33.0, "y_m": 5.0, "yaw_rad": 0.0}, "s_m": 9.0, "curvature_inv_m": 0.0, "direction": "reverse"}
+      ]
+    }
+  ],
+  "trajectory": [],
+  "statistics": {
+    "expanded_nodes": 9876,
+    "collision_checks": 120345,
+    "planning_time_s": 0.052,
+    "segment_count": 2,
+    "direction_changes": 1,
+    "total_length_m": 9.0
+  },
+  "notes": [
+    "换向样例：前进段 s∈[0,6]（x 30→36），倒车段 s∈[6,9]（x 36→33）；换向点 (36,5) 同时是前向段末点与倒车段首点，方向字段区分档位。",
+    "显示端应在换向点绘制 cusp 标记，并用不同颜色区分 forward/reverse。"
+  ]
+}

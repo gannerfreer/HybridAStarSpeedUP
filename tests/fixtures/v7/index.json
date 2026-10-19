@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "type": "fixture_index",
+  "fixture_version": "v7",
+  "revision_of": "v6",
+  "revision_summary": "v7 = v6 全量复制（不含 v6 清单）+ paths/cases_bench_v2.json 新增：Hybrid A* 基准套件 v2 场景集（36 场景 = 6 类 × 6 变体，统一画布 300×160 格 @0.1 m / 30×16 m，id b2-<class>-01..06，30 success + 6 unreachable/no_path；独立 Python 脚本校验 passed，最窄瓶颈净宽 2.30 m）；其余文件与 v6 逐字节一致，v1–v6 保持冻结不动。",
+  "revision_history": [
+    "v7：paths/ 新增 cases_bench_v2.json（Hybrid A* 基准套件 v2 统一画布 36 场景；消费方 planner_hybrid_astar_bench --suite v2）；起终点足迹/障碍几何/通道净宽/unreachable 封闭性/画布全等五项独立校验通过；其余文件与 v6 逐字节一致，v1–v6 保持冻结。",
+    "v6：grids/ 集合新增（X-W1 生成）：手算 G1–G8、协议用例 P1–P13、snapshot_small 解码样例、display_spec 与 display_256/512/1024 显示档；显示档 sha256 与 spot_checks 生成时回填并强制复算；其余文件与 v5 逐字节一致。",
+    "v5：large 地图由 planner_map_bench --generate-only 确定性物化（run 20261010T182903322231Z_map_5bfca7d8，72,451,416 B，SHA256 2d5d6b14451aad58a3a4493dff461a2d06d729aebc4a16594fe8000cee892ab9），status 升为 generated，archive.sha256/relative_path 填入 artifacts/data/sha256/<sha256>/large.osm；fixture_version 升 v5；bench spec 优先级 v5→v4→v3→v2→v1（§7.3/§9 MAP 行待办闭环）。",
+    "v4：修正 benchmarks/map/specs.json 的 lanelet_length_m（20.0→25.0，与 x_pitch_m 一致并同步 geometry_rule）与 playback/index.json notes 的陈旧路径（tests/fixtures/v1 → tests/fixtures/v4）；依据 ISSUES fixtures-002/fixtures-003 的复查条件（fixture_version 升版）。",
+    "v2：修订 paths/cases.json 的 14 例（6 例 fixture_conflict、8 例 unresolved）与 collision/random_spec.json 的位姿层文本澄清；依据 Hybrid A* Wave 4 实测与 §7.1 的 0.1 m 安全裕量整车语义。",
+    "v1：初始 E0 夹具（公共类型、车辆、最小栅格、路径场景、碰撞规范、微基准输入、回放样例）。"
+  ],
+  "sets": [
+    {
+      "id": "vehicles",
+      "kind": "vehicle_models",
+      "root": "vehicles",
+      "description": "默认测试车辆参数（§7.1 基准参数，不代表实车）。"
+    },
+    {
+      "id": "grids",
+      "kind": "grid_fixtures",
+      "root": "grids",
+      "description": "栅格夹具：v5 minimal.json（逐字节复制）+ 手算三态 grid_view（旋转原点/边缘/未知/障碍叠加/坐标换算/64² 正确性小图）+ grid_snapshot 解码样例 + 协议用例 P1–P13 + 显示档 256²/512²/1024² 与生成规范（v7 与 v6 逐字节一致）。"
+    },
+    {
+      "id": "serialization",
+      "kind": "serialization_contract",
+      "root": "serialization",
+      "description": "公共类型 JSON 契约的有效/无效样例与字段说明，由公共序列化负责人维护；本索引仅引用路径，不内嵌哈希。"
+    },
+    {
+      "id": "paths",
+      "kind": "path_scenarios",
+      "root": "paths",
+      "description": "路径规划固定场景：cases.json（六类各 5 例共 30 例 + 4 个非法/边界用例，v2 修订）与 v7 新增 cases_bench_v2.json（Hybrid A* 基准套件 v2：36 例 = 6 类 × 6 变体，统一画布 300×160 @0.1 m，30 success + 6 unreachable/no_path）。"
+    },
+    {
+      "id": "collision",
+      "kind": "collision_random_spec",
+      "root": "collision",
+      "description": "碰撞随机差分规范：开发回归 10,000 例、正式验收 100,000 例的种子、分布、用例 ID 与独立参考约定。"
+    },
+    {
+      "id": "benchmarks",
+      "kind": "microbenchmark_inputs",
+      "root": "benchmarks",
+      "description": "B-spline、多项式与地图微基准的固定输入、批大小与计时边界规范。"
+    },
+    {
+      "id": "playback",
+      "kind": "display_fixtures",
+      "root": "playback",
+      "description": "W4 固定结果回放样例（地图快照、路径、曲线、走廊、轨迹、碰撞与过期请求）；全部为 synthetic 显示测试数据。"
+    },
+    {
+      "id": "map",
+      "kind": "map_snapshot_fixtures",
+      "root": "map",
+      "description": "M4 公共地图快照与示例 OSM（官方 Lanelet2 1.2.3 mapping_example，BSD-3-Clause），供 Web W1–W4 消费；来源、许可、哈希与消费约定见 map/README.md，字段表见 Src/map/examples/data/README.md。"
+    }
+  ],
+  "notes": [
+    "v7 修订（相对 v6）：paths/ 新增 cases_bench_v2.json —— Hybrid A* 基准套件 v2 的统一画布场景集（36 场景 = 6 类 × 6 变体：open/obstacle/corridor/park/deadend/unreachable 各 6，id b2-<class>-01..06，seed 701–736；画布 300×160 格 @0.1 m、origin (0,0)、map_version=v7、map_id 唯一；30 例 expected=success + 6 例 unreachable expected=failure/no_path）。独立 Python 校验（结论见该文件 self_check.validation）：起终点 4.9×2.0 m 包络足迹无碰撞且在界内 36/36、障碍几何合法 36/36、圆盘最大最小间隙路径（半径 1.0 m）30/30 success 连通且最窄瓶颈净宽 2.30 m ≥ 2.2 m、unreachable 封闭性 6/6（最大瓶颈净宽 1.50 m）、36 例画布全等；结论 passed。消费方：planner_hybrid_astar_bench --suite v2（Src/hybrid_astar/README.md「基准套件 v2」）。其余文件与 v6 逐字节一致；v1–v6 保持冻结不动。",
+    "v7 可行构造说明：各例 notes 给出显式构造机动（直线段 + 四分之一圆弧，R = wheelbase/tan(max_steer) ≈ 5.125 m）与含 0.1 m 裕量包络的逐段间隙；为手写几何论证与独立脚本校验，未运行规划器，不构成 Hybrid A* 实测通过；实测分类由基准套件 v2 运行记录。",
+    "v6 修订（相对 v5）：grids/ 新增由 tools/grid_fixtures.py 确定性生成 —— 手算 G1–G8（rotated_origin_ccw/cw、edge_cells、unknown_edges、obstacle_overlay、coord_conversion、snapshot_small、pattern_64）、协议用例 protocol_cases（P1–P13）、显示档 display_256/512/1024 与 display_spec（splitmix64_thresholds_v1，seed 20261012/20261013/20261014，sha256/spot_checks 强制复算）。grids/minimal.json 与 v5 逐字节一致；其余集合与 v5 逐字节一致。消费方：X-W1 固定夹具渲染、X-M1/X-W2 协议联调（地图仍用 v3 夹具）。",
+    "v6 生成器已知计划偏差：G5 obs-d 三角形计划底边 y=2.5 与第 2 行单元中心共线，按闭合边界语义会多占 (2,0)，与计划期望 8 格不符；生成器以计划期望 cells 为准，底边上移 0.1 m 为 y=2.6（详见夹具 notes 与 tools/grid_fixtures.py 文档）。",
+    "本索引不内嵌文件哈希；哈希由 fixtures freeze/verify 工具生成与校验。playback/index.json 内的 SHA256 为 W4 固定回放样例的内容哈希（sha256sum 计算）。",
+    "所有 JSON 顶层遵循整数 schema_version 与字符串 type 约定。",
+    "路径、轨迹、走廊与栅格字段按 tests/fixtures/v5/serialization/README.md 冻结契约生成（栅格 origin 采用 ROS OccupancyGrid 左下角约定）；serialization/ 为 v1 冻结契约的逐字节副本（经 v2 复制）。",
+    "v5 修订（相对 v4）：benchmarks/map/specs.json 的 large（100,000 lanelet）由 planner_map_bench --generate-only 确定性物化（run 20261010T182903322231Z_map_5bfca7d8，72,451,416 B，SHA256 2d5d6b14451aad58a3a4493dff461a2d06d729aebc4a16594fe8000cee892ab9），status 升为 generated，archive.sha256/relative_path 指向 artifacts/data/sha256/<sha256>/large.osm（§9 SHA256 寻址归档，含 large.sha256 与 large.meta.json）；bench spec 优先级 v5→v4→v3→v2→v1，生成后强制校验 SHA256。其余文件与 v4 逐字节一致。",
+    "v2 修订（原因与清单）：Hybrid A* Wave 4 实测（run 20261009T175408170666Z_hybrid_astar_28821807 / 20261009T174607194255Z_hybrid_astar_5729bd98）发现 paths/cases.json 14 例构造缺陷 —— 6 例 fixture_conflict（corridor_112、park_117、park_120、unreachable_126/129/130：含 0.1 m 安全裕量的终点足迹碰撞或出界）与 8 例 unresolved（park_116/118/119、deadend_121–125：几何不可行导致穷举 no_path）。v2 逐例修复并给出构造机动可行性论证（见 paths/cases.json 的 self_check.v2_revision）。",
+    "v2 文件差异：paths/cases.json（14 例修订 + self_check）、collision/random_spec.json（仅文本澄清位姿层 reverse_motion 归属，不改任何计数）、README.md 与 index.json（本修订说明）；其余文件与 v1 逐字节一致（未修订例的 grid.map_version 保持 v1，14 个修订例升为 v2）。",
+    "v3 修订（相对 v2）：晋升地图集 map/ —— `mapping_example.osm`（官方 Lanelet2 1.2.3，BSD-3-Clause，SHA256 11561c763ed50322185139ec2dd041d6da72e1bd4e5fc3bb66f6b340d92c088f，594,826 B）与 `mapping_example.snapshot.json`（M4 map_snapshot，schema_version 1，SHA256 fa1c5ed1aeef73c14b2f698460f54622216eee0d4e2522629d96396cd17d8b62，436,381 B）；投影原点 UTM lat 49.00345654351 / lon 8.42427590707；消费方 Web W1–W4。v3 = v2 全量复制（不含 v2 清单），除 map/ 与本文件/README 外与 v2 逐字节一致；v1、v2 保持冻结。",
+    "v4 修订（相对 v3）：benchmarks/map/specs.json 修正 lanelet_length_m=25.0（与 x_pitch_m 一致，geometry_rule 同步；fixtures-002）与 playback/index.json notes 路径修正（tests/fixtures/v1→v4；fixtures-003）；map/、vehicles/ 等未修订集合与 v3 逐字节一致。消费方迁移：benchmarks/map → planner_map_bench（v4 优先，v1/v2 回退）、playback → Web W4；map/vehicles 消费方维持 v3。",
+    "各集合的状态与字段表见同目录 README.md。"
+  ]
+}

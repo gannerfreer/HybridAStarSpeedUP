@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "type": "grid_view",
+  "map_id": "grid_rotated_origin_cw",
+  "map_version": "v6",
+  "width": 4,
+  "height": 4,
+  "resolution_m": 0.5,
+  "origin": {"x_m": -3.0, "y_m": 2.0, "yaw_rad": -1.5707963267948966},
+  "cell_encoding": {"0": "free", "1": "occupied", "2": "unknown"},
+  "cells": [
+    0,0,0,1,
+    0,0,0,0,
+    0,2,0,0,
+    1,0,0,0
+  ],
+  "notes": "4×4、0.5 m、origin=(-3.0,2.0,-π/2)。cell (0,0) 中心 (-2.75,1.75) free、(0,3) (-2.75,0.25) occupied、(2,1) (-1.75,1.25) unknown、(3,0) (-1.25,1.75) occupied、(3,3) (-1.25,0.25) free；yaw 在 [-π,π)。"
+}

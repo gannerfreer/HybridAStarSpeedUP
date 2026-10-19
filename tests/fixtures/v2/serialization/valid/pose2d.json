@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "type": "pose2d",
+  "x_m": 12.5,
+  "y_m": -3.25,
+  "yaw_rad": -2.356194490192345,
+  "frame_id": "map"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "type": "vehicle_model",
+  "id": "parkbench_vehicle",
+  "wheelbase_m": 3.0,
+  "width_m": 2.0,
+  "front_overhang_m": 0.925,
+  "rear_overhang_m": 1.025,
+  "max_steer_rad": 0.5585053606381855,
+  "safety_margin_m": 0.0,
+  "footprint_shape": "rectangle",
+  "source": "ParkBench 论文（arXiv:2601.22545）Appendix B Table 2",
+  "notes": "中大型乘用车：长 4.95 m、宽 2.00 m、轴距 3.00 m、前悬 0.925 m、后悬 1.025 m、最大前轮等效转角 ±32°（0.5585 rad）、安全边距 0（论文口径）。最小转弯半径 = 3.0 / tan(32°) ≈ 4.801 m。运动学自行车模型、后轴中心参考。"
+}

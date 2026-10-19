@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "type": "corridor",
+  "id": "corridor_req_0001",
+  "map_id": "fixture_map_001",
+  "map_version": "v1",
+  "frame_id": "map",
+  "polygons": [
+    {
+      "s_start_m": 0.0,
+      "s_end_m": 2.0,
+      "vertices": [
+        {"x_m": -1.0, "y_m": -1.0},
+        {"x_m": 3.0, "y_m": -1.0},
+        {"x_m": 3.0, "y_m": 1.0},
+        {"x_m": -1.0, "y_m": 1.0}
+      ]
+    },
+    {
+      "s_start_m": 2.0,
+      "s_end_m": 4.0,
+      "vertices": [
+        {"x_m": 1.0, "y_m": -1.0},
+        {"x_m": 5.0, "y_m": -1.0},
+        {"x_m": 5.0, "y_m": 1.0},
+        {"x_m": 1.0, "y_m": 1.0}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "type": "trajectory_point",
+  "t_s": 0.8,
+  "pose": {"x_m": 1.6, "y_m": 0.4, "yaw_rad": 0.25},
+  "velocity_mps": 1.5,
+  "acceleration_mps2": -0.2,
+  "curvature_inv_m": 0.05
+}

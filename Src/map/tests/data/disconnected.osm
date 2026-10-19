@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="planner-map-test-fixture">
+  <!-- Lanelet 100: two parallel ways, connected to nothing. -->
+  <node id="1" lat="49.00000" lon="8.40000" visible="true" version="1"/>
+  <node id="2" lat="49.00010" lon="8.40000" visible="true" version="1"/>
+  <node id="3" lat="49.00000" lon="8.40002" visible="true" version="1"/>
+  <node id="4" lat="49.00010" lon="8.40002" visible="true" version="1"/>
+  <way id="101" visible="true" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+  </way>
+  <way id="102" visible="true" version="1">
+    <nd ref="3"/>
+    <nd ref="4"/>
+  </way>
+  <relation id="100" visible="true" version="1">
+    <member type="way" ref="101" role="left"/>
+    <member type="way" ref="102" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+  </relation>
+
+  <!-- Lanelet 110: about 10 km away, also isolated. -->
+  <node id="11" lat="49.10000" lon="8.50000" visible="true" version="1"/>
+  <node id="12" lat="49.10010" lon="8.50000" visible="true" version="1"/>
+  <node id="13" lat="49.10000" lon="8.50002" visible="true" version="1"/>
+  <node id="14" lat="49.10010" lon="8.50002" visible="true" version="1"/>
+  <way id="111" visible="true" version="1">
+    <nd ref="11"/>
+    <nd ref="12"/>
+  </way>
+  <way id="112" visible="true" version="1">
+    <nd ref="13"/>
+    <nd ref="14"/>
+  </way>
+  <relation id="110" visible="true" version="1">
+    <member type="way" ref="111" role="left"/>
+    <member type="way" ref="112" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+  </relation>
+</osm>

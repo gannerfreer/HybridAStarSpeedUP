@@ -1,0 +1,18 @@
+--- /tmp/opencode/probes/family_a/astar-algorithm-cpp/stlastar.h	2026-10-12 19:15:21.727738006 +0800
++++ stlastar.h	2026-10-12 20:33:45.072756448 +0800
+@@ -41,7 +41,15 @@
+ 
+ // Fixed size memory allocator can be disabled to compare performance
+ // Uses std new and delete instead if you turn it off
++//
++// planner_graph_search adaptation (S-03, documented in PROVENANCE.md): the
++// upstream line `#define USE_FSA_MEMORY 1` is wrapped in an #ifndef guard so
++// the memory-pool configuration can be selected with -DUSE_FSA_MEMORY=0 at
++// compile time. Default (macro undefined) behavior is unchanged: the pool is
++// enabled exactly as upstream.
++#ifndef USE_FSA_MEMORY
+ #define USE_FSA_MEMORY 1
++#endif
+ 
+ // disable warning that debugging information has lines that are truncated
+ // occurs in stl headers

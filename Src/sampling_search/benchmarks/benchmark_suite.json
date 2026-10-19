@@ -1,0 +1,17 @@
+{
+  "_comment": "X-B1 注册片段：wiring 已把 sampling_search 注册进 tools/components.json（components.sampling_search，benchmark_suites 当前为空）。本文件不修改 tools/components.json；只需把下面的 benchmark_suites.v1 合并进 components.sampling_search.benchmark_suites 即可启用 `task_runner.py benchmark --component sampling_search --suite v1`。",
+  "component": "sampling_search",
+  "merge_into": "components.sampling_search.benchmark_suites",
+  "benchmark_suites": {
+    "v1": {
+      "command": [
+        "{build_dir}/Src/sampling_search/benchmarks/planner_sampling_search_bench",
+        "--suite",
+        "v1",
+        "--output-dir",
+        "{run_dir}/outputs"
+      ],
+      "description": "正式基准（独占窗口）：连续组 4 目标（Informed 单列）× 6 场景 × 预算 0.1/0.5/1/5 s × 种子 0–29；栅格组 vss2sn × 6 类 × 3 规模（seed 0 几何）× 4 预算 × 30 种子；容量档单次（连续放大 2 实例 + 栅格 2048²/4096² 12 实例）；每 trial 独立子进程（OMPL 进程级种子）；指标契约见 tools/README.md §7.2 与 Docs/expansion/benchmark_tiers.md §5"
+    }
+  }
+}

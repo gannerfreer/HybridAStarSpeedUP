@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "type": "path_segment",
+  "points": [
+    {"pose": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 0.0, "curvature_inv_m": 0.0, "direction": "forward"},
+    {"pose": {"x_m": 1.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 1.0, "curvature_inv_m": 0.0, "direction": "forward"},
+    {"pose": {"x_m": 2.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 1.0, "curvature_inv_m": 0.0, "direction": "forward"}
+  ]
+}

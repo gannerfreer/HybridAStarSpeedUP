@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req-dftpav-demo-001",
+  "status": "success",
+  "reason": "",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "path": [],
+  "trajectory": [
+    {"t_s": 0.0, "pose": {"x_m": 30.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 2.0, "curvature_inv_m": 0.0},
+    {"t_s": 1.0, "pose": {"x_m": 31.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 2.0, "acceleration_mps2": 2.0, "curvature_inv_m": 0.0},
+    {"t_s": 2.0, "pose": {"x_m": 34.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 4.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 3.0, "pose": {"x_m": 38.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 4.0, "acceleration_mps2": -4.0, "curvature_inv_m": 0.0},
+    {"t_s": 4.0, "pose": {"x_m": 40.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": -2.0, "curvature_inv_m": 0.0},
+    {"t_s": 5.0, "pose": {"x_m": 39.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": -2.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 6.5, "pose": {"x_m": 36.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": -2.0, "acceleration_mps2": 2.0, "curvature_inv_m": 0.0},
+    {"t_s": 7.5, "pose": {"x_m": 35.0, "y_m": 5.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0}
+  ],
+  "statistics": {
+    "optimization_iterations": 42,
+    "solve_time_s": 0.86,
+    "min_clearance_m": 0.35,
+    "velocity_switch_time_s": 4.0,
+    "direction_changes": 1
+  },
+  "notes": [
+    "合成 Dftpav 风格轨迹：0～4 s 前进（加速 0→4 m/s、匀速、减速到 0），t=4.0 s 换向停车；4～7.5 s 倒车（速度 -2 m/s 区间）后停稳。",
+    "时间严格递增，换向处速度为零；各段位移按分段常量加速度手算：+1、+3、+4、+2、-1、-3、-1 m，累计终点 x=35 m。",
+    "统计数据与轨迹均为示例值；真实后端输出必须经轨迹校验 V 才能标记有效（§6.1）。"
+  ]
+}

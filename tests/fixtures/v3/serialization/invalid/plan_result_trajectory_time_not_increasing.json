@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req_0001",
+  "status": "success",
+  "trajectory": [
+    {"t_s": 0.0, "pose": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 0.5, "pose": {"x_m": 0.2, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.5, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 0.5, "pose": {"x_m": 0.4, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 1.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0}
+  ]
+}

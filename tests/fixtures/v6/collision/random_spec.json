@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "type": "collision_random_spec",
+  "fixture_version": "v2",
+  "spec_version": "1.0",
+  "source": "Docs/component_development_plan.md §7.1（碰撞随机差分规模与独立参考）",
+  "v2_clarification": "本文件相对 v1 仅有文本澄清（位姿层的 reverse_motion 归属），不修改任何计数、种子或分布参数；v1 保持冻结。",
+  "regimes": {
+    "dev_regression": {
+      "case_count": 10000,
+      "seed": 1000,
+      "cases_per_seed": 10000,
+      "pose_checks": 5000,
+      "motion_checks": 5000,
+      "wide_random_fraction": 0.5,
+      "concentrated_fraction": 0.5,
+      "id_prefix": "cr-dev",
+      "description": "开发回归：单一种子一次生成 10,000 例，用于日常提交回归；结构与正式集合一致，规模较小。"
+    },
+    "acceptance": {
+      "case_count": 100000,
+      "seed_range": {"first": 0, "last": 99, "inclusive": true},
+      "cases_per_seed": 1000,
+      "pose_checks": 50000,
+      "motion_checks": 50000,
+      "wide_random_fraction": 0.5,
+      "concentrated_fraction": 0.5,
+      "id_prefix": "cr-acc",
+      "description": "正式验收：种子 0～99，每种子 1,000 例（500 位姿 + 500 运动段）；每个种子的两类检查各含一半宽范围随机、一半集中对抗样本。"
+    }
+  },
+  "strata": {
+    "wide_random": {
+      "share_of_each_check_kind": 0.5,
+      "pose_sampling": "位姿后轴中心 (x,y) 在 [地图范围各向外扩 2.0 m] 内均匀采样，yaw 在 [-π, π) 均匀采样",
+      "motion_sampling": "起点位姿同上；运动段方向 forward/reverse 等概率；段长 ∈ [0.05, 5.0] m；曲率变化不超过车辆最大转角对应曲率（0.195108 1/m）；含直线与定曲率段",
+      "vehicle": "default_test_vehicle（vehicles/default.json）",
+      "map": "0.1 m 分辨率随机合成栅格：尺寸 ∈ [10, 120] m 每边；障碍 0～16 个，矩形（边长 ∈ [0.2, 8.0] m）或 3～6 顶点凸多边形；unknown 格比例 0～0.2；unknown 与地图外按占据处理"
+    },
+    "concentrated": {
+      "share_of_each_check_kind": 0.5,
+      "kinds": [
+        {
+          "name": "corner_graze",
+          "share_of_check_kind": 0.1,
+          "definition": "车辆足迹/运动段包络与最近障碍边界的最小距离 d ∈ [-0.05, 0.05] m（d<0 表示轻微重叠），覆盖角点与棱边擦碰",
+          "pose_or_motion": "both"
+        },
+        {
+          "name": "exact_contact",
+          "share_of_check_kind": 0.1,
+          "definition": "构造精确相切：d ∈ [-1e-9, 1e-9] m（接触按碰撞计）",
+          "pose_or_motion": "both"
+        },
+        {
+          "name": "thin_obstacle",
+          "share_of_check_kind": 0.1,
+          "definition": "障碍最小厚度（矩形短边或凸多边形最小宽度）∈ [0.02, 0.05] m，低于常用最小分辨率",
+          "pose_or_motion": "both"
+        },
+        {
+          "name": "reverse_motion",
+          "share_of_check_kind": 0.1,
+          "definition": "运动段纵向位移为负（倒车）；段长 ∈ [0.05, 5.0] m；含换向点边界（速度/弧长参数跨界）",
+          "pose_or_motion": "motion"
+        },
+        {
+          "name": "map_edge",
+          "share_of_check_kind": 0.1,
+          "definition": "位姿或运动段位于网格边界 0.05 m 带内、跨越边界或完全在地图外；覆盖 unknown 邻接与角点格",
+          "pose_or_motion": "both"
+        }
+      ],
+      "per_seed_layout": {
+        "pose_checks": 500,
+        "pose_wide_random": 250,
+        "pose_concentrated": 250,
+        "pose_concentrated_breakdown": {"corner_graze": 50, "exact_contact": 50, "thin_obstacle": 50, "reverse_motion": 50, "map_edge": 50},
+        "pose_concentrated_breakdown_note": "v2 澄清（仅文本，不改任何计数）：reverse_motion 只属于运动段检查（见 strata.concentrated.kinds 中 reverse_motion.pose_or_motion=motion），位姿集中样本不使用该层；位姿表中 reverse_motion 键为历史保留，生成器不得据其生成倒车位姿样本，其 50 个位姿席位并入 map_edge（位姿/地图边缘静态情形），使位姿集中样本由 corner_graze/exact_contact/thin_obstacle/map_edge 四类覆盖。总量计数（10,000/100,000、种子 0～99、每种子 1,000、位姿 50,000、运动 50,000、每种子位姿/运动各 500、集中各 250）均未修改。",
+        "motion_checks": 500,
+        "motion_wide_random": 250,
+        "motion_concentrated": 250,
+        "motion_concentrated_breakdown": {"corner_graze": 50, "exact_contact": 50, "thin_obstacle": 50, "reverse_motion": 50, "map_edge": 50}
+      }
+    }
+  },
+  "case_id_rule": {
+    "format": "cr-<regime>-s<seed>-<seq>-<kind>",
+    "regime": "dev 或 acc",
+    "seed": "两位十进制（acc 0～99；dev 固定 1000 写作 1000）",
+    "seq": "regime 内每种子顺序编号；acc 为 0000～0999（位姿 0000～0499，运动 0500～0999）；dev 为 00000～09999（位姿 00000～04999，运动 05000～09999）",
+    "kind": "pose 或 motion",
+    "examples": ["cr-acc-s07-0342-pose", "cr-acc-s07-0500-motion", "cr-dev-s1000-00042-motion"],
+    "uniqueness": "全局唯一；补样与重跑保留原 ID 记录，不覆盖"
+  },
+  "independent_reference": {
+    "requirements": [
+      "不复用生产加速结构（不得使用生产包围体层级、栅格索引、哈希网格或批量查询结构）",
+      "位姿检查：车辆矩形与障碍矩形/凸多边形直接做精确多边形相交（分离轴/直线裁剪任选），包含边接触判定",
+      "运动段检查：保守区间细分——对整车任意点的最大位移细分至 ≤ 1e-3 m（§7.1），残余运动使用保守包络覆盖；包络不能证明无碰撞则继续细分",
+      "达到精度下限仍不能确定时输出 inconclusive，不充当真值",
+      "参考实现与生产实现使用同一输入字节（位姿/段端点、车辆参数、障碍集合、栅格）"
+    ],
+    "tolerance": "数值判定使用 double 直接比较；接触视为碰撞；包络膨胀采用保守方向（宁可误报不漏检）",
+    "verdicts": ["collision", "clear", "inconclusive"]
+  },
+  "inconclusive_samples": {
+    "definition": "参考实现给出 inconclusive 的样本",
+    "handling": [
+      "单列保存完整输入与两侧判定，不参与零漏检统计",
+      "生成替代样本（新 case_id）补足目标可判定案例数：正式集合须达到 100,000 个可判定案例",
+      "替代样本同时经生产实现与参考实现",
+      "报告写明 inconclusive 数量与原因分类（精度下限、退化几何、特殊数值）"
+    ]
+  },
+  "failure_capture": {
+    "trigger": "生产实现与参考实现判定不一致（漏检或误报）或参考确认为反例",
+    "saved_input_fields": ["case_id", "seed", "regime", "check_kind", "kind", "vehicle", "pose_or_segment", "obstacles", "grid", "generator_version", "verdict_production", "verdict_reference", "notes"],
+    "location": "artifacts/runs/<run_id>/inputs/collision/<case_id>.json（按 §9 保存，不进入 Git）",
+    "permanent_regression": "已确认的反例永久加入固定回归集（以新版本夹具或本规范增补条目的形式），不得删除"
+  },
+  "reporting": {
+    "required_counts": ["可判定样本数", "真碰撞数", "漏检数", "误报数", "不确定样本数", "补样数"],
+    "zero_miss": "零漏检仅指这批随机差分测试，不宣称形式化安全证明（§7.1）",
+    "false_positive_policy": "保守误报允许存在但必须如实统计；误报率写入报告",
+    "record_fields": ["generator_version", "distribution", "seed", "case_id", "verdict_production", "verdict_reference", "elapsed_ms"]
+  },
+  "notes": [
+    "本文件只保存规范与种子，不保存 10,000 / 100,000 级样本；样本、补样与失败实例按 §9 输出到 artifacts/runs/<run_id>/。",
+    "距离 d 的定义：d < 0 表示穿透深度，d ≥ 0 表示最近点间隙；生成器按 d 的区间窗口构造样本。",
+    "所有分布参数为生成契约；生成器版本变化时必须升版 spec_version 并保留旧版本。",
+    "本阶段未执行任何生成、加载或验证。"
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "type": "grid_display_spec",
+  "fixture_version": "v6",
+  "pattern": {
+    "name": "splitmix64_thresholds_v1",
+    "mask": "2^64-1",
+    "splitmix64": {
+      "gamma": "0x9E3779B97F4A7C15",
+      "mix1": "0xBF58476D1CE4E5B9",
+      "mix2": "0x94D049BB133111EB",
+      "shifts": [
+        30,
+        27,
+        31
+      ]
+    },
+    "cell_order": "row-major; r=0 is bottom row; index = seed + r*width + c",
+    "thresholds": {
+      "modulus": 100,
+      "free": "v < 82",
+      "occupied": "v < 94",
+      "unknown": "otherwise"
+    },
+    "state_values": {
+      "0": "free",
+      "1": "occupied",
+      "2": "unknown"
+    }
+  },
+  "tiers": [
+    {
+      "name": "display_256",
+      "file": "grids/display_256.json",
+      "map_id": "grid_display_256",
+      "width": 256,
+      "height": 256,
+      "resolution_m": 0.1,
+      "window": {
+        "min_x_m": 0.0,
+        "min_y_m": 0.0,
+        "max_x_m": 25.6,
+        "max_y_m": 25.6
+      },
+      "seed": 20261012,
+      "sha256": "15a635d71f0112d18bfd7b9a7c8a6adca8be7427a33e42796c96dbbe920030ed",
+      "state_counts": {
+        "free": 53898,
+        "occupied": 7756,
+        "unknown": 3882
+      }
+    },
+    {
+      "name": "display_512",
+      "file": "grids/display_512.json",
+      "map_id": "grid_display_512",
+      "width": 512,
+      "height": 512,
+      "resolution_m": 0.1,
+      "window": {
+        "min_x_m": 0.0,
+        "min_y_m": 0.0,
+        "max_x_m": 51.2,
+        "max_y_m": 51.2
+      },
+      "seed": 20261013,
+      "sha256": "0f37ad72b4df71356b8061965421ded645e7ccef3835d001d822a4cab79c537f",
+      "state_counts": {
+        "free": 214854,
+        "occupied": 31583,
+        "unknown": 15707
+      }
+    },
+    {
+      "name": "display_1024",
+      "file": "grids/display_1024.json",
+      "map_id": "grid_display_1024",
+      "width": 1024,
+      "height": 1024,
+      "resolution_m": 0.1,
+      "window": {
+        "min_x_m": 0.0,
+        "min_y_m": 0.0,
+        "max_x_m": 102.4,
+        "max_y_m": 102.4
+      },
+      "seed": 20261014,
+      "sha256": "49ab73bd87e9fa0a0c8dfe09d2d3c9db67b19146a3e7fc67766fc34765a2b841",
+      "state_counts": {
+        "free": 860036,
+        "occupied": 125511,
+        "unknown": 63029
+      }
+    }
+  ],
+  "spot_checks": [
+    {
+      "tier": "display_256",
+      "row": 0,
+      "col": 0,
+      "h": "10310797173907234146",
+      "v": 46,
+      "state": 0
+    },
+    {
+      "tier": "display_256",
+      "row": 1,
+      "col": 0,
+      "h": "17824297617258956416",
+      "v": 16,
+      "state": 0
+    },
+    {
+      "tier": "display_256",
+      "row": 255,
+      "col": 255,
+      "h": "13021325191633500146",
+      "v": 46,
+      "state": 0
+    },
+    {
+      "tier": "display_512",
+      "row": 0,
+      "col": 0,
+      "h": "8467169762938477137",
+      "v": 37,
+      "state": 0
+    },
+    {
+      "tier": "display_512",
+      "row": 1,
+      "col": 0,
+      "h": "9373545611912741094",
+      "v": 94,
+      "state": 2
+    },
+    {
+      "tier": "display_512",
+      "row": 511,
+      "col": 511,
+      "h": "12186592873910028583",
+      "v": 83,
+      "state": 1
+    },
+    {
+      "tier": "display_1024",
+      "row": 0,
+      "col": 0,
+      "h": "4154154545692503677",
+      "v": 77,
+      "state": 0
+    },
+    {
+      "tier": "display_1024",
+      "row": 1,
+      "col": 0,
+      "h": "15893866491313827054",
+      "v": 54,
+      "state": 0
+    },
+    {
+      "tier": "display_1024",
+      "row": 1023,
+      "col": 1023,
+      "h": "17846917371812991894",
+      "v": 94,
+      "state": 2
+    }
+  ],
+  "notes": "显示档为 grid_snapshot（source=fixture、encoding=base64_u8）；sha256 为文件字节哈希，生成时回填并由生成器/校验脚本强制复算（与 map bench archive.sha256 同风格）。spot_checks 的 h/v/state 由 splitmix64_thresholds_v1 独立复算。"
+}

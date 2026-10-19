@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "type": "playback_index",
+  "fixture_version": "v1",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "hash_algorithm": "sha256",
+  "hash_scope": "对相对文件名指向的文件原始字节计算，小写十六进制（sha256sum 格式）",
+  "synthetic_note": "本目录全部样例标记 synthetic: true：仅作显示测试，不能作为算法正确性证据",
+  "samples": [
+    {
+      "id": "map_snapshot_minimal",
+      "kind": "map_snapshot",
+      "type": "map_snapshot",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "map_snapshot_minimal.json",
+      "sha256": "f73c3eb01ec7ce2199dd420fc97e51247237cc8d702aafa841f1f446f546cc03",
+      "expected_display": "绘制 2 条东行车道与 2 条西行车道（边界+中心线，含单向箭头）以及 1 个区域多边形；坐标系与 bounds 一致，无地理投影原点。",
+      "synthetic": true
+    },
+    {
+      "id": "rs_path_open",
+      "kind": "path",
+      "type": "plan_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "path_rs_open.json",
+      "sha256": "26ba9fdfb7ef9c2067fd151bf337567f411f6a05e4d4ce9669a436bafb224648",
+      "expected_display": "绘制 RS 路径折线与前进方向箭头（起点绿、终点红）；圆弧段可用曲率着色；状态 success 时显示长度/段数统计。",
+      "synthetic": true
+    },
+    {
+      "id": "hybrid_path_success",
+      "kind": "path",
+      "type": "plan_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "path_hybrid_success.json",
+      "sha256": "b29c925afe18de66a749926fc5b29ce7e37227d6a3d451bd2e4c63359f0d3cf2",
+      "expected_display": "绘制 Hybrid A* 前进路径与方向箭头；在结果面板显示 expanded_nodes / collision_checks / planning_time_s。",
+      "synthetic": true
+    },
+    {
+      "id": "hybrid_path_reverse",
+      "kind": "path_direction_change",
+      "type": "plan_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "path_hybrid_reverse.json",
+      "sha256": "6cc811e9863c6bcd6c1873fbedeb5990df25d4638429da490c45305da4ca2ad3",
+      "expected_display": "前进段与倒车段用不同颜色；在换向点 (36,5) 绘制 cusp 标记；方向字段 forward/reverse 逐段着色。",
+      "synthetic": true
+    },
+    {
+      "id": "hybrid_path_failure",
+      "kind": "path_failure",
+      "type": "plan_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "path_hybrid_failure.json",
+      "sha256": "f65689c4f8b1d0369784c467b5be1272291a6faff7bb5feaccfc182c166299b5",
+      "expected_display": "不绘制路径；显示状态 no_path 与原因文本，并在结果面板区分“算法无解”与资源终止。",
+      "synthetic": true
+    },
+    {
+      "id": "bspline_curve_demo",
+      "kind": "bspline_curve",
+      "type": "bspline_curve",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "bspline_curve.json",
+      "sha256": "bf5a716a7abc6f252ba1c1b6a58c91c627a9042c4fca9b5ac7dc4e59a46e4008",
+      "expected_display": "由节点向量与控制点在参数域内求值绘制三次 B 样条（建议 200 点），可叠加控制多边形；不得对域外参数外推。",
+      "synthetic": true
+    },
+    {
+      "id": "polynomial_curve_demo",
+      "kind": "polynomial_curve",
+      "type": "polynomial_curve",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "polynomial_curve.json",
+      "sha256": "c3e55dea10f541b088cbbbc933a5d8fdc09245c56b599fa1c69007dc87420c0f",
+      "expected_display": "按每段局部时间采样绘制两段五次曲线（建议每段 100 点），标注段边界 t=4.0 s；可显示速度/曲率剖面。",
+      "synthetic": true
+    },
+    {
+      "id": "corridor_hybrid_reverse",
+      "kind": "corridor",
+      "type": "corridor",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "corridor_hybrid_reverse.json",
+      "sha256": "58d2b3297fc5669b51a67a1a2c5695b86ab42d190db9055b6ffc5d02e9f06b09",
+      "expected_display": "按 s 区间顺序半透明绘制 3 个凸多边形并标注 s 范围；走廊连续性（相邻多边形重叠）可见；整车包含性仅供后端判断。",
+      "synthetic": true
+    },
+    {
+      "id": "dftpav_trajectory_demo",
+      "kind": "trajectory",
+      "type": "plan_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "dftpav_trajectory.json",
+      "sha256": "4639ab3ae2d721281b373fa195e8f74186005e9b0e9da8d48ab93cd984b0324a",
+      "expected_display": "按时间回放轨迹点（含速度/曲率），在 t=4.0 s 处标注换向停车（v=0）；时间轴可拖动，方向变化处用符号区分。",
+      "synthetic": true
+    },
+    {
+      "id": "collision_demo",
+      "kind": "collision_case",
+      "type": "collision_case",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v1",
+      "file": "collision_case.json",
+      "sha256": "33aa0ea10ace5d5e2a96031732907e6db0dafa210e55549b3e37900fef7e9bdd",
+      "expected_display": "绘制车辆足迹与障碍矩形，红色高亮重叠区域并标注首个接触位置；显示 verdict=collision 与原因。",
+      "synthetic": true
+    },
+    {
+      "id": "stale_result_demo",
+      "kind": "stale_request",
+      "type": "stale_result",
+      "schema_version": 1,
+      "map_id": "map_synthetic_min",
+      "map_version": "v0",
+      "file": "stale_result.json",
+      "sha256": "ce2e366cd58c451cb87510b80a6bf4388a80a08fb8a069f34ee75548d0a1e77e",
+      "expected_display": "不得覆盖当前结果；显示过期警告（map_version v0 ≠ 当前 v1，request_seq 7 < 12），结果图层灰显或忽略。",
+      "synthetic": true
+    }
+  ],
+  "notes": [
+    "samples 数组顺序即建议的显示顺序；file 为相对本目录（tests/fixtures/v4/playback/）的文件名。",
+    "路径/轨迹样例复用公共计划结果类型（type=plan_result）；走廊样例使用公共走廊字段（s_start_m/s_end_m/vertices）；其余为显示专用类型，字段见 tests/fixtures/v1/README.md。",
+    "变更样例内容必须同步更新对应 sha256 与预期显示行为；不得就地篡改而不更新索引。",
+    "全部数据为手工合成；本阶段未执行任何加载或渲染验证。"
+  ]
+}

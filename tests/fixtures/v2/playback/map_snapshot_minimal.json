@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "type": "map_snapshot",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "frame_id": "map_local",
+  "projection_origin": null,
+  "coordinate_note": "合成地图局部平面坐标，无地理投影原点；单位米，x 向东、y 向北，航向逆时针为正。",
+  "bounds": {"x_min_m": 0.0, "y_min_m": 0.0, "x_max_m": 50.0, "y_max_m": 30.0},
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "lanelets": [
+    {
+      "id": "ll_a1",
+      "attributes": {"speed_limit_kph": 50, "one_way": true, "subtype": "road"},
+      "left_boundary": [{"x_m": 4.0, "y_m": 12.0}, {"x_m": 22.0, "y_m": 12.0}],
+      "right_boundary": [{"x_m": 4.0, "y_m": 9.0}, {"x_m": 22.0, "y_m": 9.0}],
+      "centerline": [{"x_m": 4.0, "y_m": 10.5}, {"x_m": 22.0, "y_m": 10.5}],
+      "predecessors": [],
+      "successors": ["ll_a2"]
+    },
+    {
+      "id": "ll_a2",
+      "attributes": {"speed_limit_kph": 50, "one_way": true, "subtype": "road"},
+      "left_boundary": [{"x_m": 22.0, "y_m": 12.0}, {"x_m": 40.0, "y_m": 12.0}],
+      "right_boundary": [{"x_m": 22.0, "y_m": 9.0}, {"x_m": 40.0, "y_m": 9.0}],
+      "centerline": [{"x_m": 22.0, "y_m": 10.5}, {"x_m": 40.0, "y_m": 10.5}],
+      "predecessors": ["ll_a1"],
+      "successors": []
+    },
+    {
+      "id": "ll_b1",
+      "attributes": {"speed_limit_kph": 40, "one_way": true, "subtype": "road"},
+      "left_boundary": [{"x_m": 40.0, "y_m": 3.0}, {"x_m": 22.0, "y_m": 3.0}],
+      "right_boundary": [{"x_m": 40.0, "y_m": 6.0}, {"x_m": 22.0, "y_m": 6.0}],
+      "centerline": [{"x_m": 40.0, "y_m": 4.5}, {"x_m": 22.0, "y_m": 4.5}],
+      "predecessors": [],
+      "successors": ["ll_b2"]
+    },
+    {
+      "id": "ll_b2",
+      "attributes": {"speed_limit_kph": 40, "one_way": true, "subtype": "road"},
+      "left_boundary": [{"x_m": 22.0, "y_m": 3.0}, {"x_m": 4.0, "y_m": 3.0}],
+      "right_boundary": [{"x_m": 22.0, "y_m": 6.0}, {"x_m": 4.0, "y_m": 6.0}],
+      "centerline": [{"x_m": 22.0, "y_m": 4.5}, {"x_m": 4.0, "y_m": 4.5}],
+      "predecessors": ["ll_b1"],
+      "successors": []
+    }
+  ],
+  "areas": [
+    {
+      "id": "area_parking_1",
+      "attributes": {"subtype": "parking"},
+      "polygon": [
+        {"x_m": 26.0, "y_m": 14.0}, {"x_m": 34.0, "y_m": 14.0}, {"x_m": 34.0, "y_m": 22.0}, {"x_m": 26.0, "y_m": 22.0}
+      ]
+    }
+  ],
+  "notes": [
+    "2 条东行车道（y∈[9,12]）与 2 条西行车道（y∈[3,6]），西行车道的左边界为其行驶方向的左侧（y=3）。",
+    "ll_a1→ll_a2、ll_b1→ll_b2 拓扑相连；两组道路之间无连接，仅作显示。",
+    "供 W4 固定结果回放使用；回放路径与走廊都使用 map_id=map_synthetic_min、map_version=v1。"
+  ]
+}

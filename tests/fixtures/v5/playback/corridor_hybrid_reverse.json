@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "type": "corridor",
+  "id": "corridor_hybrid_demo_001",
+  "map_id": "map_synthetic_min",
+  "map_version": "v1",
+  "frame_id": "map_local",
+  "synthetic": true,
+  "synthetic_note": "仅作显示测试，不能作为算法正确性证据",
+  "polygons": [
+    {
+      "s_start_m": 0.0,
+      "s_end_m": 3.0,
+      "vertices": [{"x_m": 28.5, "y_m": 3.5}, {"x_m": 33.5, "y_m": 3.5}, {"x_m": 33.5, "y_m": 6.5}, {"x_m": 28.5, "y_m": 6.5}]
+    },
+    {
+      "s_start_m": 3.0,
+      "s_end_m": 6.0,
+      "vertices": [{"x_m": 32.5, "y_m": 3.5}, {"x_m": 37.5, "y_m": 3.5}, {"x_m": 37.5, "y_m": 6.5}, {"x_m": 32.5, "y_m": 6.5}]
+    },
+    {
+      "s_start_m": 6.0,
+      "s_end_m": 9.0,
+      "vertices": [{"x_m": 31.5, "y_m": 3.5}, {"x_m": 36.5, "y_m": 3.5}, {"x_m": 36.5, "y_m": 6.5}, {"x_m": 31.5, "y_m": 6.5}]
+    }
+  ],
+  "expected_display": "按 s 区间顺序半透明绘制凸多边形（建议沿路径方向渐变着色），显示 s_start_m/s_end_m 标注；整车包含约束由后端检查，显示端不得据此宣称可行。",
+  "notes": [
+    "合成走廊样例，对应 playback/path_hybrid_reverse.json 的换向路径（前进 s∈[0,6]、倒车 s∈[6,9]）。",
+    "每个多边形为矩形（逆时针顶点序，凸），相邻多边形在 s 上首尾相接且几何重叠（如 [32.5,33.5]），用于显示走廊连续性。"
+  ]
+}

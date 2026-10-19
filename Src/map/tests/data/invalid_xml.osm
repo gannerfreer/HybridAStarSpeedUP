@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="planner-map-test-fixture">
+  <node id="1" lat="49.0" lon="8.4" visible="true" version="1"/>
+  <way id="10" visible="true" version="1">
+    <nd ref="1"/>
+  </way>
+  <!-- intentionally malformed: the closing </osm> tag is missing -->

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "type": "grid_view",
+  "map_id": "fixture_grid_4x3",
+  "map_version": "v1",
+  "width": 4,
+  "height": 3,
+  "resolution_m": 0.1,
+  "origin": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0},
+  "cells": [0, 1, 0, 3, 0, 0, 0, 2, 2, 0, 0, 0]
+}

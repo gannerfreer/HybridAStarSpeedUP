@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "type": "plan_result",
+  "request_id": "req_0001",
+  "status": "success",
+  "reason": "goal_reached",
+  "path": [
+    {
+      "points": [
+        {"pose": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 0.0, "curvature_inv_m": 0.0, "direction": "forward"},
+        {"pose": {"x_m": 2.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 2.0, "curvature_inv_m": 0.0, "direction": "forward"}
+      ]
+    },
+    {
+      "points": [
+        {"pose": {"x_m": 2.0, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 2.0, "curvature_inv_m": 0.0, "direction": "reverse"},
+        {"pose": {"x_m": 1.5, "y_m": 0.0, "yaw_rad": 0.0}, "s_m": 2.5, "curvature_inv_m": 0.0, "direction": "reverse"}
+      ]
+    }
+  ],
+  "trajectory": [
+    {"t_s": 0.0, "pose": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.0, "acceleration_mps2": 0.5, "curvature_inv_m": 0.0},
+    {"t_s": 0.5, "pose": {"x_m": 0.3, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 0.5, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0},
+    {"t_s": 1.0, "pose": {"x_m": 1.0, "y_m": 0.0, "yaw_rad": 0.0}, "velocity_mps": 1.0, "acceleration_mps2": 0.0, "curvature_inv_m": 0.0}
+  ],
+  "statistics": {"expanded_nodes": 42, "planning_time_s": 0.0123, "backend": "fixture"},
+  "debug_trace": "未知顶层字段被容忍且不参与解码"
+}

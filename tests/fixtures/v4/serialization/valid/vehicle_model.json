@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "type": "vehicle_model",
+  "id": "default_test_vehicle",
+  "wheelbase_m": 2.8,
+  "width_m": 1.8,
+  "front_overhang_m": 0.9,
+  "rear_overhang_m": 1.0,
+  "max_steer_rad": 0.5,
+  "safety_margin_m": 0.1,
+  "footprint_shape": "rectangle",
+  "source": "Docs/component_development_plan.md §7.1",
+  "notes": "基准参数，不代表实车。未知可选字段（footprint_shape/source/notes）按契约容忍并忽略。"
+}

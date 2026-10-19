@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "type": "vehicle_model",
+  "id": "default_test_vehicle",
+  "wheelbase_m": 0.0,
+  "width_m": 1.8,
+  "front_overhang_m": 0.9,
+  "rear_overhang_m": 1.0,
+  "max_steer_rad": 0.5,
+  "safety_margin_m": 0.1
+}

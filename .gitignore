@@ -1,0 +1,10 @@
+# CMake build trees (tools/task_runner.py profiles: build/release, build/debug, ...)
+build/
+
+# Experiment evidence, live status and archives (never committed)
+artifacts/
+
+# Python bytecode caches (tools/ is stdlib-only, but caches must never enter Git)
+__pycache__/
+*.pyc
+*.pyo

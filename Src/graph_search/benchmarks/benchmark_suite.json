@@ -1,0 +1,26 @@
+{
+  "component": "graph_search",
+  "merge_target": "tools/components.json → components.graph_search.benchmark_suites（单一写者合并；本文件不改 components.json）",
+  "output_contract": "每个 trial 写入 {run_dir}/outputs/benchmark_metrics.csv（tools/README.md §7.2 固定列 + 图/距离场列 + 组件列；负例单次也写入，未测量留空）；聚合见 outputs/bench_summary.json；实例表/校验/归档见 outputs/graph_instances.json、outputs/graph_instance_checks.json 与 artifacts/data/sha256（>10 MiB，不入 Git）；plots/*.svg 与 *.csv",
+  "benchmark_suites": {
+    "v1": {
+      "command": [
+        "{build_dir}/Src/graph_search/benchmarks/planner_graph_search_bench",
+        "--suite",
+        "v1",
+        "--output-dir",
+        "{run_dir}/outputs"
+      ],
+      "description": "图搜索正式基准（X-B1；独占窗口）：graph_gen v1 确定性生成 6 实例（1k/10k/100k × road/rand），点到点 7 主后端 + 4 零启发式对照（单列）+ 距离场 3 后端 × 2 源点；预热 5 + 测量 30，点到点预算 5 s、距离场 30 s，冷/热分列；>10 MiB 输入按 SHA256 寻址归档；指标契约见 tools/README.md §7.2 与 Src/graph_search/benchmarks/README.md"
+    },
+    "generate": {
+      "command": [
+        "{build_dir}/Src/graph_search/benchmarks/planner_graph_search_bench",
+        "--generate-only",
+        "--output-dir",
+        "{run_dir}/outputs"
+      ],
+      "description": "物化 graph_gen v1 的 6 个确定性实例（graphs/*.graph.txt + SHA256 + meta + 实例表；>10 MiB 复制到 artifacts/data/sha256 归档，不入 Git），供 --suite v1 复用与独立核对"
+    }
+  }
+}

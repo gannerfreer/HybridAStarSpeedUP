@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "type": "grid_protocol_cases",
+  "fixture_version": "v6",
+  "grid_protocol_version": "1.0",
+  "scene_rules_version": "scene_v1",
+  "map": {
+    "map_id": "mapping_example",
+    "map_version": "11561c763ed50322185139ec2dd041d6da72e1bd4e5fc3bb66f6b340d92c088f"
+  },
+  "cases": [
+    {
+      "id": "P1",
+      "name": "empty_window_x",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 0.0,
+          "max_y_m": 1.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 1
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "empty_window"
+      }
+    },
+    {
+      "id": "P2",
+      "name": "empty_window_y",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 1.0,
+          "max_y_m": 0.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 2
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "empty_window"
+      }
+    },
+    {
+      "id": "P3",
+      "name": "inverted_window",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 1.0,
+          "min_y_m": 1.0,
+          "max_x_m": 0.0,
+          "max_y_m": 0.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 3
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "empty_window"
+      }
+    },
+    {
+      "id": "P4",
+      "name": "resolution_zero",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 1.0,
+          "max_y_m": 1.0
+        },
+        "resolution_m": 0.0,
+        "request_seq": 4
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "invalid_resolution"
+      }
+    },
+    {
+      "id": "P5",
+      "name": "resolution_negative",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 1.0,
+          "max_y_m": 1.0
+        },
+        "resolution_m": -0.1,
+        "request_seq": 5
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "invalid_resolution"
+      }
+    },
+    {
+      "id": "P6",
+      "name": "non_finite",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "raw_body": "{\"window\":{\"min_x_m\":0.0,\"min_y_m\":0.0,\"max_x_m\":1.0,\"max_y_m\":1.0},\"resolution_m\":1e999}"
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "non_finite_value",
+        "subcases": [
+          {
+            "token": "1e999",
+            "expected": {
+              "http": 400,
+              "status": "invalid_input",
+              "reason": "non_finite_value"
+            }
+          },
+          {
+            "token": "NaN（裸 NaN，非法 JSON）",
+            "expected": {
+              "http": 400,
+              "status": "invalid_input",
+              "reason": "parse_error"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "P7",
+      "name": "window_outside_map",
+      "kind": "error",
+      "endpoint": "/map/scene/preview",
+      "request": {
+        "window": {
+          "min_x_m": 1000000.0,
+          "min_y_m": 1000000.0,
+          "max_x_m": 1000010.0,
+          "max_y_m": 1000010.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 6
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "window_outside_map"
+      }
+    },
+    {
+      "id": "P8",
+      "name": "degrade_k2",
+      "kind": "degradation",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 1600.0,
+          "max_y_m": 1600.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 7
+      },
+      "expected": {
+        "http": 200,
+        "requested_resolution_m": 0.1,
+        "effective_resolution_m": 0.4,
+        "degraded": true,
+        "width": 4000,
+        "height": 4000,
+        "cells": 16000000,
+        "budget_cells": 16777216,
+        "guard_doublings": 2
+      }
+    },
+    {
+      "id": "P9",
+      "name": "degrade_k3",
+      "kind": "degradation",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 2000.0,
+          "max_y_m": 2000.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 7
+      },
+      "expected": {
+        "http": 200,
+        "requested_resolution_m": 0.1,
+        "effective_resolution_m": 0.8,
+        "degraded": true,
+        "width": 2500,
+        "height": 2500,
+        "cells": 6250000,
+        "budget_cells": 16777216,
+        "guard_doublings": 3
+      }
+    },
+    {
+      "id": "P10",
+      "name": "reject_guard",
+      "kind": "error",
+      "endpoint": "/map/grid/driveable",
+      "request": {
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 2000000000000.0,
+          "max_y_m": 2000000000000.0
+        },
+        "resolution_m": 0.1,
+        "request_seq": 8
+      },
+      "expected": {
+        "http": 400,
+        "status": "invalid_input",
+        "reason": "grid_too_large",
+        "guard_doublings": 32,
+        "budget_cells": 16777216
+      }
+    },
+    {
+      "id": "P11",
+      "name": "preview_plan_consistency",
+      "kind": "consistency",
+      "endpoints": {
+        "preview": "/map/scene/preview",
+        "plan": "/plan/scene/{scene_id}"
+      },
+      "request": {
+        "map_id": "mapping_example",
+        "map_version": "11561c763ed50322185139ec2dd041d6da72e1bd4e5fc3bb66f6b340d92c088f",
+        "window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 20.0,
+          "max_y_m": 20.0
+        },
+        "resolution_m": 0.1,
+        "obstacles": [
+          {
+            "id": "obs-a",
+            "type": "rectangle",
+            "x_min_m": 2.0,
+            "y_min_m": 2.0,
+            "x_max_m": 4.0,
+            "y_max_m": 4.0
+          },
+          {
+            "id": "obs-b",
+            "type": "convex_polygon",
+            "vertices": [
+              {
+                "x_m": 10.0,
+                "y_m": 10.0
+              },
+              {
+                "x_m": 12.0,
+                "y_m": 10.0
+              },
+              {
+                "x_m": 11.0,
+                "y_m": 13.0
+              }
+            ]
+          }
+        ],
+        "request_seq": 9
+      },
+      "expected": {
+        "clipped_window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 20.0,
+          "max_y_m": 20.0
+        },
+        "source": "planning_scene",
+        "scene_version": "scene_v1",
+        "scene_id": "044007e558d42fbe4ff7cafc2a239834cf75ceefc6fbc464425233e799ee22d8",
+        "width": 200,
+        "height": 200,
+        "resolution_m": 0.1,
+        "origin": {
+          "x_m": 0.0,
+          "y_m": 0.0,
+          "yaw_rad": 0.0
+        },
+        "degraded": false,
+        "cells_equal": true,
+        "scene_id_equal": true
+      },
+      "notes": "地图服务预览与规划服务输入快照必须对同一有效输入逐格一致（协议 §5 跨服务一致）；窗口 (0,0)-(20,20)、障碍 obs-a/obs-b 均在 v3 地图边界内，scene_id 由规范序列化独立复算。"
+    },
+    {
+      "id": "P12",
+      "name": "stale_seq_order",
+      "kind": "stale",
+      "client": {
+        "source": "planning_scene",
+        "initial_latest_seq": 0
+      },
+      "events": [
+        {
+          "step": 1,
+          "action": "request",
+          "source": "planning_scene",
+          "request_seq": 1,
+          "window": {
+            "min_x_m": 0.0,
+            "min_y_m": 0.0,
+            "max_x_m": 3.0,
+            "max_y_m": 3.0
+          }
+        },
+        {
+          "step": 2,
+          "action": "request",
+          "source": "planning_scene",
+          "request_seq": 2,
+          "window": {
+            "min_x_m": 0.0,
+            "min_y_m": 0.0,
+            "max_x_m": 6.0,
+            "max_y_m": 6.0
+          }
+        },
+        {
+          "step": 3,
+          "action": "response",
+          "source": "planning_scene",
+          "request_seq": 2,
+          "window": {
+            "min_x_m": 0.0,
+            "min_y_m": 0.0,
+            "max_x_m": 6.0,
+            "max_y_m": 6.0
+          }
+        },
+        {
+          "step": 4,
+          "action": "response",
+          "source": "planning_scene",
+          "request_seq": 1,
+          "window": {
+            "min_x_m": 0.0,
+            "min_y_m": 0.0,
+            "max_x_m": 3.0,
+            "max_y_m": 3.0
+          }
+        }
+      ],
+      "expected": {
+        "latest_seq": 2,
+        "applied_request_seq": 2,
+        "applied_window": {
+          "min_x_m": 0.0,
+          "min_y_m": 0.0,
+          "max_x_m": 6.0,
+          "max_y_m": 6.0
+        },
+        "stale_ignored": 1,
+        "discarded_request_seq": [
+          1
+        ]
+      },
+      "notes": "B(seq=2) 先到应用；A(seq=1) 后到视为陈旧丢弃并计数（协议 §6 规则 1–2）。"
+    },
+    {
+      "id": "P13",
+      "name": "stale_map_and_scene",
+      "kind": "stale",
+      "subcases": [
+        {
+          "name": "stale_map_version",
+          "kind": "map_version_mismatch",
+          "current_map": {
+            "map_id": "mapping_example",
+            "map_version": "11561c763ed50322185139ec2dd041d6da72e1bd4e5fc3bb66f6b340d92c088f"
+          },
+          "response": {
+            "map_id": "mapping_example",
+            "map_version": "0000000000000000000000000000000000000000000000000000000000000000",
+            "request_seq": 7,
+            "window": {
+              "min_x_m": 0.0,
+              "min_y_m": 0.0,
+              "max_x_m": 3.0,
+              "max_y_m": 3.0
+            }
+          },
+          "expected": {
+            "discard": true,
+            "reason": "map_version_mismatch",
+            "applied": false
+          }
+        },
+        {
+          "name": "stale_scene_id",
+          "kind": "scene_id_mismatch",
+          "current_preview": {
+            "scene_id": "f903719dba895138267c04fb1d7aa2588ab0420e25e5c1e60fee4c536c01d766",
+            "scene_version": "scene_v1",
+            "window": {
+              "min_x_m": 0.0,
+              "min_y_m": 0.0,
+              "max_x_m": 6.0,
+              "max_y_m": 6.0
+            },
+            "obstacles": [
+              {
+                "id": "obs-preview",
+                "type": "rectangle",
+                "x_min_m": 1.0,
+                "y_min_m": 1.0,
+                "x_max_m": 2.0,
+                "y_max_m": 2.0
+              }
+            ]
+          },
+          "plan_result": {
+            "scene_id": "2ae0202fb955d8d9e0cf64d8a15f022d3d8ec18b295a91a266e2a7987d3b78b7",
+            "scene_version": "scene_v1",
+            "window": {
+              "min_x_m": 0.0,
+              "min_y_m": 0.0,
+              "max_x_m": 6.0,
+              "max_y_m": 6.0
+            },
+            "obstacles": [
+              {
+                "id": "obs-plan",
+                "type": "rectangle",
+                "x_min_m": 3.0,
+                "y_min_m": 3.0,
+                "x_max_m": 4.0,
+                "y_max_m": 4.0
+              }
+            ]
+          },
+          "expected": {
+            "overwrite_preview": false,
+            "label": "规划实际场景",
+            "preview_scene_id": "f903719dba895138267c04fb1d7aa2588ab0420e25e5c1e60fee4c536c01d766",
+            "plan_scene_id": "2ae0202fb955d8d9e0cf64d8a15f022d3d8ec18b295a91a266e2a7987d3b78b7"
+          }
+        }
+      ],
+      "notes": "(a) map_version 不等时即使 seq 最新也丢弃（协议 §6 规则 3）；(b) 历史 scene_id 只进入“规划实际场景”面板，不覆盖当前预览（协议 §6 规则 4）。"
+    }
+  ],
+  "notes": "P1–P13 共 13 个协议用例；错误码取协议 §8 稳定字符串。P8/P9/P10 的降级与guard 结果、P11/P13 的 scene_id 由生成器从算法独立复算，不抄录文档数值。服务侧语义复核属 X-M1。"
+}

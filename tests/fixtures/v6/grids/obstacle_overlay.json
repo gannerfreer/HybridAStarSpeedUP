@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "type": "grid_view",
+  "map_id": "grid_obstacle_overlay",
+  "map_version": "v6",
+  "width": 6,
+  "height": 4,
+  "resolution_m": 1.0,
+  "origin": {"x_m": 0.0, "y_m": 0.0, "yaw_rad": 0.0},
+  "cell_encoding": {"0": "free", "1": "occupied", "2": "unknown"},
+  "cells": [
+    0,0,0,0,1,1,
+    0,1,1,0,0,0,
+    0,1,1,0,0,1,
+    0,1,0,0,0,0
+  ],
+  "notes": "6×4、1.0 m、origin=(0,0,0)；基础域全空闲，叠加 4 个障碍（obs-a 矩形 (1,1)-(3,3)；obs-b 矩形 (4,0)-(6,1)；obs-c 矩形 (5.0,2.0)-(5.5,3.0) 中心 x=5.5 在闭合边上；obs-d 凸三角形，底边 y=2.6——计划文本 2.5 与第 2 行中心共线会按闭合语义多占 (2,0)，与计划期望 8 格不符，生成器以期望 cells 为准）。共 8 格占据、其余空闲、不含 unknown；边界接触即占据。"
+}
