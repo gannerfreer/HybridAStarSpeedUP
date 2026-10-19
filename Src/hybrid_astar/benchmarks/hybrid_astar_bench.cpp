@@ -18,7 +18,12 @@
 //     预算写入 CSV 的 time_budget_s 列与 selection.json，便于证据核对。
 //   * --vehicle <名>：车辆文件（默认 default.json；v3 用 parking_bench.json）；
 //   * --warmup-runs/--measured-runs <n>：每（后端×场景）的预热/实测次数
-//     （默认 5/30；v3 注册命令 0/1）；--cold-only 跳过热模式；
+//     （默认 5/30；v3 注册命令 0/1）；--cold-only 跳过热模式；实测次数 N
+//     会为每个（后端×场景）产生 N 行 trial 记录（repeat_id 0..N-1，冷模式
+//     每次实测都新建后端、重置缓存，即逐轮独立冷启动）；
+//   * --case-ids <id1,id2,...>（可选）：只运行列表中的场景（按给定顺序）；
+//   * --backends <id1,id2,...>（可选）：只运行列表中的后端（按给定顺序）；
+//     两者缺省时不改变原有行为；未知 id 报错退出；
 //   * --jobs <n>：以（后端×场景）组合为并行单元（默认 1，输出顺序不变）；
 //     组合内保持预热→实测→热模式复用语义；单 trial CPU 口径在线程级
 //     （Linux getrusage(RUSAGE_THREAD)）；
@@ -162,6 +167,29 @@ const std::vector<std::string> kUnifiedGridBackends = {
 bool is_unified_grid_backend(const std::string& backend_id) {
   return std::find(kUnifiedGridBackends.begin(), kUnifiedGridBackends.end(),
                    backend_id) != kUnifiedGridBackends.end();
+}
+
+// 解析逗号分隔的 id 列表（--case-ids / --backends）；忽略空白，空段跳过。
+std::vector<std::string> split_id_list(const std::string& value) {
+  std::vector<std::string> ids;
+  std::size_t start = 0;
+  while (start <= value.size()) {
+    const std::size_t comma = value.find(',', start);
+    const std::size_t end = comma == std::string::npos ? value.size() : comma;
+    std::string id = value.substr(start, end - start);
+    const std::size_t first = id.find_first_not_of(" \t");
+    const std::size_t last = id.find_last_not_of(" \t");
+    id = first == std::string::npos ? std::string()
+                                    : id.substr(first, last - first + 1);
+    if (!id.empty()) {
+      ids.push_back(id);
+    }
+    if (comma == std::string::npos) {
+      break;
+    }
+    start = comma + 1;
+  }
+  return ids;
 }
 
 // 后端在本次套件中使用的 configure() 输入：v2/v3/v4 对统一栅格后端叠加
@@ -482,6 +510,7 @@ void print_usage() {
       "       [--fixtures-dir <dir>] [--time-budget-s <seconds>] [--smoke]\n"
       "       [--vehicle <name>] [--warmup-runs <n>] [--measured-runs <n>]\n"
       "       [--cold-only] [--jobs <n>] [--export-paths-dir <dir>]\n"
+      "       [--case-ids <id1,id2,...>] [--backends <id1,id2,...>]\n"
       "       [--precheck]\n"
       "options:\n"
       "  --time-budget-s <seconds>  每次试验的时间预算秒数（默认 5.0，即 v1\n"
@@ -497,7 +526,12 @@ void print_usage() {
       "  --export-paths-dir <dir>   实测 trial 的 plan_result JSON 导出目录\n"
       "                             （<case_id>/<backend_id>[.warm].json）\n"
       "  --precheck                 仅准备全部场景并输出起终点碰撞预检\n"
-      "                             （<output-dir>/precheck.json），不运行搜索\n");
+      "                             （<output-dir>/precheck.json），不运行搜索\n"
+      "  --case-ids <id1,id2,...>   只运行列表中的场景（按给定顺序；缺省=套件\n"
+      "                             全量场景）。未知 id 报错退出。\n"
+      "  --backends <id1,id2,...>   只运行列表中的后端（缺省=套件默认后端集合；\n"
+      "                             可选 ros_free / kth_normalized /\n"
+      "                             zm0612_normalized / smac_normalized 等）。\n");
 }
 
 int main(int argc, char** argv) {
@@ -510,6 +544,8 @@ int main(int argc, char** argv) {
   int warmup_runs = kWarmupRuns;
   int measured_runs = kMeasuredRuns;
   int jobs = 1;
+  std::vector<std::string> case_ids_filter;
+  std::vector<std::string> backend_filter;
   bool smoke = false;
   bool cold_only = false;
   bool precheck = false;
@@ -555,6 +591,10 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "--jobs must be in [1, 256]\n");
         return 2;
       }
+    } else if (argument == "--case-ids" && i + 1 < argc) {
+      case_ids_filter = split_id_list(argv[++i]);
+    } else if (argument == "--backends" && i + 1 < argc) {
+      backend_filter = split_id_list(argv[++i]);
     } else if (argument == "--help" || argument == "-h") {
       print_usage();
       return 0;
@@ -653,6 +693,30 @@ int main(int argc, char** argv) {
     }
   }
 
+  // ------------------------------------------------------------------
+  // --case-ids：只保留列表中的场景（按用户给定顺序）。未在夹具中找到的 id
+  // 视为调用错误；不带该参数时行为与原来完全一致。
+  // ------------------------------------------------------------------
+  if (!case_ids_filter.empty()) {
+    std::vector<std::string> filtered;
+    for (const std::string& requested : case_ids_filter) {
+      bool found = false;
+      for (const PathCase& path_case : cases) {
+        if (path_case.id == requested) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        std::fprintf(stderr, "--case-ids: unknown case id in suite %s: %s\n",
+                     suite.c_str(), requested.c_str());
+        return 2;
+      }
+      filtered.push_back(requested);
+    }
+    scenario_ids = std::move(filtered);
+  }
+
   std::printf("suite %s: %zu scenarios selected\n", suite.c_str(),
               scenario_ids.size());
 
@@ -740,6 +804,30 @@ int main(int argc, char** argv) {
       continue;
     }
     backends.push_back(descriptor);
+  }
+
+  // ------------------------------------------------------------------
+  // --backends：只保留列表中的后端（按用户给定顺序）。未注册的 id 视为调用
+  // 错误；不带该参数时行为与原来完全一致。
+  // ------------------------------------------------------------------
+  if (!backend_filter.empty()) {
+    std::vector<planner::hybrid_astar::BackendDescriptor> filtered;
+    for (const std::string& requested : backend_filter) {
+      bool found = false;
+      for (const auto& descriptor : backends) {
+        if (descriptor.id == requested) {
+          filtered.push_back(descriptor);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        std::fprintf(stderr, "--backends: unknown backend id in suite %s: %s\n",
+                     suite.c_str(), requested.c_str());
+        return 2;
+      }
+    }
+    backends = std::move(filtered);
   }
 
   // 配置预检：拒绝任何无法接受本套件配置的后端，并记录实际生效配置

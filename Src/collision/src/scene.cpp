@@ -113,9 +113,20 @@ std::array<Point2d, 4> Footprint::body_corners() const noexcept {
 
 std::array<Point2d, 4> Footprint::world_corners(
     const Pose2d& pose) const noexcept {
+  // 与原实现（逐角点调用 transform_point）数值逐位一致，但 cos/sin 只计算
+  // 一次：transform_point 的公式是
+  //   {pose.x + c*bx - s*by, pose.y + s*bx + c*by}，c=cos(yaw), s=sin(yaw)。
+  // 热路径上一次 world_corners 的 4 次三角函数调用降为 1 次（callgrind 显示
+  // sincos 曾占 case_39 约 7%）。
+  const double c = std::cos(pose.yaw_rad);
+  const double s = std::sin(pose.yaw_rad);
   const std::array<Point2d, 4> body = body_corners();
-  return {transform_point(pose, body[0]), transform_point(pose, body[1]),
-          transform_point(pose, body[2]), transform_point(pose, body[3])};
+  std::array<Point2d, 4> out;
+  for (std::size_t i = 0; i < 4; ++i) {
+    out[i] = Point2d{pose.x_m + c * body[i].x_m - s * body[i].y_m,
+                     pose.y_m + s * body[i].x_m + c * body[i].y_m};
+  }
+  return out;
 }
 
 bool vehicle_footprint_valid(const VehicleModel& vehicle,

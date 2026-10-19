@@ -1,0 +1,13 @@
+stage,stage_label,case,total_ir
+base,原始,case_30,4266831607
+base,原始,case_39,304386838958
+base,原始,pb-017,14790739579
+base,原始,宏平均,107814803381
+hypot,+hypot,case_30,3341698986
+hypot,+hypot,case_39,229542552788
+hypot,+hypot,pb-017,11437595458
+hypot,+hypot,宏平均,81440615744
+sincos,+hypot +sincos,case_30,3287105084
+sincos,+hypot +sincos,case_39,226528538436
+sincos,+hypot +sincos,pb-017,11279152686
+sincos,+hypot +sincos,宏平均,80364932069
