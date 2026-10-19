@@ -483,6 +483,16 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       }
       const Aabb2d cell_box{col * res, row * res, (col + 1) * res,
                             (row + 1) * res};
+      // O(1) 粗筛（无漏判）：分离轴测试以容差 tol 判“可证明更远”。
+      // 数学依据：对任意方向 u，两形状在该轴上的投影间隙 gap(u) <= 两者
+      // 最小欧氏距离 d；若存在 u 使 gap(u) > tol，则 d >= gap(u) > tol，
+      // 该单元不可能构成接触，可安全跳过。SAT 返回 false（有分离轴）
+      // 时距离必然大于 tol；反之继续做精确距离判定，其结果与纯路径逐位
+      // 一致（只跳过必然不接触的单元）。
+      if (!convex_polygon_intersects_aabb(footprint_grid_polygon, cell_box,
+                                          tol)) {
+        return;
+      }
       // 最小欧氏距离在容差内即接触（与独立参考实现的策略一致）。
       if (polygon_aabb_distance(footprint_grid_polygon, cell_box) > tol) {
         return;
@@ -645,6 +655,12 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
                             (row + 1) * res};
       if (aabb_distance(cell_box, hull_grid_box) > reach) {
         return;  // 安全过滤：aabb 距离 <= 多边形距离
+      }
+      // O(1) 粗筛（无漏判）：见 evaluate_pose 中的同一论证——SAT 以 reach
+      // 为容差证明“更远”时 d > reach，不可能触发碰撞；
+      // 反之再运行精确的 polygon_aabb_distance。判定结果与纯扫描一致。
+      if (!convex_polygon_intersects_aabb(grid_hull, cell_box, reach)) {
+        return;
       }
       if (polygon_aabb_distance(grid_hull, cell_box) <= reach) {
         clear = false;
