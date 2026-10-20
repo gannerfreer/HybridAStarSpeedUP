@@ -428,6 +428,15 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       const double tol =
           contact_tolerance(std::max(footprint_scale,
                                      obstacle.aabb().max_abs_coordinate()));
+      // O(1) 粗筛（无漏判）：对任意方向 u，两形状任意两点距离之差不小于
+      // 两形状在 u 上投影区间之间的间隙 gap(u)。因此当某条边法线上
+      // gap(u) > tol 时，最小欧氏距离 d ≥ gap(u) > tol，不可能接触，可安全
+      // 跳过精确距离；SAT 返回 true 时再做精确距离判定，结果与纯路径逐位
+      // 一致（只跳过必然不接触的障碍物）。
+      if (!convex_polygons_intersect(footprint_world, obstacle.vertices,
+                                     tol)) {
+        return;
+      }
       if (convex_polygon_distance(footprint_world, obstacle.vertices) <= tol) {
         obstacle_hit.hit = true;
         obstacle_hit.reason = CollisionReason::kObstacle;
@@ -725,6 +734,12 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       return;
     }
     const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
+    // 与 evaluate_pose 相同的 SAT 粗筛（无漏判）：可证明更远时跳过精确
+    // 距离（论证见 evaluate_pose 中的注释）。
+    if (!convex_polygons_intersect(envelope.hull, obstacle.vertices,
+                                   obstacle_reach)) {
+      return;
+    }
     const double d = convex_polygon_distance(envelope.hull, obstacle.vertices);
     if (d <= obstacle_reach) {
       clear = false;
