@@ -76,8 +76,16 @@ Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept;
 // 两个轴对齐包围盒之间的欧氏距离（相交时为 0）。
 double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept;
 
+// 平方域过滤：当且仅当 `aabb_distance(a, b) <= reach` 时返回 true。
+// 数学上与前者的距离比较等价；实现不做开方，供热点候选过滤使用。
+// 极端坐标/容差导致平方溢出时仍保持保守（不会把可接触的盒子判远）。
+bool aabb_within(const Aabb2d& a, const Aabb2d& b, double reach) noexcept;
+
 // 点到闭轴对齐包围盒的距离（在内部/边界上为 0）。
 double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept;
+
+// `point_aabb_distance` 的平方域版本（内部/边界上为 0）。
+double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept;
 
 // ---------------------------------------------------------------------------
 // 凸多边形
@@ -107,12 +115,14 @@ std::vector<Point2d> rectangle_polygon(double x_min, double y_min,
 std::vector<Point2d> convex_hull(std::vector<Point2d> points);
 
 // 两个凸多边形的闭集相交测试（分离轴）。`tol` 范围内的接触计为相交。
+// 实现使用未归一化边法线，并以平方域比较投影间隙（热点路径去开方）；
+// 极端坐标/容差域自动回退到归一化实现。
 bool convex_polygons_intersect(const std::vector<Point2d>& a,
                                const std::vector<Point2d>& b,
                                double tol = 0.0) noexcept;
 
 // 凸多边形与轴对齐包围盒的闭集相交测试（分离轴：包围盒法线加多边形
-// 边法线）。
+// 边法线）。同样使用未归一化轴与平方域比较。
 bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
                                     const Aabb2d& box,
                                     double tol = 0.0) noexcept;
@@ -122,12 +132,41 @@ bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
 double point_polygon_distance(const Point2d& p,
                               const std::vector<Point2d>& polygon) noexcept;
 
+// `point_polygon_distance` 的平方域版本。
+double point_polygon_distance_sq(const Point2d& p,
+                                 const std::vector<Point2d>& polygon) noexcept;
+
+double point_segment_distance(const Point2d& p, const Point2d& a,
+                              const Point2d& b) noexcept;
+
+// `point_segment_distance` 的平方域版本。
+double point_segment_distance_sq(const Point2d& p, const Point2d& a,
+                                 const Point2d& b) noexcept;
+
 double segment_segment_distance(const Point2d& a0, const Point2d& a1,
                                 const Point2d& b0, const Point2d& b1) noexcept;
+
+// `segment_segment_distance` 的平方域版本。
+double segment_segment_distance_sq(const Point2d& a0, const Point2d& a1,
+                                   const Point2d& b0,
+                                   const Point2d& b1) noexcept;
 
 // 两个闭凸多边形之间的距离（相交或相切时为 0）。适用于不相交的凸多边
 // 形；退化多边形按其顶点/边集合处理。
 double convex_polygon_distance(const std::vector<Point2d>& a,
                                const std::vector<Point2d>& b) noexcept;
+
+// `convex_polygon_distance` 的平方域版本。热点判定应比较
+// `convex_polygon_distance_sq(...) <= tol * tol`，避免开方。
+double convex_polygon_distance_sq(const std::vector<Point2d>& a,
+                                  const std::vector<Point2d>& b) noexcept;
+
+// 凸多边形与闭轴对齐包围盒之间的最小欧氏距离（相交/相切时为 0）。
+double polygon_aabb_distance(const std::vector<Point2d>& polygon,
+                             const Aabb2d& box) noexcept;
+
+// `polygon_aabb_distance` 的平方域版本；热点判定比较 `<= tol * tol`。
+double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
+                                const Aabb2d& box) noexcept;
 
 }  // namespace planner::collision

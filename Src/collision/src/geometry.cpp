@@ -4,6 +4,7 @@
 #include "planner/collision/geometry.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 
@@ -54,14 +55,65 @@ double abs_coordinate_scale(const std::vector<Point2d>& points) {
   return scale;
 }
 
+// 平方化 SAT 的安全域。坐标上限保证投影与间隙平方不溢出；轴长度平方
+// 上限是显式守卫。超出后回退到归一化实现。
+constexpr double kFastMaxAbsCoordinate =
+    internal::PolygonSatCache8::kFastMaxAbsCoordinate;
+constexpr double kFastMaxAxisLenSq =
+    internal::PolygonSatCache8::kFastMaxAxisLenSq;
+
+bool point_in_fast_domain(const Point2d& p) noexcept {
+  return std::isfinite(p.x_m) && std::isfinite(p.y_m) &&
+         std::abs(p.x_m) <= kFastMaxAbsCoordinate &&
+         std::abs(p.y_m) <= kFastMaxAbsCoordinate;
+}
+
+bool polygon_in_fast_domain(const std::vector<Point2d>& points) noexcept {
+  for (const Point2d& p : points) {
+    if (!point_in_fast_domain(p)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool box_in_fast_domain(const Aabb2d& box) noexcept {
+  return std::isfinite(box.min_x) && std::isfinite(box.max_x) &&
+         std::isfinite(box.min_y) && std::isfinite(box.max_y) &&
+         std::abs(box.min_x) <= kFastMaxAbsCoordinate &&
+         std::abs(box.max_x) <= kFastMaxAbsCoordinate &&
+         std::abs(box.min_y) <= kFastMaxAbsCoordinate &&
+         std::abs(box.max_y) <= kFastMaxAbsCoordinate;
+}
+
+// 多边形的每条边法线都必须处于安全域（退化轴按原语义跳过）。
+bool polygon_axes_in_fast_domain(
+    const std::vector<Point2d>& polygon) noexcept {
+  const std::size_t n = polygon.size();
+  for (std::size_t i = 0; i < n; ++i) {
+    const Point2d& p0 = polygon[i];
+    const Point2d& p1 = polygon[(i + 1) % n];
+    const double ax = -(p1.y_m - p0.y_m);
+    const double ay = p1.x_m - p0.x_m;
+    const double len_sq = ax * ax + ay * ay;
+    if (!(len_sq > 0.0)) {
+      continue;  // 退化轴：与原实现一样跳过
+    }
+    if (!std::isfinite(len_sq) || len_sq > kFastMaxAxisLenSq) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // p 在 axis 上投影的平方长度（axis 未归一化）。
 double project(const Point2d& p, const Point2d& axis) noexcept {
   return p.x_m * axis.x_m + p.y_m * axis.y_m;
 }
 
-bool separating_axis(const std::vector<Point2d>& a,
-                     const std::vector<Point2d>& b, const Point2d& axis,
-                     double tol) noexcept {
+bool separating_axis_normalized(const std::vector<Point2d>& a,
+                                const std::vector<Point2d>& b,
+                                const Point2d& axis, double tol) noexcept {
   const double axis_len = std::sqrt(axis.x_m * axis.x_m + axis.y_m * axis.y_m);
   if (!(axis_len > 0.0) || !std::isfinite(axis_len)) {
     return false;  // 退化轴：无法分离
@@ -84,17 +136,117 @@ bool separating_axis(const std::vector<Point2d>& a,
   return max_a < min_b - tol || max_b < min_a - tol;
 }
 
-double point_segment_distance(const Point2d& p, const Point2d& a,
-                              const Point2d& b) noexcept {
-  const Point2d ab = b - a;
-  const double ab2 = dot(ab, ab);
-  if (!(ab2 > 0.0)) {
-    return distance(p, a);
+// 平方化分离轴：原始边法线 + 投影间隙平方比较，省去 sqrt 与除法。
+// 数学条件与归一化版本相同；调用方保证 tol >= 0 且输入在安全域内。
+bool separating_axis_unnormalized(const std::vector<Point2d>& a,
+                                  const std::vector<Point2d>& b,
+                                  const Point2d& axis,
+                                  double tol_sq) noexcept {
+  const double axis_len_sq =
+      axis.x_m * axis.x_m + axis.y_m * axis.y_m;
+  if (!(axis_len_sq > 0.0)) {
+    return false;  // 退化轴：无法分离
   }
-  double t = dot(p - a, ab) / ab2;
-  t = std::max(0.0, std::min(1.0, t));
-  const Point2d proj{a.x_m + t * ab.x_m, a.y_m + t * ab.y_m};
-  return distance(p, proj);
+  double min_a = std::numeric_limits<double>::infinity();
+  double max_a = -std::numeric_limits<double>::infinity();
+  double min_b = std::numeric_limits<double>::infinity();
+  double max_b = -std::numeric_limits<double>::infinity();
+  for (const Point2d& p : a) {
+    const double v = project(p, axis);
+    min_a = std::min(min_a, v);
+    max_a = std::max(max_a, v);
+  }
+  for (const Point2d& p : b) {
+    const double v = project(p, axis);
+    min_b = std::min(min_b, v);
+    max_b = std::max(max_b, v);
+  }
+  const double threshold = tol_sq * axis_len_sq;
+  const double gap_above = min_b - max_a;
+  if (gap_above > 0.0 && gap_above * gap_above > threshold) {
+    return true;
+  }
+  const double gap_below = min_a - max_b;
+  if (gap_below > 0.0 && gap_below * gap_below > threshold) {
+    return true;
+  }
+  return false;
+}
+
+// 归一化回退：与平方化之前的公共实现逐字一致。
+bool convex_polygons_intersect_normalized(const std::vector<Point2d>& a,
+                                          const std::vector<Point2d>& b,
+                                          double tol) noexcept {
+  if (a.size() < 3 || b.size() < 3) {
+    return convex_polygon_distance(a, b) <= tol;
+  }
+  for (const auto* polygon : {&a, &b}) {
+    const std::size_t n = polygon->size();
+    for (std::size_t i = 0; i < n; ++i) {
+      const Point2d& p0 = (*polygon)[i];
+      const Point2d& p1 = (*polygon)[(i + 1) % n];
+      const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
+      if (separating_axis_normalized(a, b, axis, tol)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// 平方化“凸多边形 vs AABB”SAT 的通用循环（顶点数超过缓存容量时使用）。
+// 调用方保证 tol >= 0 且坐标/轴长度在安全域内。
+bool convex_polygon_intersects_aabb_unnormalized(
+    const Point2d* polygon, std::size_t n, const Aabb2d& box,
+    double tol) noexcept {
+  double min_x = std::numeric_limits<double>::infinity();
+  double max_x = -std::numeric_limits<double>::infinity();
+  double min_y = std::numeric_limits<double>::infinity();
+  double max_y = -std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < n; ++i) {
+    min_x = std::min(min_x, polygon[i].x_m);
+    max_x = std::max(max_x, polygon[i].x_m);
+    min_y = std::min(min_y, polygon[i].y_m);
+    max_y = std::max(max_y, polygon[i].y_m);
+  }
+  if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
+      max_y < box.min_y - tol || min_y > box.max_y + tol) {
+    return false;
+  }
+  const double tol_sq = tol * tol;
+  for (std::size_t i = 0; i < n; ++i) {
+    const Point2d& p0 = polygon[i];
+    const Point2d& p1 = polygon[(i + 1) % n];
+    const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
+    const double axis_len_sq =
+        axis.x_m * axis.x_m + axis.y_m * axis.y_m;
+    if (!(axis_len_sq > 0.0)) {
+      continue;
+    }
+    double poly_lo = std::numeric_limits<double>::infinity();
+    double poly_hi = -std::numeric_limits<double>::infinity();
+    for (std::size_t j = 0; j < n; ++j) {
+      const double v = project(polygon[j], axis);
+      poly_lo = std::min(poly_lo, v);
+      poly_hi = std::max(poly_hi, v);
+    }
+    const double p00 = box.min_x * axis.x_m + box.min_y * axis.y_m;
+    const double p10 = box.max_x * axis.x_m + box.min_y * axis.y_m;
+    const double p01 = box.min_x * axis.x_m + box.max_y * axis.y_m;
+    const double p11 = box.max_x * axis.x_m + box.max_y * axis.y_m;
+    const double box_lo = std::min(std::min(p00, p10), std::min(p01, p11));
+    const double box_hi = std::max(std::max(p00, p10), std::max(p01, p11));
+    const double threshold = tol_sq * axis_len_sq;
+    const double gap_above = box_lo - poly_hi;
+    if (gap_above > 0.0 && gap_above * gap_above > threshold) {
+      return false;
+    }
+    const double gap_below = poly_lo - box_hi;
+    if (gap_below > 0.0 && gap_below * gap_below > threshold) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // 当 `p` 严格位于逆时针凸多边形内部或边界上时返回 true。该容差是纯
@@ -118,6 +270,61 @@ bool point_in_ccw_polygon(const Point2d& p,
 }
 
 }  // namespace
+
+namespace internal {
+
+// 归一化回退：与平方化之前的公共实现逐字一致（单位轴 + 开方）。
+bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
+                                               std::size_t count,
+                                               const Aabb2d& box,
+                                               double tol) noexcept {
+  if (count == 0) {
+    return false;
+  }
+  double min_x = std::numeric_limits<double>::infinity();
+  double max_x = -std::numeric_limits<double>::infinity();
+  double min_y = std::numeric_limits<double>::infinity();
+  double max_y = -std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < count; ++i) {
+    min_x = std::min(min_x, polygon[i].x_m);
+    max_x = std::max(max_x, polygon[i].x_m);
+    min_y = std::min(min_y, polygon[i].y_m);
+    max_y = std::max(max_y, polygon[i].y_m);
+  }
+  if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
+      max_y < box.min_y - tol || min_y > box.max_y + tol) {
+    return false;
+  }
+  for (std::size_t i = 0; i < count; ++i) {
+    const Point2d& p0 = polygon[i];
+    const Point2d& p1 = polygon[(i + 1) % count];
+    const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
+    const double axis_len = norm(axis);
+    if (!(axis_len > 0.0)) {
+      continue;
+    }
+    const Point2d unit{axis.x_m / axis_len, axis.y_m / axis_len};
+    double poly_lo = std::numeric_limits<double>::infinity();
+    double poly_hi = -std::numeric_limits<double>::infinity();
+    for (std::size_t j = 0; j < count; ++j) {
+      const double v = project(polygon[j], unit);
+      poly_lo = std::min(poly_lo, v);
+      poly_hi = std::max(poly_hi, v);
+    }
+    const double p00 = box.min_x * unit.x_m + box.min_y * unit.y_m;
+    const double p10 = box.max_x * unit.x_m + box.min_y * unit.y_m;
+    const double p01 = box.min_x * unit.x_m + box.max_y * unit.y_m;
+    const double p11 = box.max_x * unit.x_m + box.max_y * unit.y_m;
+    const double box_lo = std::min(std::min(p00, p10), std::min(p01, p11));
+    const double box_hi = std::max(std::max(p00, p10), std::max(p01, p11));
+    if (poly_hi < box_lo - tol || box_hi < poly_lo - tol) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace internal
 
 // ---------------------------------------------------------------------------
 // 基础向量代数
@@ -147,6 +354,46 @@ double norm(const Point2d& a) noexcept { return hypot_fast(a.x_m, a.y_m); }
 
 double distance(const Point2d& a, const Point2d& b) noexcept {
   return hypot_fast(a.x_m - b.x_m, a.y_m - b.y_m);
+}
+
+double point_segment_distance(const Point2d& p, const Point2d& a,
+                              const Point2d& b) noexcept {
+  const Point2d ab = b - a;
+  const double ab2 = dot(ab, ab);
+  if (!(ab2 > 0.0)) {
+    return distance(p, a);
+  }
+  double t = dot(p - a, ab) / ab2;
+  t = std::max(0.0, std::min(1.0, t));
+  const Point2d proj{a.x_m + t * ab.x_m, a.y_m + t * ab.y_m};
+  return distance(p, proj);
+}
+
+double point_segment_distance_sq(const Point2d& p, const Point2d& a,
+                                 const Point2d& b) noexcept {
+  const Point2d ab = b - a;
+  const double ab2 = dot(ab, ab);
+  if (!(ab2 > 0.0)) {
+    const double dx = p.x_m - a.x_m;
+    const double dy = p.y_m - a.y_m;
+    const double result = dx * dx + dy * dy;
+    if (std::isfinite(result)) {
+      return result;
+    }
+    const double d = distance(p, a);
+    return d * d;
+  }
+  double t = dot(p - a, ab) / ab2;
+  t = std::max(0.0, std::min(1.0, t));
+  const Point2d proj{a.x_m + t * ab.x_m, a.y_m + t * ab.y_m};
+  const double dx = p.x_m - proj.x_m;
+  const double dy = p.y_m - proj.y_m;
+  const double result = dx * dx + dy * dy;
+  if (std::isfinite(result)) {
+    return result;
+  }
+  const double d = distance(p, proj);
+  return d * d;
 }
 
 Point2d transform_point(const Pose2d& pose, const Point2d& body_point) noexcept {
@@ -223,12 +470,42 @@ double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept {
   return hypot_fast(dx, dy);
 }
 
+bool aabb_within(const Aabb2d& a, const Aabb2d& b, double reach) noexcept {
+  const double dx = std::max(0.0, std::max(a.min_x - b.max_x, b.min_x - a.max_x));
+  const double dy = std::max(0.0, std::max(a.min_y - b.max_y, b.min_y - a.max_y));
+  // 先做逐轴上界：任一轴间隙超过 reach 时距离必然超过 reach，同时使
+  // dx*dx + dy*dy 在常规域内不会溢出。
+  if (dx > reach || dy > reach) {
+    return false;
+  }
+  const double distance_sq = dx * dx + dy * dy;
+  const double reach_sq = reach * reach;
+  if (!std::isfinite(distance_sq) || !std::isfinite(reach_sq)) {
+    // inf/nan/极大值域保持原语义。
+    return aabb_distance(a, b) <= reach;
+  }
+  return distance_sq <= reach_sq;
+}
+
 double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept {
   const double dx =
       std::max(std::max(box.min_x - p.x_m, 0.0), p.x_m - box.max_x);
   const double dy =
       std::max(std::max(box.min_y - p.y_m, 0.0), p.y_m - box.max_y);
   return hypot_fast(dx, dy);
+}
+
+double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept {
+  const double dx =
+      std::max(std::max(box.min_x - p.x_m, 0.0), p.x_m - box.max_x);
+  const double dy =
+      std::max(std::max(box.min_y - p.y_m, 0.0), p.y_m - box.max_y);
+  const double result = dx * dx + dy * dy;
+  if (!std::isfinite(result)) {
+    const double d = hypot_fast(dx, dy);
+    return d * d;
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -370,18 +647,23 @@ bool convex_polygons_intersect(const std::vector<Point2d>& a,
                                const std::vector<Point2d>& b,
                                double tol) noexcept {
   if (a.size() < 3 || b.size() < 3) {
-    // 退化输入：回退到线段/点距离。
+    // 退化输入：回退到线段/点距离（保持原语义）。
     return convex_polygon_distance(a, b) <= tol;
   }
+  if (!(tol >= 0.0) || !std::isfinite(tol) || !polygon_in_fast_domain(a) ||
+      !polygon_in_fast_domain(b) || !polygon_axes_in_fast_domain(a) ||
+      !polygon_axes_in_fast_domain(b)) {
+    return convex_polygons_intersect_normalized(a, b, tol);
+  }
+  const double tol_sq = tol * tol;
   for (const auto* polygon : {&a, &b}) {
     const std::size_t n = polygon->size();
     for (std::size_t i = 0; i < n; ++i) {
       const Point2d& p0 = (*polygon)[i];
       const Point2d& p1 = (*polygon)[(i + 1) % n];
-      // 外法线候选：投影区间时两个符号都已覆盖，因此边方向本身即为有效
-      // 的分离轴。
+      // 原始边法线即为有效的分离轴（投影区间对两个符号都覆盖）。
       const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
-      if (separating_axis(a, b, axis, tol)) {
+      if (separating_axis_unnormalized(a, b, axis, tol_sq)) {
         return false;
       }
     }
@@ -420,67 +702,64 @@ double point_polygon_distance(const Point2d& p,
   return best;
 }
 
+double point_polygon_distance_sq(const Point2d& p,
+                                 const std::vector<Point2d>& polygon) noexcept {
+  if (polygon.empty()) {
+    return std::numeric_limits<double>::infinity();
+  }
+  if (polygon.size() == 1) {
+    const double dx = p.x_m - polygon.front().x_m;
+    const double dy = p.y_m - polygon.front().y_m;
+    const double result = dx * dx + dy * dy;
+    if (std::isfinite(result)) {
+      return result;
+    }
+    const double d = distance(p, polygon.front());
+    return d * d;
+  }
+  if (polygon.size() >= 3) {
+    bool ccw = is_counter_clockwise(polygon);
+    std::vector<Point2d> tmp;
+    const std::vector<Point2d>* poly = &polygon;
+    if (!ccw) {
+      tmp = polygon;
+      std::reverse(tmp.begin(), tmp.end());
+      poly = &tmp;
+    }
+    if (point_in_ccw_polygon(p, *poly)) {
+      return 0.0;
+    }
+  }
+  double best = std::numeric_limits<double>::infinity();
+  const std::size_t n = polygon.size();
+  for (std::size_t i = 0; i < n; ++i) {
+    best = std::min(best,
+                    point_segment_distance_sq(p, polygon[i],
+                                              polygon[(i + 1) % n]));
+  }
+  return best;
+}
+
 bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
                                     const Aabb2d& box, double tol) noexcept {
   if (polygon.empty()) {
     return false;
   }
-  // 顶点数 <= 8 时走预计算缓存（与下方循环表达式逐字一致；见
-  // geometry_internal.hpp）。顶点数更多的多边形（组件内部不会出现）使用
-  // 原始循环。
+  // 顶点数 <= 8 时走预计算缓存（与下方通用循环表达式一致；见
+  // geometry_internal.hpp）。缓存内部对极端域回退归一化实现。
   if (polygon.size() <= internal::PolygonSatCache8::kCapacity) {
     internal::PolygonSatCache8 cache;
     cache.build(polygon.data(), polygon.size());
     return cache.maybe_intersects(box, tol);
   }
-  // 包围盒轴。
-  double min_x = std::numeric_limits<double>::infinity();
-  double max_x = -std::numeric_limits<double>::infinity();
-  double min_y = std::numeric_limits<double>::infinity();
-  double max_y = -std::numeric_limits<double>::infinity();
-  for (const Point2d& p : polygon) {
-    min_x = std::min(min_x, p.x_m);
-    max_x = std::max(max_x, p.x_m);
-    min_y = std::min(min_y, p.y_m);
-    max_y = std::max(max_y, p.y_m);
+  if (!(tol >= 0.0) || !std::isfinite(tol) ||
+      !polygon_in_fast_domain(polygon) || !box_in_fast_domain(box) ||
+      !polygon_axes_in_fast_domain(polygon)) {
+    return internal::convex_polygon_intersects_aabb_normalized(
+        polygon.data(), polygon.size(), box, tol);
   }
-  if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
-      max_y < box.min_y - tol || min_y > box.max_y + tol) {
-    return false;
-  }
-  // 多边形边法线。
-  const std::size_t n = polygon.size();
-  for (std::size_t i = 0; i < n; ++i) {
-    const Point2d& p0 = polygon[i];
-    const Point2d& p1 = polygon[(i + 1) % n];
-    const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
-    const double axis_len = norm(axis);
-    if (!(axis_len > 0.0)) {
-      continue;
-    }
-    const Point2d unit{axis.x_m / axis_len, axis.y_m / axis_len};
-    double poly_lo = std::numeric_limits<double>::infinity();
-    double poly_hi = -std::numeric_limits<double>::infinity();
-    for (const Point2d& p : polygon) {
-      const double v = project(p, unit);
-      poly_lo = std::min(poly_lo, v);
-      poly_hi = std::max(poly_hi, v);
-    }
-    const double box_lo = std::min(
-        std::min(project(Point2d{box.min_x, box.min_y}, unit),
-                 project(Point2d{box.max_x, box.min_y}, unit)),
-        std::min(project(Point2d{box.min_x, box.max_y}, unit),
-                 project(Point2d{box.max_x, box.max_y}, unit)));
-    const double box_hi = std::max(
-        std::max(project(Point2d{box.min_x, box.min_y}, unit),
-                 project(Point2d{box.max_x, box.min_y}, unit)),
-        std::max(project(Point2d{box.min_x, box.max_y}, unit),
-                 project(Point2d{box.max_x, box.max_y}, unit)));
-    if (poly_hi < box_lo - tol || box_hi < poly_lo - tol) {
-      return false;
-    }
-  }
-  return true;
+  return convex_polygon_intersects_aabb_unnormalized(
+      polygon.data(), polygon.size(), box, tol);
 }
 
 double segment_segment_distance(const Point2d& a0, const Point2d& a1,
@@ -502,6 +781,33 @@ double segment_segment_distance(const Point2d& a0, const Point2d& a1,
                            point_segment_distance(a1, b0, b1)),
                   std::min(point_segment_distance(b0, a0, a1),
                            point_segment_distance(b1, a0, a1)));
+}
+
+double segment_segment_distance_sq(const Point2d& a0, const Point2d& a1,
+                                   const Point2d& b0,
+                                   const Point2d& b1) noexcept {
+  if (!point_in_fast_domain(a0) || !point_in_fast_domain(a1) ||
+      !point_in_fast_domain(b0) || !point_in_fast_domain(b1)) {
+    const double d = segment_segment_distance(a0, a1, b0, b1);
+    return d * d;
+  }
+  // 标准线段相交测试（含相切），与归一化版本完全相同。
+  const double d1 = cross(a1 - a0, b0 - a0);
+  const double d2 = cross(a1 - a0, b1 - a0);
+  const double d3 = cross(b1 - b0, a0 - b0);
+  const double d4 = cross(b1 - b0, a1 - b0);
+  if (((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) &&
+      ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0))) {
+    return 0.0;
+  }
+  if (d1 == 0.0 && point_segment_distance_sq(b0, a0, a1) == 0.0) return 0.0;
+  if (d2 == 0.0 && point_segment_distance_sq(b1, a0, a1) == 0.0) return 0.0;
+  if (d3 == 0.0 && point_segment_distance_sq(a0, b0, b1) == 0.0) return 0.0;
+  if (d4 == 0.0 && point_segment_distance_sq(a1, b0, b1) == 0.0) return 0.0;
+  return std::min(std::min(point_segment_distance_sq(a0, b0, b1),
+                           point_segment_distance_sq(a1, b0, b1)),
+                  std::min(point_segment_distance_sq(b0, a0, a1),
+                           point_segment_distance_sq(b1, a0, a1)));
 }
 
 double convex_polygon_distance(const std::vector<Point2d>& a,
@@ -532,7 +838,7 @@ double convex_polygon_distance(const std::vector<Point2d>& a,
     }
     return best;
   }
-  if (convex_polygons_intersect(a, b, 0.0)) {
+  if (convex_polygons_intersect_normalized(a, b, 0.0)) {
     return 0.0;
   }
   double best = std::numeric_limits<double>::infinity();
@@ -541,6 +847,98 @@ double convex_polygon_distance(const std::vector<Point2d>& a,
   }
   for (const Point2d& p : b) {
     best = std::min(best, point_polygon_distance(p, a));
+  }
+  return best;
+}
+
+double convex_polygon_distance_sq(const std::vector<Point2d>& a,
+                                  const std::vector<Point2d>& b) noexcept {
+  if (a.empty() || b.empty()) {
+    return std::numeric_limits<double>::infinity();
+  }
+  // 极端坐标域回退到归一化距离再平方，保持原有退化/溢出语义。
+  if (!polygon_in_fast_domain(a) || !polygon_in_fast_domain(b)) {
+    const double d = convex_polygon_distance(a, b);
+    return d * d;
+  }
+  const bool a_degenerate = a.size() < 3 || signed_area_twice(a) == 0.0;
+  const bool b_degenerate = b.size() < 3 || signed_area_twice(b) == 0.0;
+  if (a_degenerate || b_degenerate) {
+    double best = std::numeric_limits<double>::infinity();
+    const auto edges = [](const std::vector<Point2d>& poly) {
+      std::vector<std::pair<Point2d, Point2d>> result;
+      if (poly.size() == 1) {
+        result.emplace_back(poly.front(), poly.front());
+      } else {
+        for (std::size_t i = 0; i < poly.size(); ++i) {
+          result.emplace_back(poly[i], poly[(i + 1) % poly.size()]);
+        }
+      }
+      return result;
+    };
+    for (const auto& ea : edges(a)) {
+      for (const auto& eb : edges(b)) {
+        best = std::min(best, segment_segment_distance_sq(
+                                  ea.first, ea.second, eb.first, eb.second));
+      }
+    }
+    return best;
+  }
+  if (convex_polygons_intersect(a, b, 0.0)) {
+    return 0.0;
+  }
+  double best = std::numeric_limits<double>::infinity();
+  for (const Point2d& p : a) {
+    best = std::min(best, point_polygon_distance_sq(p, b));
+  }
+  for (const Point2d& p : b) {
+    best = std::min(best, point_polygon_distance_sq(p, a));
+  }
+  return best;
+}
+
+double polygon_aabb_distance(const std::vector<Point2d>& polygon,
+                             const Aabb2d& box) noexcept {
+  double best = std::numeric_limits<double>::infinity();
+  for (const Point2d& p : polygon) {
+    best = std::min(best, point_aabb_distance(p, box));
+    if (best == 0.0) {
+      return 0.0;
+    }
+  }
+  const std::array<Point2d, 4> corners{
+      Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
+      Point2d{box.max_x, box.max_y}, Point2d{box.min_x, box.max_y}};
+  if (internal::convex_polygon_intersects_aabb_normalized(
+          polygon.data(), polygon.size(), box, 0.0)) {
+    return 0.0;
+  }
+  for (const Point2d& c : corners) {
+    best = std::min(best, point_polygon_distance(c, polygon));
+  }
+  return best;
+}
+
+double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
+                                const Aabb2d& box) noexcept {
+  if (polygon.empty()) {
+    return std::numeric_limits<double>::infinity();
+  }
+  double best = std::numeric_limits<double>::infinity();
+  for (const Point2d& p : polygon) {
+    best = std::min(best, point_aabb_distance_sq(p, box));
+    if (best == 0.0) {
+      return 0.0;
+    }
+  }
+  const std::array<Point2d, 4> corners{
+      Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
+      Point2d{box.max_x, box.max_y}, Point2d{box.min_x, box.max_y}};
+  if (convex_polygon_intersects_aabb(polygon, box, 0.0)) {
+    return 0.0;
+  }
+  for (const Point2d& c : corners) {
+    best = std::min(best, point_polygon_distance_sq(c, polygon));
   }
   return best;
 }

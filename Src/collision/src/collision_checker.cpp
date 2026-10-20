@@ -103,27 +103,8 @@ Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
   return box;
 }
 
-// 凸多边形与轴对齐包围盒之间的距离（相交或相切时为 0）。
-double polygon_aabb_distance(const std::vector<Point2d>& polygon,
-                             const Aabb2d& box) noexcept {
-  double best = std::numeric_limits<double>::infinity();
-  for (const Point2d& p : polygon) {
-    best = std::min(best, point_aabb_distance(p, box));
-    if (best == 0.0) {
-      return 0.0;
-    }
-  }
-  const std::array<Point2d, 4> corners{
-      Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
-      Point2d{box.max_x, box.max_y}, Point2d{box.min_x, box.max_y}};
-  if (convex_polygon_intersects_aabb(polygon, box, 0.0)) {
-    return 0.0;
-  }
-  for (const Point2d& c : corners) {
-    best = std::min(best, point_polygon_distance(c, polygon));
-  }
-  return best;
-}
+// 凸多边形与轴对齐包围盒之间的距离（相交或相切时为 0）。实现位于
+// geometry.cpp（归一化版保留给非热点/测试；热路径使用平方版本）。
 
 // 最多 8 个点的凸包（单调链），无内存分配。
 std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
@@ -370,7 +351,7 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const Aabb2d& query,
     return;
   }
   const auto close_enough = [&](const Aabb2d& box) {
-    return aabb_distance(box, query) <= reach;
+    return aabb_within(box, query, reach);
   };
   if (st.use_obstacle_order) {
     for (const int idx : st.obstacle_order) {
@@ -437,7 +418,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
                                      tol)) {
         return;
       }
-      if (convex_polygon_distance(footprint_world, obstacle.vertices) <= tol) {
+      if (convex_polygon_distance_sq(footprint_world, obstacle.vertices) <=
+          tol * tol) {
         obstacle_hit.hit = true;
         obstacle_hit.reason = CollisionReason::kObstacle;
         obstacle_hit.detail = "obstacle '" + obstacle.id +
@@ -485,6 +467,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     internal::PolygonSatCache8 cell_sat;
     cell_sat.build(grid.data(), grid.size());
     const std::vector<Point2d> footprint_grid_polygon(grid.begin(), grid.end());
+    const double cell_tol_sq = tol * tol;
 
     PoseHit cell_hit;
     const auto test_cell = [&](int row, int col) {
@@ -508,7 +491,9 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         return;
       }
       // 最小欧氏距离在容差内即接触（与独立参考实现的策略一致）。
-      if (polygon_aabb_distance(footprint_grid_polygon, cell_box) > tol) {
+      // 平方域比较：polygon_aabb_distance_sq 与开方版本数学等价。
+      if (polygon_aabb_distance_sq(footprint_grid_polygon, cell_box) >
+          cell_tol_sq) {
         return;
       }
       cell_hit.hit = true;
@@ -670,7 +655,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       }
       const Aabb2d cell_box{col * res, row * res, (col + 1) * res,
                             (row + 1) * res};
-      if (aabb_distance(cell_box, hull_grid_box) > reach) {
+      if (!aabb_within(cell_box, hull_grid_box, reach)) {
         return;  // 安全过滤：aabb 距离 <= 多边形距离
       }
       // O(1) 粗筛（无漏判）：见 evaluate_pose 中的同一论证——SAT 以 reach
@@ -679,7 +664,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       if (!hull_sat.maybe_intersects(cell_box, reach)) {
         return;
       }
-      if (polygon_aabb_distance(grid_hull, cell_box) <= reach) {
+      if (polygon_aabb_distance_sq(grid_hull, cell_box) <= reach * reach) {
         clear = false;
       }
     };
@@ -740,8 +725,9 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
                                    obstacle_reach)) {
       return;
     }
-    const double d = convex_polygon_distance(envelope.hull, obstacle.vertices);
-    if (d <= obstacle_reach) {
+    const double d_sq =
+        convex_polygon_distance_sq(envelope.hull, obstacle.vertices);
+    if (d_sq <= obstacle_reach * obstacle_reach) {
       clear = false;
     }
   });
