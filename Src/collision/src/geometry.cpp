@@ -7,6 +7,8 @@
 #include <cmath>
 #include <limits>
 
+#include "geometry_internal.hpp"
+
 namespace planner::collision {
 
 namespace {
@@ -422,6 +424,14 @@ bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
                                     const Aabb2d& box, double tol) noexcept {
   if (polygon.empty()) {
     return false;
+  }
+  // 顶点数 <= 8 时走预计算缓存（与下方循环表达式逐字一致；见
+  // geometry_internal.hpp）。顶点数更多的多边形（组件内部不会出现）使用
+  // 原始循环。
+  if (polygon.size() <= internal::PolygonSatCache8::kCapacity) {
+    internal::PolygonSatCache8 cache;
+    cache.build(polygon.data(), polygon.size());
+    return cache.maybe_intersects(box, tol);
   }
   // 包围盒轴。
   double min_x = std::numeric_limits<double>::infinity();

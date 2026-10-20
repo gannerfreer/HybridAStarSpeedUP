@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "geometry_internal.hpp"
 #include "planner/common/types.hpp"
 
 namespace planner::collision {
@@ -469,6 +470,11 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         std::max(std::max(std::abs(min_x), std::abs(max_x)),
                  std::max(std::abs(min_y), std::abs(max_y)));
     const double tol = contact_tolerance(scale);
+    // 单元扫描的 SAT 预计算：足迹多边形在一次 evaluate_pose 内固定，
+    // 因此包围盒与逐边单位法线只算一次、逐单元复用。判定与原逐单元调用
+    // convex_polygon_intersects_aabb 逐位一致（见 geometry_internal.hpp）。
+    internal::PolygonSatCache8 cell_sat;
+    cell_sat.build(grid.data(), grid.size());
     const std::vector<Point2d> footprint_grid_polygon(grid.begin(), grid.end());
 
     PoseHit cell_hit;
@@ -489,8 +495,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       // 该单元不可能构成接触，可安全跳过。SAT 返回 false（有分离轴）
       // 时距离必然大于 tol；反之继续做精确距离判定，其结果与纯路径逐位
       // 一致（只跳过必然不接触的单元）。
-      if (!convex_polygon_intersects_aabb(footprint_grid_polygon, cell_box,
-                                          tol)) {
+      if (!cell_sat.maybe_intersects(cell_box, tol)) {
         return;
       }
       // 最小欧氏距离在容差内即接触（与独立参考实现的策略一致）。
@@ -645,6 +650,9 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     const bool grid_empty =
         prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
     bool clear = true;
+    // 与 evaluate_pose 相同的 SAT 预计算（包络凸包在一次调用内固定）。
+    internal::PolygonSatCache8 hull_sat;
+    hull_sat.build(grid_hull.data(), grid_hull.size());
     const auto test_cell = [&](int row, int col) {
       const int value =
           grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
@@ -659,7 +667,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       // O(1) 粗筛（无漏判）：见 evaluate_pose 中的同一论证——SAT 以 reach
       // 为容差证明“更远”时 d > reach，不可能触发碰撞；
       // 反之再运行精确的 polygon_aabb_distance。判定结果与纯扫描一致。
-      if (!convex_polygon_intersects_aabb(grid_hull, cell_box, reach)) {
+      if (!hull_sat.maybe_intersects(cell_box, reach)) {
         return;
       }
       if (polygon_aabb_distance(grid_hull, cell_box) <= reach) {
