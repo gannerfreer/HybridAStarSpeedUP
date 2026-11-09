@@ -1,8 +1,8 @@
 /**
  * @file geometry.cpp
- * @brief Implementation of 2D computational geometry primitives and distance functions.
- * @details Implemented with standard double precision arithmetic. Boundary contacts are
- *          conservatively classified as intersection to ensure rounding never masks collision.
+ * @brief 二维计算几何基元、投影分离轴判定与精确欧氏距离函数的具体实现。
+ * @details 采用标准双精度浮点运算。所有几何闭集的边界接触在碰撞检测中均保守归类为相交，
+ *          确保浮点截断或舍入误差绝不漏判接触碰撞。
  */
 
 #include "geometry.hpp"
@@ -20,18 +20,18 @@ namespace {
 
 constexpr double kEpsScale = 1e-12;
 
-// Fast hypot implementation:
-// - Regular domain |dx|, |dy| in [1e-150, 1e150): dx^2 + dy^2 neither overflows nor underflows.
-//   sqrt provides IEEE correctly rounded results.
-// - Outside this domain (inf/nan/extremes), falls back to std::hypot.
-// - Branch for (0, 0) catches common zero-gap inputs early on collision hot paths.
+// 快速两点欧氏距离 / 范数计算实现：
+// - 常规取值区间 |dx|, |dy| 处于 [1e-150, 1e150) 时，dx^2 + dy^2 绝无溢出或下溢风险，
+//   直接调用 std::sqrt 可获得符合 IEEE 754 规范的高性能严格舍入结果。
+// - 若超出该安全区间（如极大数/无穷/NaN），平滑回退至标准库 std::hypot。
+// - 针对 (0, 0) 输入（相交接触或重合时的极高频输入）提供优先短路分支。
 constexpr double kHypotFastMax = 1.0e150;   // (1e150)^2 = 1e300
 constexpr double kHypotFastMin = 1.0e-150;  // (1e-150)^2 = 1e-300
 
 double hypot_fast(double dx, double dy) noexcept {
   const double ax = std::abs(dx);
   const double ay = std::abs(dy);
-  // (0, 0) is a frequent degenerate input (intersection/containment giving zero gap).
+  // (0, 0) 是碰撞检测热点路径中最常见的退化输入（两点重叠或间距为零）
   if (ax == 0.0 && ay == 0.0) {
     return 0.0;
   }
@@ -51,8 +51,7 @@ double abs_coordinate_scale(const std::vector<Point2d>& points) {
   return scale;
 }
 
-// Safe domain for unnormalized squared SAT. Coordinate bound ensures projections
-// and gap squared do not overflow.
+// 未归一化平方域 SAT 的安全取值边界，确保投影与间隙平方乘积不发生浮点溢出。
 constexpr double kFastMaxAbsCoordinate =
     internal::PolygonSatCache8::kFastMaxAbsCoordinate;
 constexpr double kFastMaxAxisLenSq =
@@ -82,7 +81,7 @@ bool box_in_fast_domain(const Aabb2d& box) noexcept {
          std::abs(box.max_y) <= kFastMaxAbsCoordinate;
 }
 
-// All polygon edge normals must reside in the safe domain (degenerate axes skipped).
+// 检查多边形所有有效外法向轴模长是否均落在快速安全域内
 bool polygon_axes_in_fast_domain(
     const std::vector<Point2d>& polygon) noexcept {
   const std::size_t n = polygon.size();
@@ -93,7 +92,7 @@ bool polygon_axes_in_fast_domain(
     const double ay = p1.x_m - p0.x_m;
     const double len_sq = ax * ax + ay * ay;
     if (!(len_sq > 0.0)) {
-      continue;  // Degenerate axis: skip
+      continue;  // 顶点重合产生的退化轴跳过
     }
     if (!std::isfinite(len_sq) || len_sq > kFastMaxAxisLenSq) {
       return false;
@@ -102,7 +101,7 @@ bool polygon_axes_in_fast_domain(
   return true;
 }
 
-// Scalar projection of point p onto axis.
+// 计算点 p 在指定投影轴上的标量投影值
 double project(const Point2d& p, const Point2d& axis) noexcept {
   return p.x_m * axis.x_m + p.y_m * axis.y_m;
 }
@@ -112,7 +111,7 @@ bool separating_axis_normalized(const std::vector<Point2d>& a,
                                 const Point2d& axis, double tol) noexcept {
   const double axis_len = std::sqrt(axis.x_m * axis.x_m + axis.y_m * axis.y_m);
   if (!(axis_len > 0.0) || !std::isfinite(axis_len)) {
-    return false;  // Degenerate axis: cannot separate
+    return false;  // 退化轴：无法分离两形状
   }
   const Point2d unit{axis.x_m / axis_len, axis.y_m / axis_len};
   double min_a = std::numeric_limits<double>::infinity();
@@ -132,8 +131,8 @@ bool separating_axis_normalized(const std::vector<Point2d>& a,
   return max_a < min_b - tol || max_b < min_a - tol;
 }
 
-// Unnormalized separating axis test: compares squared projection gaps, eliminating sqrt and division.
-// Caller guarantees tol >= 0 and inputs reside within safe domain.
+// 未归一化分离轴判定：在投影间隙平方域比较，彻底免除开方与除法计算。
+// 调用方需保证 tol >= 0 且几何数据落在无溢出安全域内。
 bool separating_axis_unnormalized(const std::vector<Point2d>& a,
                                   const std::vector<Point2d>& b,
                                   const Point2d& axis,
@@ -141,7 +140,7 @@ bool separating_axis_unnormalized(const std::vector<Point2d>& a,
   const double axis_len_sq =
       axis.x_m * axis.x_m + axis.y_m * axis.y_m;
   if (!(axis_len_sq > 0.0)) {
-    return false;  // Degenerate axis: cannot separate
+    return false;  // 退化轴：无法构成有效分离轴
   }
   double min_a = std::numeric_limits<double>::infinity();
   double max_a = -std::numeric_limits<double>::infinity();
@@ -169,7 +168,7 @@ bool separating_axis_unnormalized(const std::vector<Point2d>& a,
   return false;
 }
 
-// Fallback normalized implementation: bit-for-bit identical to original normalized SAT.
+// 归一化 SAT 回退实现：与标准分离轴测试在数值上逐位等价
 bool convex_polygons_intersect_normalized(const std::vector<Point2d>& a,
                                           const std::vector<Point2d>& b,
                                           double tol) noexcept {
@@ -190,8 +189,7 @@ bool convex_polygons_intersect_normalized(const std::vector<Point2d>& a,
   return true;
 }
 
-// Generic unnormalized loop for convex polygon vs AABB (used when vertex count exceeds stack cache).
-// Caller guarantees tol >= 0 and coordinates are within safe domain.
+// 通用凸多边形 vs AABB 未归一化相交检测（用于多边形顶点数超过固定栈缓存容量时的快速遍历）
 bool convex_polygon_intersects_aabb_unnormalized(
     const Point2d* polygon, std::size_t n, const Aabb2d& box,
     double tol) noexcept {
@@ -245,8 +243,8 @@ bool convex_polygon_intersects_aabb_unnormalized(
   return true;
 }
 
-// Returns true if p is strictly inside or on the boundary of a CCW convex polygon.
-// The area tolerance (8 * epsilon * scale^2) absorbs numerical projection noise.
+// 判定点 p 是否严格位于逆时针凸多边形内部或其边界上。
+// 面积容差 (8 * epsilon * scale^2) 用于吸收浮点投影噪声。
 bool point_in_ccw_polygon(const Point2d& p,
                           const std::vector<Point2d>& polygon) noexcept {
   const double area_scale = abs_coordinate_scale(polygon) + 1.0;
@@ -267,7 +265,7 @@ bool point_in_ccw_polygon(const Point2d& p,
 
 namespace internal {
 
-// Normalized fallback implementation: unit normal axes with explicit hypot/division.
+// 归一化 SAT 回退实现：单位外法向轴结合显式模长与除法运算。
 bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
                                                std::size_t count,
                                                const Aabb2d& box,
@@ -321,7 +319,7 @@ bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
 }  // namespace internal
 
 // ---------------------------------------------------------------------------
-// Basic 2D Vector Algebra
+// 二维基础向量代数
 // ---------------------------------------------------------------------------
 
 double cross(const Point2d& a, const Point2d& b) noexcept {
@@ -406,7 +404,7 @@ Point2d to_body_frame(const Pose2d& pose, const Point2d& world_point) noexcept {
 }
 
 // ---------------------------------------------------------------------------
-// Scale-Dependent Tolerances
+// 尺度相关数值容差
 // ---------------------------------------------------------------------------
 
 double contact_tolerance(double scale_m) noexcept {
@@ -414,7 +412,7 @@ double contact_tolerance(double scale_m) noexcept {
 }
 
 // ---------------------------------------------------------------------------
-// Axis-Aligned Bounding Box (AABB)
+// 二维轴对齐包围盒 (AABB)
 // ---------------------------------------------------------------------------
 
 bool Aabb2d::contains(const Point2d& p) const noexcept {
@@ -467,14 +465,14 @@ double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept {
 bool aabb_within(const Aabb2d& a, const Aabb2d& b, double reach) noexcept {
   const double dx = std::max(0.0, std::max(a.min_x - b.max_x, b.min_x - a.max_x));
   const double dy = std::max(0.0, std::max(a.min_y - b.max_y, b.min_y - a.max_y));
-  // Per-axis upper-bound check: if gap along either axis exceeds reach, total distance exceeds reach.
+  // 逐轴快速上界判别：若任一单轴投影间隙已超过 reach，则空间总距离必然超过 reach
   if (dx > reach || dy > reach) {
     return false;
   }
   const double distance_sq = dx * dx + dy * dy;
   const double reach_sq = reach * reach;
   if (!std::isfinite(distance_sq) || !std::isfinite(reach_sq)) {
-    // Preserve original semantics for inf/nan/extreme domains.
+    // 针对极值或 inf/nan 等异常输入保留回退行为
     return aabb_distance(a, b) <= reach;
   }
   return distance_sq <= reach_sq;
@@ -502,7 +500,7 @@ double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept {
 }
 
 // ---------------------------------------------------------------------------
-// Convex Polygons
+// 凸多边形几何算法
 // ---------------------------------------------------------------------------
 
 double signed_area_twice(const std::vector<Point2d>& polygon) noexcept {
@@ -528,7 +526,7 @@ void normalize_counter_clockwise(std::vector<Point2d>& polygon) {
 
 bool convex_polygon_valid(const std::vector<Point2d>& polygon,
                           std::string* reason) {
-  // Remove consecutive duplicate vertices and closed loop endpoint.
+  // 去除相邻连续重复顶点及首尾闭合多余顶点
   std::vector<Point2d> clean;
   clean.reserve(polygon.size());
   for (const Point2d& p : polygon) {
@@ -553,7 +551,7 @@ bool convex_polygon_valid(const std::vector<Point2d>& polygon,
     if (reason) *reason = "polygon is degenerate (zero area)";
     return false;
   }
-  // Convexity test: turn direction cross product must not reverse sign. Collinear vertices permitted.
+  // 凸性检验：转向叉积符号不允许发生翻转（允许共线顶点）
   int sign = 0;
   const std::size_t n = clean.size();
   for (std::size_t i = 0; i < n; ++i) {
@@ -632,15 +630,15 @@ std::vector<Point2d> convex_hull(std::vector<Point2d> points) {
     }
     hull.push_back(points[i]);
   }
-  hull.pop_back();  // Remove duplicate initial vertex
-  return hull;      // CCW
+  hull.pop_back();  // 移除重复的首个起点
+  return hull;      // 逆时针凸包
 }
 
 bool convex_polygons_intersect(const std::vector<Point2d>& a,
                                const std::vector<Point2d>& b,
                                double tol) noexcept {
   if (a.size() < 3 || b.size() < 3) {
-    // Degenerate input: fall back to segment/point distance (preserving semantics).
+    // 退化几何输入：回退至线段/点欧氏距离判定
     return convex_polygon_distance(a, b) <= tol;
   }
   if (!(tol >= 0.0) || !std::isfinite(tol) || !polygon_in_fast_domain(a) ||
@@ -654,7 +652,7 @@ bool convex_polygons_intersect(const std::vector<Point2d>& a,
     for (std::size_t i = 0; i < n; ++i) {
       const Point2d& p0 = (*polygon)[i];
       const Point2d& p1 = (*polygon)[(i + 1) % n];
-      // Unnormalized edge normal serves as separating axis (projection covers both orientations).
+      // 未归一化外法向量作为投影轴（投影区间能够覆盖正反两个方向）
       const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
       if (separating_axis_unnormalized(a, b, axis, tol_sq)) {
         return false;
@@ -738,7 +736,7 @@ bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
   if (polygon.empty()) {
     return false;
   }
-  // Fast stack cache for polygons with <= 8 vertices (see geometry_internal.hpp).
+  // 针对顶点数 <= 8 的多边形（如车体足迹与 8 顶点扫掠包络）走栈缓存快速路径
   if (polygon.size() <= internal::PolygonSatCache8::kCapacity) {
     internal::PolygonSatCache8 cache;
     cache.build(polygon.data(), polygon.size());
@@ -756,7 +754,7 @@ bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
 
 double segment_segment_distance(const Point2d& a0, const Point2d& a1,
                                 const Point2d& b0, const Point2d& b1) noexcept {
-  // Standard segment-segment intersection test (including tangency).
+  // 标准线段与线段相交测试（包含端点接触和相切）
   const double d1 = cross(a1 - a0, b0 - a0);
   const double d2 = cross(a1 - a0, b1 - a0);
   const double d3 = cross(b1 - b0, a0 - b0);
@@ -783,7 +781,7 @@ double segment_segment_distance_sq(const Point2d& a0, const Point2d& a1,
     const double d = segment_segment_distance(a0, a1, b0, b1);
     return d * d;
   }
-  // Standard segment-segment intersection test (including tangency), identical to normalized version.
+  // 平方域线段相交测试，逻辑与归一化版本完全对应
   const double d1 = cross(a1 - a0, b0 - a0);
   const double d2 = cross(a1 - a0, b1 - a0);
   const double d3 = cross(b1 - b0, a0 - b0);
@@ -848,7 +846,7 @@ double convex_polygon_distance_sq(const std::vector<Point2d>& a,
   if (a.empty() || b.empty()) {
     return std::numeric_limits<double>::infinity();
   }
-  // Fallback to normalized distance squared for extreme coordinate domains.
+  // 坐标超出快速安全域时回退至标准欧氏距离平方
   if (!polygon_in_fast_domain(a) || !polygon_in_fast_domain(b)) {
     const double d = convex_polygon_distance(a, b);
     return d * d;

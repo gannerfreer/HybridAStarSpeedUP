@@ -1,6 +1,6 @@
 /**
  * @file hybrid_astar.cpp
- * @brief Implementation of Hybrid A* search algorithm and kinodynamic state expansion.
+ * @brief Hybrid A* 路径搜索算法及动力学状态外扩的具体实现。
  */
 
 #include "hybrid_astar.h"
@@ -57,8 +57,8 @@ void HybridAStar::SetConfig(const PlannerConfig& config) {
     collision_half_width_meter_ = std::max(0.0, config_.vehicle.center2side);
     collision_safe_margin_meter_ = std::clamp(config_.vehicle.safe_margin, 0.0, kMaxBoundaryCollisionMarginMeter);
 
-    // boundary_inflation_meter is kept as optional extra map inflation in standalone mode.
-    // The vehicle footprint collision itself is handled by exact rectangle SAT check in IsCollision().
+    // boundary_inflation_meter 在独立模式下保留作为可选的额外地图边界膨胀裕度。
+    // 车辆轮廓碰撞检测本身在 IsCollision() 中由精确矩形分离轴定理（SAT）进行测试。
     double inflation_meter = config_.vehicle.boundary_inflation_meter;
     if (inflation_meter < 0.0) {
         inflation_meter = 0.0;
@@ -79,7 +79,7 @@ std::size_t HybridAStar::BoundaryCount() const {
 }
 
 // ---------------------------------------------------------------------------
-// Search hooks and programmatic boundary rasterization
+// 搜索钩子与可编程边界光栅化注入
 // ---------------------------------------------------------------------------
 void HybridAStar::SetAbortCallback(std::function<bool()> callback) {
     abort_callback_ = std::move(callback);
@@ -106,7 +106,7 @@ void HybridAStar::AddBoundaryWorldPoint(double x, double y) {
 }
 
 bool HybridAStar::LoadBoundaryFromCsv(const std::string& csv_path, bool close_loop) {
-    (void)close_loop; // Standalone mode uses discrete boundary points only.
+    (void)close_loop; // 独立模式仅使用离散边界点。
     std::ifstream ifs(csv_path);
     if (!ifs.is_open()) {
         return false;
@@ -260,7 +260,7 @@ bool HybridAStar::ParseCsvPoint(const std::string& line, double* x, double* y) c
     if (!std::getline(ss, sy, ',')) {
         return false;
     }
-    // Optional z column, ignored by planner. Default is 0 when absent.
+    // 可选的 Z 坐标列，规划器予以忽略；缺省时默认为 0。
     if (!std::getline(ss, sz, ',')) {
         sz = "0";
     }
@@ -381,7 +381,7 @@ bool HybridAStar::IsCollision(const Vertex3D& node) const {
     const double abs_uy_x = std::fabs(uy_x);
     const double abs_uy_y = std::fabs(uy_y);
 
-    // Vehicle OBB AABB for broad-phase culling.
+    // 车辆有向包围盒（OBB）的外接 AABB，用于粗筛阶段快速剪枝。
     const double extent_x = half_length * abs_ux_x + half_width * abs_uy_x;
     const double extent_y = half_length * abs_ux_y + half_width * abs_uy_y;
     const double min_x = center_x - extent_x;
@@ -401,7 +401,7 @@ bool HybridAStar::IsCollision(const Vertex3D& node) const {
                 continue;
             }
 
-            // Treat each occupied grid as a square obstacle cell instead of a single point.
+            // 将每个被占用的栅格单元视作正方形障碍物实体，而非单一点。
             const double obstacle_x = (static_cast<double>(gx) + 0.5) * grid_dist_;
             const double obstacle_y = (static_cast<double>(gy) + 0.5) * grid_dist_;
             const double tx = obstacle_x - center_x;
@@ -565,8 +565,8 @@ HybridAStar::Vertex3D HybridAStar::Propagate(const Vertex3D& start, MotionDirect
         const double wheel_base = std::max(1e-3, config_.vehicle.wheel_base);
         const double beta = config_.hybrid_astar.delta_dist / wheel_base * std::tan(steering_rad);
         const double radius = config_.hybrid_astar.delta_dist / beta;
-        // Standard bicycle reverse kinematics: yaw change is dir_sign * beta,
-        // and position integrates along the circular arc.
+        // 标准自行车模型倒车运动学：航向角增量为 dir_sign * beta，
+        // 位置坐标沿对应圆弧进行积分更新。
         double yaw_delta = beta;
         double position_sign = dir_sign;
         if (config_.hybrid_astar.standard_reverse_kinematics) {

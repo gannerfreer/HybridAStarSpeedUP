@@ -1,6 +1,6 @@
 /**
  * @file hybrid_astar.h
- * @brief Hybrid A* kinodynamic path planner for car-like vehicles.
+ * @brief 针对类车（Car-like）机器人的 Hybrid A* 动力学路径规划器头文件。
  */
 
 #ifndef astar_HYBRID_ASTAR_H
@@ -19,151 +19,150 @@
 namespace astar {
 
 /**
- * @brief Discrete vehicle gear / motion direction.
+ * @brief 离散车辆挡位与运动方向枚举。
  */
 enum class MotionDirection : int32_t {
-  Forward = 0,   ///< Vehicle travels forward.
-  Backward = 1   ///< Vehicle travels in reverse.
+  Forward = 0,   ///< 车辆前进运动。
+  Backward = 1   ///< 车辆倒车运动。
 };
 
 /**
- * @brief 2D vehicle pose with orientation and travel direction.
+ * @brief 包含二维连续坐标、航向角及行驶方向的车辆位姿。
  */
 struct Pose2D {
-  double x = 0.0;                                       ///< X position coordinate (m).
-  double y = 0.0;                                       ///< Y position coordinate (m).
-  double yaw = 0.0;                                     ///< Heading angle (rad).
-  MotionDirection direction = MotionDirection::Forward; ///< Travel direction associated with this pose.
+  double x = 0.0;                                       ///< X 轴位置坐标（米，m）。
+  double y = 0.0;                                       ///< Y 轴位置坐标（米，m）。
+  double yaw = 0.0;                                     ///< 航向角（弧度，rad）。
+  MotionDirection direction = MotionDirection::Forward; ///< 该位姿对应的车辆运动方向。
 };
 
 /**
- * @brief Search outcome containing status, path, and statistics.
+ * @brief Hybrid A* 路径搜索结果结构体，记录搜索状态、轨迹与统计指标。
  */
 struct HybridSearchResult {
-  bool success = false;          ///< True if a feasible path to the goal was found.
-  double cost = 0.0;             ///< Total accumulated path cost (g-value).
-  int32_t iterations = 0;        ///< Number of node expansions executed during search.
-  std::vector<Pose2D> path;      ///< Sequence of waypoints forming the planned trajectory.
-  std::string message;           ///< Diagnostic message or termination reason.
+  bool success = false;          ///< 搜索是否成功找到到达目标的无碰撞可行路径。
+  double cost = 0.0;             ///< 规划轨迹的总累积代价（g 值）。
+  int32_t iterations = 0;        ///< 搜索过程中执行的节点外扩迭代次数。
+  std::vector<Pose2D> path;      ///< 规划生成的离散位姿路点轨迹序列。
+  std::string message;           ///< 终止原因诊断或状态描述信息。
 };
 
 /**
- * @brief Hybrid A* path planning engine with kinodynamic node expansion.
+ * @brief 基于运动学自行车模型外扩的 Hybrid A* 路径规划引擎。
  */
 class HybridAStar {
  public:
   /**
-   * @brief Constructs a Hybrid A* planner instance with the specified configuration.
-   * @param[in] config Planner settings including vehicle geometry and cost weights.
+   * @brief 使用指定的规划配置构造 Hybrid A* 规划器实例。
+   * @param[in] config 规划器配置参数，包含车辆尺寸、代价权重与搜索边界。
    */
   explicit HybridAStar(const PlannerConfig& config);
 
   /**
-   * @brief Updates the planner configuration.
-   * @param[in] config New configuration to apply.
+   * @brief 更新规划器的配置参数。
+   * @param[in] config 待应用的新配置参数。
    */
   void SetConfig(const PlannerConfig& config);
 
   /**
-   * @brief Retrieves the active planner configuration.
-   * @return Const reference to current configuration.
+   * @brief 获取当前生效的规划器配置参数。
+   * @return 当前配置参数的常量引用。
    */
   const PlannerConfig& GetConfig() const;
 
   /**
-   * @brief Clears all ingested boundary obstacle points.
+   * @brief 清除当前已加载的所有障碍物边界点。
    */
   void ClearBoundaries();
 
   /**
-   * @brief Loads obstacle boundary polyline points from a CSV file.
-   * @param[in] csv_path File system path to the CSV file.
-   * @param[in] close_loop Whether to connect the last point back to the first point.
-   * @return True if parsing succeeded and points were loaded.
+   * @brief 从 CSV 文件加载障碍物多段线边界点。
+   * @param[in] csv_path CSV 文件的系统绝对或相对路径。
+   * @param[in] close_loop 是否将最后一个顶点与第一个顶点相连以形成闭合环路。
+   * @return 解析成功并完成加载返回 true，否则返回 false。
    */
   bool LoadBoundaryFromCsv(const std::string& csv_path, bool close_loop);
 
   /**
-   * @brief Returns the number of rasterized boundary obstacle cells currently stored.
-   * @return Count of occupied boundary grid cells.
+   * @brief 获取当前内部存储的光栅化边界障碍物像元总数。
+   * @return 被占用的边界栅格像元数量。
    */
   std::size_t BoundaryCount() const;
 
-  /** @name Search Hooks and Boundary Ingestion
-   *  Optional callbacks and programmatic boundary injection. When unset, defaults
-   *  to internal grid collision and Euclidean/yaw goal tolerances.
+  /** @name 搜索钩子与边界注入接口
+   *  可选回调函数与可编程边界导入接口。若未设置，则默认采用内部栅格碰撞检测以及欧氏/航向容差判定。
    *  @{
    */
 
   /**
-   * @brief Registers an early termination callback evaluated at the beginning of each expansion iteration.
-   * @param[in] callback Function returning true if search should be cancelled immediately.
+   * @brief 注册提前中止回调函数，在每次节点外扩迭代开始时调用评估。
+   * @param[in] callback 返回 true 表示应立即中止搜索的回调函数。
    */
   void SetAbortCallback(std::function<bool()> callback);
 
   /**
-   * @brief Overrides the default grid collision test with a custom pose collision hook.
-   * @param[in] hook Function returning true if the vehicle pose is in collision.
+   * @brief 覆盖默认的栅格位姿碰撞检测逻辑，使用自定义位姿碰撞检测钩子。
+   * @param[in] hook 判定给定车辆位姿是否发生碰撞的回调函数（返回 true 表示碰撞）。
    */
   void SetPoseCollisionHook(std::function<bool(const Pose2D&)> hook);
 
   /**
-   * @brief Overrides default motion segment checking during node propagation.
-   * @param[in] hook Function returning true if motion between two poses collides.
+   * @brief 覆盖默认的节点外扩运动线段碰撞检测逻辑。
+   * @param[in] hook 判定两个位姿间的运动轨迹是否发生碰撞的回调函数（返回 true 表示碰撞）。
    */
   void SetMotionCollisionHook(
       std::function<bool(const Pose2D&, const Pose2D&)> hook);
 
   /**
-   * @brief Overrides the default distance/heading goal criteria.
-   * @param[in] hook Function returning true if the evaluated pose satisfies the goal condition.
+   * @brief 覆盖默认的距离与航向角目标达成判定准则。
+   * @param[in] hook 判定当前位姿是否满足目标条件的回调函数（返回 true 表示达成目标）。
    */
   void SetGoalHook(std::function<bool(const Pose2D&)> hook);
 
   /**
-   * @brief Programmatically rasterizes a world-frame obstacle point into the internal boundary grid.
-   * @param[in] x World X coordinate (m).
-   * @param[in] y World Y coordinate (m).
+   * @brief 以编程方式将世界坐标系下的障碍物点光栅化导入内部边界栅格。
+   * @param[in] x 世界坐标系 X 坐标（米，m）。
+   * @param[in] y 世界坐标系 Y 坐标（米，m）。
    */
   void AddBoundaryWorldPoint(double x, double y);
 
   /** @} */
 
   /**
-   * @brief Executes Hybrid A* search between start and goal poses.
-   * @param[in] start Initial vehicle pose.
-   * @param[in] goal Target vehicle pose.
-   * @param[out] result Output search statistics and planned trajectory.
-   * @return True if a valid path was found.
+   * @brief 执行起点与目标位姿间的 Hybrid A* 路径搜索。
+   * @param[in] start 车辆初始位姿。
+   * @param[in] goal 车辆目标位姿。
+   * @param[out] result 输出参数，存储搜索统计指标及规划轨迹路径。
+   * @return 若成功规划出可行路径则返回 true，否则返回 false。
    */
   bool Search(const Pose2D& start, const Pose2D& goal, HybridSearchResult* result);
 
  private:
   /**
-   * @brief Internal 3D graph search node (x, y, yaw).
+   * @brief 内部三维图搜索状态节点（x, y, yaw）。
    */
   struct Vertex3D {
-    uint64_t id = 0;                                       ///< Unique discrete state key.
-    uint64_t parent_id = 0;                                ///< Key of the predecessor node.
-    double x = 0.0;                                        ///< Continuous X position (m).
-    double y = 0.0;                                        ///< Continuous Y position (m).
-    double yaw = 0.0;                                      ///< Continuous heading (rad).
-    MotionDirection direction = MotionDirection::Forward;  ///< Gear direction entering this state.
-    double g = 0.0;                                        ///< Accumulated path cost from start.
-    double h = 0.0;                                        ///< Estimated heuristic cost to goal.
-    double f = 0.0;                                        ///< Total priority score (f = g + h).
+    uint64_t id = 0;                                       ///< 离散状态唯一哈希标识键。
+    uint64_t parent_id = 0;                                ///< 父驱前驱节点的唯一标识键。
+    double x = 0.0;                                        ///< 连续 X 轴坐标（米，m）。
+    double y = 0.0;                                        ///< 连续 Y 轴坐标（米，m）。
+    double yaw = 0.0;                                      ///< 连续航向角（弧度，rad）。
+    MotionDirection direction = MotionDirection::Forward;  ///< 进入当前状态时所采用的行驶方向。
+    double g = 0.0;                                        ///< 从起点到当前状态的累积实际代价。
+    double h = 0.0;                                        ///< 到目标状态的启发式预估代价。
+    double f = 0.0;                                        ///< 节点综合优先级评分（f = g + h）。
   };
 
   /**
-   * @brief Priority queue entry tracking node priority and key.
+   * @brief 优先队列条目，记录节点优先级评分与哈希标识。
    */
   struct OpenEntry {
-    double f = 0.0;       ///< Total cost priority.
-    uint64_t id = 0;      ///< Node identifier.
+    double f = 0.0;       ///< 节点综合代价值（f 值）。
+    uint64_t id = 0;      ///< 节点唯一哈希标识。
   };
 
   /**
-   * @brief Min-heap comparator for OpenEntry ordering by lowest f-cost.
+   * @brief 优先队列最小堆比较仿函数，优先弹出最小 f 值的条目。
    */
   struct OpenEntryGreater {
     bool operator()(const OpenEntry& lhs, const OpenEntry& rhs) const {
@@ -175,11 +174,11 @@ class HybridAStar {
   };
 
   /**
-   * @brief Discrete 2D integer cell index.
+   * @brief 二维离散整数栅格索引。
    */
   struct GridPoint {
-    int32_t x = 0;  ///< Column index.
-    int32_t y = 0;  ///< Row index.
+    int32_t x = 0;  ///< 栅格列索引。
+    int32_t y = 0;  ///< 栅格行索引。
   };
 
   bool ParseCsvPoint(const std::string& line, double* x, double* y) const;

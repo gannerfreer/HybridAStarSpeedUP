@@ -1,6 +1,6 @@
 /**
  * @file scene.cpp
- * @brief Implementations of scene validation, footprints, and grid transformations.
+ * @brief 场景环境校验、车体足迹与栅格坐标系变换的具体实现。
  */
 
 #include "scene.hpp"
@@ -25,7 +25,7 @@ bool grid_value_allowed(int value) {
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// Obstacle
+// 凸多边形障碍物 Obstacle
 // ---------------------------------------------------------------------------
 
 Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
@@ -35,7 +35,7 @@ Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
   std::string reason;
   obstacle.vertices = rectangle_polygon(x_min_m, y_min_m, x_max_m, y_max_m,
                                         &reason);
-  return obstacle;  // Returns empty vertices if invalid
+  return obstacle;  // 输入非法时返回空顶点多边形
 }
 
 Obstacle Obstacle::convex_polygon(const std::string& id,
@@ -56,7 +56,7 @@ bool Obstacle::valid(std::string* reason) const {
 Aabb2d Obstacle::aabb() const noexcept { return aabb_of(vertices); }
 
 // ---------------------------------------------------------------------------
-// Scene
+// 场景环境 Scene
 // ---------------------------------------------------------------------------
 
 bool Scene::valid(std::string* reason) const {
@@ -106,7 +106,7 @@ bool Scene::valid(std::string* reason) const {
 }
 
 // ---------------------------------------------------------------------------
-// Footprint
+// 车辆足迹 Footprint
 // ---------------------------------------------------------------------------
 
 std::array<Point2d, 4> Footprint::body_corners() const noexcept {
@@ -116,9 +116,7 @@ std::array<Point2d, 4> Footprint::body_corners() const noexcept {
 
 std::array<Point2d, 4> Footprint::world_corners(
     const Pose2d& pose) const noexcept {
-  // Numerically bit-for-bit identical to per-corner transform_point, but cos/sin
-  // are evaluated once for all 4 corners:
-  // transform_point: {pose.x + c*bx - s*by, pose.y + s*bx + c*by}, c=cos(yaw), s=sin(yaw).
+  // 单次求正余弦并批量变换 4 个角点，数值上与分别调用 transform_point 逐位一致
   const double c = std::cos(pose.yaw_rad);
   const double s = std::sin(pose.yaw_rad);
   const std::array<Point2d, 4> body = body_corners();
@@ -177,7 +175,7 @@ Footprint make_footprint(const VehicleModel& vehicle) noexcept {
 }
 
 // ---------------------------------------------------------------------------
-// GridFrame
+// 栅格坐标系 GridFrame
 // ---------------------------------------------------------------------------
 
 GridFrame GridFrame::from_grid(const GridView& grid) noexcept {
@@ -206,7 +204,7 @@ bool GridFrame::inside_map(const Point2d& grid_point) const noexcept {
 double GridFrame::distance_to_boundary(const Point2d& grid_point) const noexcept {
   const double d = std::min(std::min(grid_point.x_m, width_m - grid_point.x_m),
                             std::min(grid_point.y_m, height_m - grid_point.y_m));
-  return d;  // Negative if outside map
+  return d;  // 若在地图外部则为负值
 }
 
 }  // namespace planner::collision

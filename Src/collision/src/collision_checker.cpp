@@ -1,14 +1,14 @@
 /**
  * @file collision_checker.cpp
- * @brief Implementation of exact pose checking and adaptive swept-motion collision detection.
+ * @brief 精确位姿碰撞检测与自适应二分扫掠运动碰撞检测的实现文件。
  * @details
- * Algorithm Overview:
- * - Pose checking: tests the vehicle footprint polygon against convex obstacle polygons
- *   (using SAT with contact counting as collision), map rectangular boundaries, and occupied grid cells.
- * - Motion checking: recursive interval bisection. For each interval, the swept footprint is conservatively
- *   bounded by the convex hull of the 8 endpoint corners expanded by circular arc sagitta. When provably
- *   clear, the interval is pruned; otherwise it is bisected until maximum point displacement <= sweep_precision_m
- *   (default 1e-3 m). Unresolved intervals at precision floor are conservatively reported as collision.
+ * 算法原理概述：
+ * - 位姿检测（Pose checking）：将车辆多边形轮廓与凸多边形障碍物进行相交测试（采用分离轴定理 SAT，
+ *   严格将接触判定为碰撞）、地图矩形边界判定以及栅格被占用/未知像元碰撞测试。
+ * - 运动检测（Motion checking）：递归区间自适应二分法。对于每个时间/弧长区间，车辆扫掠轮廓
+ *   保守外包于首尾两端 8 个顶点构成的凸包并外扩圆弧矢高（Sagitta）。当数学上严格证明无碰撞时，
+ *   剪枝跳过该区间；否则持续二分直至区间内最大位移 <= sweep_precision_m（默认 1e-3 m）。
+ *   若达到精度下限仍未证伪碰撞，则保守报告为碰撞。
  */
 
 #include "collision_checker.hpp"
@@ -37,12 +37,12 @@ using planner::common::kCellUnknown;
 using planner::common::kPi;
 using planner::common::normalize_angle_rad;
 
-constexpr double kMaxAbsCurvature_inv_m = 1.0e6;  // Turning radius >= 1 um
-constexpr double kSincSeriesBound = 1e-8;
-constexpr int kGridChunkCells = 8;
+constexpr double kMaxAbsCurvature_inv_m = 1.0e6;  ///< 最大绝对曲率限制（对应转弯半径 >= 1 um）
+constexpr double kSincSeriesBound = 1e-8;         ///< sinc 函数泰勒级数展开阈值
+constexpr int kGridChunkCells = 8;                ///< 栅格分块加速的像元块尺寸
 
-// Multi-resolution prefix pyramid levels: block side length at level l is 2^l (1, 2, 4...).
-// Configured via PLANNER_COLLISION_PREFIX_LEVELS; 0 disables this acceleration.
+// 多分辨率前缀和金字塔层数：第 l 层的块边长为 2^l（1, 2, 4...）。
+// 可通过宏 PLANNER_COLLISION_PREFIX_LEVELS 外部配置；设为 0 时禁用该加速优化。
 #ifndef PLANNER_COLLISION_PREFIX_LEVELS
 #define PLANNER_COLLISION_PREFIX_LEVELS 2
 #endif
@@ -52,7 +52,7 @@ constexpr double kObstacleHashCell_m = 4.0;
 constexpr double kEnvelopeSafetyFactor = 1.0 + 1e-12;
 constexpr double kEnvelopeSafetyOffset_m = 1e-12;
 
-// Numerically stable sinc(x) = sin(x)/x with series expansion near zero.
+/// 数值稳定的 sinc(x) = sin(x)/x 实现，在零点附近采用泰勒级数展开避免除零。
 double sinc(double x) noexcept {
   if (std::abs(x) < kSincSeriesBound) {
     const double x2 = x * x;
@@ -61,8 +61,8 @@ double sinc(double x) noexcept {
   return std::sin(x) / x;
 }
 
-// Evaluates pose along a constant-curvature circular arc at signed arc length s (negative for reverse).
-// Start yaw cos/sin are precalculated by the caller to avoid repeated trigonometry in recursion.
+/// 沿恒定曲率圆弧计算有向弧长 s 处的位姿（倒车时 s 为负值）。
+/// 起始航向角的正弦/余弦值由调用方预先计算并传入，避免在递归二分过程中重复调用昂贵的三角函数。
 Pose2d pose_on_arc_trig(const Pose2d& start, double s, double kappa,
                         double cy, double sy) noexcept {
   const double b = kappa * s;
@@ -78,11 +78,13 @@ Pose2d pose_on_arc_trig(const Pose2d& start, double s, double kappa,
   return out;
 }
 
+/// 检查位姿各坐标分量是否均为有限浮点数。
 bool pose_finite(const Pose2d& pose) noexcept {
   return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
          std::isfinite(pose.yaw_rad);
 }
 
+/// 由点集连续指针快速构造轴对齐包围盒（AABB）。
 Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
   Aabb2d box;
   if (n == 0) {
@@ -96,7 +98,7 @@ Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
   return box;
 }
 
-// Monotone chain 2D convex hull for up to 8 points with zero dynamic memory allocations.
+/// 针对最多 8 个顶点的 2D 单调链（Monotone Chain）凸包算法，实现零动态内存分配。
 std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
                               std::array<Point2d, 8>& out) noexcept {
   if (n <= 2) {
@@ -108,7 +110,7 @@ std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
               if (a.x_m != b.x_m) return a.x_m < b.x_m;
               return a.y_m < b.y_m;
             });
-  // Remove duplicate points.
+  // 剔除重复顶点
   std::size_t m = 0;
   for (std::size_t i = 0; i < n; ++i) {
     if (m > 0 && points[i].x_m == points[m - 1].x_m &&
@@ -136,7 +138,7 @@ std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
     }
     chain[k++] = points[i];
   }
-  // chain holds closed convex hull; drop duplicate closing point.
+  // chain 中包含闭合凸包，丢弃重复的闭合点
   --k;
   for (std::size_t i = 0; i < k; ++i) out[i] = chain[i];
   return k;
@@ -148,6 +150,7 @@ std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
 // CollisionCheckerImpl
 // ---------------------------------------------------------------------------
 
+/// 碰撞检测器内部实现结构体，持有预计算几何索引与场景缓存
 struct CollisionCheckerImpl {
   VehicleModel vehicle;
   Scene scene;
@@ -158,8 +161,8 @@ struct CollisionCheckerImpl {
   std::string invalid_reason;
 
   std::vector<Aabb2d> obstacle_boxes;
-  std::vector<int> obstacle_order;  ///< Obstacle indices sorted by aabb.min_x for acceleration.
-  double obstacle_scale_m{0.0};     ///< Maximum absolute coordinate across obstacle bounding boxes.
+  std::vector<int> obstacle_order;  ///< 按 aabb.min_x 升序排列的障碍物索引，用于快速剪枝与遍历加速。
+  double obstacle_scale_m{0.0};     ///< 所有障碍物包围盒顶点坐标的最大绝对值，用于计算数值容差。
   bool use_obstacle_order{false};
 
   int chunk_size{kGridChunkCells};
@@ -168,19 +171,18 @@ struct CollisionCheckerImpl {
   std::vector<std::uint8_t> chunk_blocked;
   bool use_chunk_index{false};
 
-  /// Exact row index of non-free grid cells (independent of enable_acceleration;
-  /// only alters candidate enumeration order, yielding identical decisions to full scan):
-  ///   * blocked_offsets[r] .. blocked_offsets[r+1] are column indices (in ascending order)
-  ///     of blocked cells in row r; total memory O(#blocked).
+  /// 非空闲栅格单元的行索引结构（独立于 enable_acceleration；
+  /// 仅改变候选像元的遍历顺序，检测决策结果与全局全量扫描完全一致）：
+  ///   * blocked_offsets[r] .. blocked_offsets[r+1] 记录第 r 行中所有被阻挡单元的列索引（按升序排列）；
+  ///     总内存复杂度仅为 O(被阻挡单元数量)。
   bool blocked_index_valid{false};
   std::vector<int> blocked_offsets;
   std::vector<int> blocked_cols;
 
-  /// Multi-resolution block count 2D prefix sums ("emptiness pyramid").
-  /// Level l has block edge length block = 2^l; rows/cols are block-level grid dimensions;
-  /// sum is an integral image of size (rows+1) x (cols+1), where each element represents
-  /// the count of occupied/unknown cells (cells != kCellFree).
-  /// Any rectangular query can be evaluated in O(1) via 4 table lookups.
+  /// 多分辨率块计数二维前缀和（“判空金字塔”）。
+  /// 第 l 层的块边长为 block = 2^l；rows/cols 为块级栅格尺寸；
+  /// sum 为大小为 (rows+1) x (cols+1) 的积分图，每个元素记录对应区域内被阻挡/未知像元（即 cells != kCellFree）的数量。
+  /// 任意矩形区域的被阻挡像元计数均可在 O(1) 时间内通过 4 次查表完成。
   struct PrefixLevel {
     int block{1};
     int rows{0};
@@ -192,8 +194,8 @@ struct CollisionCheckerImpl {
 
 namespace {
 
-/// Builds multi-resolution emptiness prefix pyramid across all levels.
-/// In-place 2D prefix sums allow O(1) verification of whether a bounding box is clear.
+/// 构建跨所有层级的多分辨率判空前缀和金字塔。
+/// 利用原位 2D 积分图，支持以 O(1) 复杂度快速验证包围盒内是否完全处于空闲状态。
 void build_prefix_pyramid(const GridView& grid,
                           std::vector<CollisionCheckerImpl::PrefixLevel>& levels) {
   levels.clear();
@@ -217,7 +219,7 @@ void build_prefix_pyramid(const GridView& grid,
                       static_cast<std::size_t>(col / block + 1)];
       }
     }
-    // In-place 2D prefix sum: sum[r][c] = rectangular sum of block counts in [0..r-1, 0..c-1].
+    // 原位 2D 前缀和：sum[r][c] 表示区间 [0..r-1, 0..c-1] 内的阻挡像元总计数
     for (int r = 1; r <= pyramid.rows; ++r) {
       for (int c = 1; c <= pyramid.cols; ++c) {
         pyramid.sum[static_cast<std::size_t>(r) * stride +
@@ -233,10 +235,9 @@ void build_prefix_pyramid(const GridView& grid,
   }
 }
 
-/// Checks if the closed cell range [row0, row1] x [col0, col1] contains no occupied or unknown cells.
-/// The range is first expanded outward to block boundaries and clamped to the block grid;
-/// if the 4-lookup 2D prefix sum is 0, the superset is guaranteed free of blocked cells.
-/// Empty or invalid ranges are treated as clear (matching zero evaluated cells).
+/// 检查闭区间像元范围 [row0, row1] x [col0, col1] 内是否不含任何被占用或未知单元。
+/// 该范围首先向外扩充至所在块边界并截断至栅格内；若 4 点查表的 2D 前缀和为 0，
+/// 则该外包超集保证不含任何阻挡像元。空范围或非法范围视为无障碍。
 bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0,
                       int row1, int col0, int col1) noexcept {
   if (row1 < row0 || col1 < col0) {
@@ -279,7 +280,7 @@ bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0,
   return total == 0;
 }
 
-/// Tests pyramid levels from coarse to fine; returns true if any level proves the bounding box contains no blocked cells.
+/// 从粗到细依次测试金字塔各层；若任意层级证明该包围盒不含被阻挡单元，则返回 true。
 bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
                           int col0, int col1) noexcept {
   for (int level = static_cast<int>(st.prefix_levels.size()) - 1; level >= 0;
@@ -291,10 +292,9 @@ bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
   return false;
 }
 
-/// Enumerates blocked cells in [row0, row1] x [col0, col1] in exact row-major order.
-/// Free cells return immediately in test_cell, so skipping them does not alter decisions.
-/// Enumeration matches full scanning order (row ascending, col ascending) and terminates
-/// as soon as fn(row, col) returns false.
+/// 按严格的行主序（Row-major）枚举 [row0, row1] x [col0, col1] 范围内的被阻挡像元。
+/// 空闲像元在 test_cell 中会立即跳过，因此跳过它们绝不会改变检测决策。
+/// 遍历顺序与全扫描顺序一致（行递增、列递增），当 fn(row, col) 返回 false 时提前终止。
 template <typename Fn>
 void for_each_blocked_cell_in(const CollisionCheckerImpl& st, int row0, int row1,
                               int col0, int col1, Fn&& fn) {
@@ -332,8 +332,8 @@ std::string format_double(double value) {
   return std::string(buffer);
 }
 
-/// Traverses indices of obstacles that may lie within `reach` distance of `query`.
-/// Acceleration reorders enumeration without altering candidate tests, ensuring identical decisions.
+/// 遍历所有可能位于 query 轴对齐包围盒 reach 距离内的障碍物索引。
+/// 加速模式下通过基于 min_x 的排序快速进行范围剪枝，遍历剪枝完全不影响候选判定，保证检测决策与全局扫描完全一致。
 template <typename Fn>
 void for_each_obstacle_near(const CollisionCheckerImpl& st, const Aabb2d& query, double reach,
                             Fn&& fn) {
@@ -347,7 +347,7 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const Aabb2d& query,
     for (const int idx : st.obstacle_order) {
       const Aabb2d& box = st.obstacle_boxes[static_cast<std::size_t>(idx)];
       if (box.min_x > query.max_x + reach) {
-        break;  // Sorted by min_x
+        break;  // 按 min_x 升序排列，后续必定超界
       }
       if (close_enough(box)) {
         fn(idx);
@@ -365,12 +365,12 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const Aabb2d& query,
 PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
   PoseHit result;
   const std::array<Point2d, 4> world = st.footprint.world_corners(pose);
-  // Reuse world corners: transform directly to grid frame to avoid redundant trigonometric calls.
+  // 复用世界坐标系顶点：直接变换至栅格坐标系，避免重复调用昂贵的三角函数。
   const std::array<Point2d, 4> grid = grid_corners_from_world(st, world);
   const Aabb2d world_box = aabb_of_raw(world.data(), world.size());
   const std::vector<Point2d> footprint_world(world.begin(), world.end());
 
-  // 1) Out-of-bounds check: any point outside the closed map rectangle is considered occupied.
+  // 1) 地图边界外判定：车辆轮廓中若有任何点落在闭合地图矩形外部，则直接判定为碰撞。
   if (st.scene.has_grid()) {
     for (const Point2d& p : grid) {
       if (!st.frame.inside_map(p)) {
@@ -382,7 +382,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     }
   }
 
-  // 2) Polygon obstacles (world frame): contact occurs if minimum Euclidean distance <= scale-dependent tolerance.
+  // 2) 凸多边形障碍物碰撞检测（世界坐标系）：当两多边形间的最小欧氏距离 <= 依赖于几何尺度的接触容差时，判定为碰撞。
   if (!st.obstacle_boxes.empty()) {
     const double footprint_scale = world_box.max_abs_coordinate();
     const double filter_tol =
@@ -396,8 +396,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       const double tol =
           contact_tolerance(std::max(footprint_scale,
                                      obstacle.aabb().max_abs_coordinate()));
-      // O(1) coarse filter: if the separating axis projection gap exceeds tol,
-      // minimum Euclidean distance d >= gap > tol; polygon cannot touch, safely skipping exact distance.
+      // O(1) 粗筛：若分离轴投影间隙大于容差 tol，则两多边形最小欧氏距离 d >= gap > tol，
+      // 两者绝无接触可能，可安全跳过精确距离计算。
       if (!convex_polygons_intersect(footprint_world, obstacle.vertices,
                                      tol)) {
         return;
@@ -415,7 +415,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     }
   }
 
-  // 3) Blocked grid cells (grid coordinate frame, cells represented as axis-aligned bounding boxes).
+  // 3) 被阻挡栅格单元碰撞检测（栅格坐标系，每个单元视为轴对齐包围盒 AABB）。
   if (st.scene.has_grid()) {
     const GridView& grid_view = st.scene.grid;
     const double res = st.frame.resolution_m;
@@ -435,8 +435,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     row0 = std::max(row0, 0);
     col1 = std::min(col1, grid_view.width - 1);
     row1 = std::min(row1, grid_view.height - 1);
-    // Multi-resolution prefix emptiness check: if any level proves the bounding box
-    // contains no blocked cells, return early without cell scanning.
+    // 多分辨率前缀和快速判空：若任意层级证明该包围盒不含被阻挡单元，则无需扫描直接判定通过。
     if (prefix_pyramid_empty(st, row0, row1, col0, col1)) {
       return PoseHit{};
     }
@@ -444,8 +443,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         std::max(std::max(std::abs(min_x), std::abs(max_x)),
                  std::max(std::abs(min_y), std::abs(max_y)));
     const double tol = contact_tolerance(scale);
-    // SAT precomputation for cell scanning: the footprint polygon is fixed within evaluate_pose,
-    // so bounding box and edge normals are computed once and reused across cells.
+    // 栅格单元分离轴定理（SAT）预计算缓存：在 evaluate_pose 内部车辆多边形保持固定，
+    // 故包围盒与边法向量仅计算一次，在各个候选单元间复用。
     internal::PolygonSatCache8 cell_sat;
     cell_sat.build(grid.data(), grid.size());
     const std::vector<Point2d> footprint_grid_polygon(grid.begin(), grid.end());
@@ -463,12 +462,11 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       }
       const Aabb2d cell_box{col * res, row * res, (col + 1) * res,
                             (row + 1) * res};
-      // O(1) coarse filter: if separating axis projection gap exceeds tolerance,
-      // minimum distance > tol, so contact is impossible.
+      // O(1) 粗筛：若分离轴投影间隙超过容差，则最小距离必大于 tol，两者不可能发生接触。
       if (!cell_sat.maybe_intersects(cell_box, tol)) {
         return;
       }
-      // Exact Euclidean distance check in squared domain.
+      // 在平方距离域执行精确欧氏距离检验。
       if (polygon_aabb_distance_sq(footprint_grid_polygon, cell_box) >
           cell_tol_sq) {
         return;
@@ -483,7 +481,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     };
 
     if (st.blocked_index_valid) {
-      // Exact candidate enumeration: iterate only over blocked cells in row-major order.
+      // 精确候选枚举：按行主序仅迭代被阻挡单元。
       for_each_blocked_cell_in(st, row0, row1, col0, col1,
                                [&](int row, int col) {
                                  test_cell(row, col);
@@ -495,7 +493,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       const int c1 = col1 / chunk;
       const int r0 = row0 / chunk;
       const int r1 = row1 / chunk;
-      // Skip empty chunks; maintain row-major traversal order.
+      // 跳过空闲块；维持行主序遍历顺序。
       for (int cr = r0; cr <= r1 && !cell_hit.hit; ++cr) {
         const int rr0 = std::max(row0, cr * chunk);
         const int rr1 = std::min(row1, (cr + 1) * chunk - 1);
@@ -527,16 +525,16 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
 }
 
 // ---------------------------------------------------------------------------
-// Swept motion engine
+// 扫掠运动碰撞检测引擎
 // ---------------------------------------------------------------------------
 
 struct Envelope {
-  std::vector<Point2d> hull;  ///< Convex hull in world coordinates.
-  double sagitta_m{0.0};      ///< Maximum sagitta deviation of corner arcs from chords.
+  std::vector<Point2d> hull;  ///< 世界坐标系下的外包凸包顶点。
+  double sagitta_m{0.0};      ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差。
 };
 
-/// Conservative bounding envelope of swept footprint across an interval:
-/// hull(corners(s0), corners(s1)) expanded by corner arc sagitta.
+/// 构建区间内车辆扫掠轮廓的保守外包络（Envelope）：
+/// 由首尾两端顶点凸包 hull(corners(s0), corners(s1)) 并在径向外扩各顶点圆弧运动产生的最大矢高（Sagitta）。
 Envelope build_envelope(const CollisionCheckerImpl& st, const Pose2d& p0, const Pose2d& p1,
                         double delta_yaw, double kappa) {
   Envelope envelope;
@@ -544,8 +542,7 @@ Envelope build_envelope(const CollisionCheckerImpl& st, const Pose2d& p0, const 
   const std::array<Point2d, 4> c1 = st.footprint.world_corners(p1);
   const double abs_yaw = std::abs(delta_yaw);
   if (abs_yaw >= kPi) {
-    // Pathological multi-turn interval: fall back to conservative bound
-    // "distance to chord <= 2 * arc_radius", forcing further bisection.
+    // 病态多圈旋转区间：回退至保守上界“到弦的距离 <= 2 * 旋转半径”，迫使算法进行进一步二分。
     const double arc_radius =
         (kappa != 0.0 ? std::abs(1.0 / kappa) : 0.0) +
         st.footprint.corner_radius_m;
@@ -571,8 +568,7 @@ Envelope build_envelope(const CollisionCheckerImpl& st, const Pose2d& p0, const 
   return envelope;
 }
 
-/// Returns true if the swept envelope is provably disjoint from all obstacles
-/// and blocked cells, and remains strictly inside the map boundary.
+/// 判定扫掠包络是否严格与所有障碍物及阻挡栅格单元无干涉，且完全位于地图矩形边界之内。
 bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& envelope) {
   if (envelope.hull.empty()) {
     return false;
@@ -581,12 +577,12 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
   const double scale = hull_box.max_abs_coordinate() + 1.0;
   const double tol = contact_tolerance(scale);
   const double reach = envelope.sagitta_m + tol;
-  // Obstacles may reside at larger coordinates; tolerance must match pairwise policy.
+  // 障碍物可能位于较大坐标处；数值容差必须与双边距离策略严格匹配
   const double obstacle_reach =
       envelope.sagitta_m +
       contact_tolerance(std::max(scale, st.obstacle_scale_m));
 
-  // Grid check: map boundary inclusion plus blocked cells.
+  // 栅格检测：地图边界包含性与阻挡像元相交性
   if (st.scene.has_grid()) {
     std::vector<Point2d> grid_hull;
     grid_hull.reserve(envelope.hull.size());
@@ -595,7 +591,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     }
     const Aabb2d hull_grid_box = aabb_of(grid_hull);
     for (const Point2d& p : grid_hull) {
-      // distance_to_boundary <= reach covers both boundary proximity and outside map.
+      // distance_to_boundary <= reach 同时涵盖了靠近地图边界与出界两种情形
       if (st.frame.distance_to_boundary(p) <= reach) {
         return false;
       }
@@ -612,12 +608,12 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     row0 = std::max(row0, 0);
     col1 = std::min(col1, grid_view.width);
     row1 = std::min(row1, grid_view.height);
-    // Multi-resolution prefix emptiness check on closed cell range [row0, row1-1] x [col0, col1-1].
-    // If any level proves no blocked cells exist, cell scanning can be safely skipped.
+    // 在闭区间像元范围 [row0, row1-1] x [col0, col1-1] 上进行多分辨率前缀和快速判空。
+    // 若任意层级证明不存在被阻挡单元，则可安全跳过像元细筛扫描。
     const bool grid_empty =
         prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
     bool clear = true;
-    // Precompute SAT cache for the envelope hull.
+    // 预先为外包凸包构建 SAT 分离轴缓存
     internal::PolygonSatCache8 hull_sat;
     hull_sat.build(grid_hull.data(), grid_hull.size());
     const auto test_cell = [&](int row, int col) {
@@ -629,9 +625,9 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       const Aabb2d cell_box{col * res, row * res, (col + 1) * res,
                             (row + 1) * res};
       if (!aabb_within(cell_box, hull_grid_box, reach)) {
-        return;  // AABB filtering: aabb_dist <= polygon_dist
+        return;  // AABB 包围盒粗筛：aabb_dist <= polygon_dist
       }
-      // O(1) coarse filter: if separating axis projection gap > reach, distance > reach.
+      // O(1) 粗筛：若分离轴投影间隙 > reach，则最小几何距离必大于 reach
       if (!hull_sat.maybe_intersects(cell_box, reach)) {
         return;
       }
@@ -641,7 +637,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     };
     if (!grid_empty) {
       if (st.blocked_index_valid) {
-        // Exact candidate enumeration: iterate only over blocked cells in row-major order.
+        // 精确候选枚举：按行主序仅迭代被阻挡单元
         for_each_blocked_cell_in(st, row0, row1 - 1, col0, col1 - 1,
                                  [&](int row, int col) {
                                    test_cell(row, col);
@@ -682,14 +678,14 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     }
   }
 
-  // Obstacle checks.
+  // 凸多边形障碍物碰撞检测
   bool clear = true;
   for_each_obstacle_near(st, hull_box, obstacle_reach, [&](int idx) {
     if (!clear) {
       return;
     }
     const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
-    // O(1) SAT coarse filter: skip exact distance when separated by more than obstacle_reach.
+    // O(1) SAT 粗筛：当分离轴间隙大于 obstacle_reach 时跳过精确多边形距离计算
     if (!convex_polygons_intersect(envelope.hull, obstacle.vertices,
                                    obstacle_reach)) {
       return;
@@ -708,7 +704,7 @@ struct SweepContext {
   Pose2d start;
   double kappa{0.0};
   double precision_m{1e-3};
-  // Cosine and sine of start yaw (constant throughout swept motion check; precomputed to avoid repeated trig).
+  // 起始航向角的正弦和余弦值（在扫掠检测全程保持恒定；预先计算以避免在递归二分中重复调用三角函数）
   double cos_yaw{1.0};
   double sin_yaw{0.0};
 };
@@ -732,7 +728,7 @@ double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
   }
   const double abs_yaw = std::abs(delta_yaw);
   if (abs_yaw >= kPi) {
-    // Conservative bound: displacement <= |delta_yaw| * (|1/kappa| + corner_radius).
+    // 保守上界：弧长位移 <= |delta_yaw| * (|1/kappa| + corner_radius)
     const double arc_radius =
         (ctx.kappa != 0.0 ? std::abs(1.0 / ctx.kappa) : 0.0) +
         ctx.state->footprint.corner_radius_m;
@@ -746,8 +742,8 @@ double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
   return max_chord * ratio;
 }
 
-/// Resolves swept interval (s0, s1]; caller guarantees pose(s0) is collision-free.
-/// Returns the first collision (in traversal order), first uncertain interval, or clear.
+/// 求解扫掠区间 (s0, s1] 内的碰撞状态；调用方保证起始位姿 pose(s0) 严格无碰撞。
+/// 按轨迹遍历顺序返回首个确定的碰撞、首个达到精度下限的不确定区间，或全部安全通过。
 Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
                  double s1) {
   const CollisionCheckerImpl& st = *ctx.state;
@@ -759,7 +755,7 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
       interval_displacement(ctx, p0, p1, delta_yaw) <= ctx.precision_m;
 
   if (hit1.hit) {
-    // Collision detected in (s0, s1]. Continue bisection to report the earliest collision.
+    // 在区间 (s0, s1] 中检测到碰撞，继续二分以报告最早发生的碰撞点
     if (at_floor) {
       Decision decision;
       decision.kind = Decision::Kind::kCollision;
@@ -813,7 +809,7 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
 }
 
 // ---------------------------------------------------------------------------
-// Input validation helpers
+// 输入合法性校验辅助函数
 // ---------------------------------------------------------------------------
 
 CheckResult invalid_result(const std::string& detail) {
@@ -973,7 +969,7 @@ CheckResult check_path_impl(const CollisionCheckerImpl& st,
       motion.direction = points[i].direction;
       motion.curvature_inv_m = points[i].curvature_inv_m;
       if (motion.length_m == 0.0) {
-        continue;  // Duplicate waypoint
+        continue;  // 重复航向点，直接跳过
       }
       CheckResult step = check_motion_impl(st, motion);
       if (step.collided()) {
@@ -982,7 +978,7 @@ CheckResult check_path_impl(const CollisionCheckerImpl& st,
         return step;
       }
     }
-    // Always explicitly check the stored end pose, even if arc reconstruction slightly drifts.
+    // 始终显式检测存储的终点位姿，消除圆弧积分重建带来的微小漂移。
     CheckResult last = check_pose_impl(st, points.back().pose);
     if (last.collided()) {
       last.path_segment_index = static_cast<int>(seg);
@@ -1037,9 +1033,9 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
                    state->obstacle_boxes.back().max_abs_coordinate());
     }
     if (scene.has_grid()) {
-      // Exact row index of blocked cells (always built; independent of enable_acceleration,
-      // changing only candidate enumeration while maintaining identical decisions to full scan).
-      // Two-pass construction: first count per row to establish offsets, then fill columns in ascending order.
+      // 构建非空闲栅格单元的精确行索引结构（始终构建；独立于 enable_acceleration，
+      // 仅改变候选枚举顺序，决策结果与全扫描完全一致）。
+      // 两遍扫描构建：第一遍统计每行数量以确定偏移量，第二遍按升序填充列索引。
       const int height = scene.grid.height;
       const int width = scene.grid.width;
       state->blocked_offsets.assign(static_cast<std::size_t>(height) + 1, 0);
@@ -1058,7 +1054,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
             state->blocked_offsets[static_cast<std::size_t>(row)] + count;
         total += static_cast<std::size_t>(count);
       }
-      // Fall back to direct scanning if the blocked set exceeds memory threshold (8M entries = 32 MB).
+      // 若阻挡单元总数超过内存阈值（8M 项 = 32 MB），则回退至常规扫描。
       constexpr std::size_t kMaxBlockedIndexEntries = 8u << 20;
       if (total <= kMaxBlockedIndexEntries) {
         state->blocked_cols.resize(total);
@@ -1164,7 +1160,7 @@ CheckResult CollisionChecker::check_path(
 }
 
 // ---------------------------------------------------------------------------
-// Free functions
+// 独立接口函数
 // ---------------------------------------------------------------------------
 
 CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,

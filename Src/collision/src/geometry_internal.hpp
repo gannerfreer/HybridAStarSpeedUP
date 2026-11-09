@@ -1,12 +1,11 @@
 /**
  * @file geometry_internal.hpp
- * @brief Internal fast-path geometry data structures and precomputed SAT caches.
- * @details Optimizes collision query hot paths by:
- *          - Using unnormalized edge normal axes and comparing projection gap squared:
- *            `d > 0 && d * d > tol * tol * axis_len_sq`, eliminating per-axis hypot and division.
- *          - Precomputing and caching polygon projection intervals along edge normal axes.
- *          - Falling back to the normalized SAT implementation when coordinates or axis lengths
- *            exceed safe numerical domains (|coord| > 1e75, len_sq > 1e300).
+ * @brief 碰撞检测底层几何快速路径数据结构与 SAT 预计算缓存。
+ * @details 碰撞检测查询热点路径的核心优化机制：
+ *          - 采用未归一化的边法向投影轴，并在投影间隙平方域进行比较：
+ *            `d > 0 && d * d > tol * tol * axis_len_sq`，彻底消除逐轴计算模长开方与浮点除法开销。
+ *          - 针对单次检测中固定的多边形（如车体足迹或扫掠包络），预先计算并缓存其在各边法向轴上的投影极值区间。
+ *          - 若坐标极值或轴长平方超出安全无溢出范围（|coord| > 1e75, len_sq > 1e300），则自动平滑回退至标准归一化 SAT 路径。
  */
 
 #pragma once
@@ -23,12 +22,12 @@
 namespace planner::collision::internal {
 
 /**
- * @brief Fallback normalized intersection routine for extreme coordinates or large polygons.
- * @param[in] polygon Array of polygon vertices.
- * @param[in] count Number of vertices.
- * @param[in] box Target AABB.
- * @param[in] tol Distance tolerance.
- * @return True if polygon intersects or touches box within tolerance.
+ * @brief 针对极端大坐标或大顶点数多边形的回退归一化 SAT 相交判定例程。
+ * @param[in] polygon 多边形顶点数组。
+ * @param[in] count 顶点数量。
+ * @param[in] box 目标 AABB。
+ * @param[in] tol 距离容差。
+ * @return 若在容差内相交或接触返回 true。
  */
 bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
                                                std::size_t count,
@@ -36,35 +35,35 @@ bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
                                                double tol) noexcept;
 
 /**
- * @brief Precomputed Separating Axis Theorem (SAT) cache for convex polygon vs. AABB tests.
- * @tparam Capacity Maximum number of polygon vertices supported in fixed-size storage.
+ * @brief 凸多边形与 AABB 相交测试的分离轴定理 (SAT) 预计算缓存结构。
+ * @tparam Capacity 固定栈内存支持的最大多边形顶点容量。
  */
 template <std::size_t Capacity>
 struct PolygonSatCache {
   static constexpr std::size_t kCapacity = Capacity;
 
-  /// Maximum coordinate and axis length limits for the fast unnormalized squared-distance domain.
+  /// 快速未归一化平方距离域下的坐标与轴长安全上限（防止乘法浮点溢出）
   static constexpr double kFastMaxAbsCoordinate = 1.0e75;
   static constexpr double kFastMaxAxisLenSq = 1.0e300;
 
-  const Point2d* points{nullptr};  ///< Non-owning pointer to vertex buffer.
-  std::size_t count{0};            ///< Number of vertices in the polygon.
-  bool usable{false};              ///< False if count > Capacity (caller must fallback).
-  bool fast_domain{false};         ///< True if all coordinates and axis lengths are within safe fast bounds.
+  const Point2d* points{nullptr};  ///< 指向多边形外部顶点缓冲区的无所有权指针。
+  std::size_t count{0};            ///< 多边形顶点总数。
+  bool usable{false};              ///< 容量是否足够（count <= Capacity）；若超出则置 false 触发回退。
+  bool fast_domain{false};         ///< 所有坐标与轴长是否均在免溢出的快速安全域内。
   double min_x{0.0};
   double max_x{0.0};
   double min_y{0.0};
   double max_y{0.0};
-  std::array<Point2d, Capacity> raw_axes{};       ///< Unnormalized edge normal axes for edge (i, i+1).
-  std::array<double, Capacity> axis_len_sq{};     ///< Squared length |axis|^2.
-  std::array<double, Capacity> poly_lo{};         ///< Minimum polygon projection along raw_axes[i].
-  std::array<double, Capacity> poly_hi{};         ///< Maximum polygon projection along raw_axes[i].
-  std::array<std::uint8_t, Capacity> axis_ok{};   ///< 1 if normal axis is non-degenerate, 0 otherwise.
+  std::array<Point2d, Capacity> raw_axes{};       ///< 边 (i, i+1) 的未归一化外法向轴。
+  std::array<double, Capacity> axis_len_sq{};     ///< 投影轴模长平方 |axis|^2。
+  std::array<double, Capacity> poly_lo{};         ///< 多边形在 raw_axes[i] 上的投影标量最小值。
+  std::array<double, Capacity> poly_hi{};         ///< 多边形在 raw_axes[i] 上的投影标量最大值。
+  std::array<std::uint8_t, Capacity> axis_ok{};   ///< 1 表示有效非退化分离轴，0 表示退化重合轴。
 
   /**
-   * @brief Precomputes bounding box, edge normals, squared lengths, and projection intervals.
-   * @param[in] polygon Array of polygon vertices.
-   * @param[in] n Vertex count.
+   * @brief 一次性预计算多边形外包盒、未归一化边法向轴、模长平方与投影极值区间。
+   * @param[in] polygon 凸多边形顶点指针。
+   * @param[in] n 顶点个数。
    */
   void build(const Point2d* polygon, std::size_t n) noexcept {
     points = polygon;
@@ -72,7 +71,7 @@ struct PolygonSatCache {
     usable = n <= Capacity;
     fast_domain = false;
     if (!usable || n == 0) {
-      return;  // Empty polygons are valid (never intersect); capacity overflow triggers fallback.
+      return;  // 空多边形合法（恒不相交）；超容量则标记并在查询时触发回退
     }
     min_x = std::numeric_limits<double>::infinity();
     max_x = -std::numeric_limits<double>::infinity();
@@ -98,7 +97,7 @@ struct PolygonSatCache {
       const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
       const double len_sq = axis.x_m * axis.x_m + axis.y_m * axis.y_m;
       if (!(len_sq > 0.0)) {
-        axis_ok[i] = 0;  // Degenerate axis: cannot separate
+        axis_ok[i] = 0;  // 顶点重合产生的退化轴：无法作为有效分离轴
         raw_axes[i] = Point2d{0.0, 0.0};
         axis_len_sq[i] = 0.0;
         poly_lo[i] = 0.0;
@@ -125,23 +124,23 @@ struct PolygonSatCache {
   }
 
   /**
-   * @brief Fast closed-set intersection test between polygon and AABB.
-   * @param[in] box Target AABB.
-   * @param[in] tol Distance tolerance.
-   * @return True if polygon overlaps or touches box within tolerance.
+   * @brief 利用预计算缓存对输入 AABB 执行快速闭集相交测试。
+   * @param[in] box 目标 AABB。
+   * @param[in] tol 距离容差。
+   * @return 若在容差范围内无法排除相交则返回 true。
    */
   bool maybe_intersects(const Aabb2d& box, double tol) const noexcept {
     if (count == 0) {
       return false;
     }
     if (!usable) {
-      return true;  // Conservative: caller falls back to full test.
+      return true;  // 保守处理：通知调用方回退至常规相交测试
     }
     if (!fast_domain || !box_in_fast_domain(box) || !(tol >= 0.0) ||
         !std::isfinite(tol)) {
       return convex_polygon_intersects_aabb_normalized(points, count, box, tol);
     }
-    // Fast rejection via bounding boxes.
+    // 快速外包盒拒斥粗筛
     if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
         max_y < box.min_y - tol || min_y > box.max_y + tol) {
       return false;

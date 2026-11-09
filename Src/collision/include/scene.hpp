@@ -1,10 +1,10 @@
 /**
  * @file scene.hpp
- * @brief Scene representation: vehicle footprints, convex obstacles, and occupancy grid frames.
- * @details Defines the collision environment:
- *          - Rectangular vehicle footprint derived from kinematic wheelbase, overhangs, width, and safety margins.
- *          - Convex polygonal obstacles in the local map frame (oriented counter-clockwise).
- *          - Occupancy grid coordinate frames and transformations.
+ * @brief 碰撞检测场景表征：车辆足迹包络、凸多边形障碍物与栅格地图坐标系。
+ * @details 碰撞环境的核心建模：
+ *          - 车辆足迹模型 (Footprint)：由轴距、前后悬、车宽及安全裕量构建的刚体矩形包络。
+ *          - 凸多边形障碍物 (Obstacle)：局部世界坐标系下的逆时针闭合凸多边形集合。
+ *          - 栅格地图坐标系 (GridFrame)：支持世界坐标系与栅格局部坐标系之间的快速变换及地图边界判定。
  */
 
 #pragma once
@@ -21,151 +21,150 @@ using planner::common::GridView;
 using planner::common::VehicleModel;
 
 /**
- * @brief Convex polygonal obstacle in the local map coordinate frame.
+ * @brief 局部世界坐标系下的凸多边形静态障碍物。
  */
 struct Obstacle {
-  std::string id;                 ///< Unique obstacle identifier.
-  std::vector<Point2d> vertices;  ///< Closed convex polygon vertices ordered counter-clockwise (>= 3 vertices).
+  std::string id;                 ///< 障碍物唯一标识符。
+  std::vector<Point2d> vertices;  ///< 按逆时针 (CCW) 排列的闭合凸多边形顶点序列（顶点数 >= 3）。
 
   /**
-   * @brief Factory creating an axis-aligned closed rectangular obstacle.
-   * @param[in] id Obstacle identifier.
-   * @param[in] x_min_m Minimum x in meters.
-   * @param[in] y_min_m Minimum y in meters.
-   * @param[in] x_max_m Maximum x in meters.
-   * @param[in] y_max_m Maximum y in meters.
-   * @return Obstacle with 4 CCW vertices, or empty vertices if input is invalid.
+   * @brief 创建轴对齐矩形凸障碍物的工厂方法。
+   * @param[in] id 障碍物标识符。
+   * @param[in] x_min_m X 轴下界（米）。
+   * @param[in] y_min_m Y 轴下界（米）。
+   * @param[in] x_max_m X 轴上界（米）。
+   * @param[in] y_max_m Y 轴上界（米）。
+   * @return 包含 4 个 CCW 顶点的 Obstacle，若参数非法则返回空多边形。
    */
   static Obstacle rectangle(const std::string& id, double x_min_m,
                             double y_min_m, double x_max_m, double y_max_m);
 
   /**
-   * @brief Factory creating a convex polygon obstacle normalized to CCW order.
-   * @param[in] id Obstacle identifier.
-   * @param[in] vertices Polygon vertices.
-   * @return Obstacle with CCW vertices, or empty vertices if polygon is non-convex/degenerate.
+   * @brief 创建通用凸多边形障碍物的工厂方法（自动归一化为逆时针）。
+   * @param[in] id 障碍物标识符。
+   * @param[in] vertices 多边形顶点数组。
+   * @return 包含逆时针顶点的 Obstacle，若非凸或退化则返回空多边形。
    */
   static Obstacle convex_polygon(const std::string& id,
                                  std::vector<Point2d> vertices);
 
   /**
-   * @brief Validates obstacle vertex coordinates, count, area, and convexity.
-   * @param[out] reason Optional failure description.
-   * @return True if obstacle is a valid convex polygon.
+   * @brief 校验障碍物顶点坐标、数量、面积及凸性是否合法。
+   * @param[out] reason 失败时的诊断说明文本指针。
+   * @return 若为有效凸多边形则返回 true。
    */
   bool valid(std::string* reason = nullptr) const;
 
   /**
-   * @brief Computes axis-aligned bounding box enclosing the obstacle.
-   * @return Bounding box Aabb2d.
+   * @brief 计算包围该障碍物的紧密轴对齐包围盒。
+   * @return 对应的 Aabb2d。
    */
   Aabb2d aabb() const noexcept;
 };
 
 /**
- * @brief Planning and collision checking scene environment.
+ * @brief 规划与碰撞检测场景的综合环境模型。
  */
 struct Scene {
-  GridView grid;                    ///< 2D occupancy grid view.
-  std::vector<Obstacle> obstacles;  ///< Collection of convex polygon obstacles.
+  GridView grid;                    ///< 二维占用栅格地图视图。
+  std::vector<Obstacle> obstacles;  ///< 凸多边形障碍物列表。
 
   /**
-   * @brief Tests whether the scene contains a non-empty grid.
-   * @return True if grid.width > 0 and grid.height > 0.
+   * @brief 检查场景是否包含非空栅格地图。
+   * @return 若栅格宽高均大于 0 返回 true。
    */
   bool has_grid() const noexcept { return grid.width > 0 && grid.height > 0; }
 
   /**
-   * @brief Validates grid dimensions, resolution, cell buffer, and all obstacles.
-   * @param[out] reason Optional failure description.
-   * @return True if the entire scene is valid.
+   * @brief 完整校验栅格尺寸、分辨率、单元缓冲区及所有障碍物的合法性。
+   * @param[out] reason 失败时的诊断说明文本指针。
+   * @return 若场景完全合法则返回 true。
    */
   bool valid(std::string* reason = nullptr) const;
 };
 
 /**
- * @brief Vehicle rectangular bounding footprint expanded by safety margin.
- * @details Coordinate system: Vehicle body frame with origin at the rear-axle center,
- *          X pointing forward along the longitudinal centerline, Y pointing left.
+ * @brief 包含额外安全裕量的车体矩形足迹几何包络。
+ * @details 坐标系规范：车体局部坐标系，原点位于后轴中心，X 轴沿车身中心线朝前，Y 轴朝左。
  */
 struct Footprint {
-  double x_min_m{0.0};          ///< Body-frame minimum longitudinal extent: -(rear_overhang + margin).
-  double x_max_m{0.0};          ///< Body-frame maximum longitudinal extent: wheelbase + front_overhang + margin.
-  double y_min_m{0.0};          ///< Body-frame minimum lateral extent: -(width/2 + margin).
-  double y_max_m{0.0};          ///< Body-frame maximum lateral extent: +(width/2 + margin).
-  double corner_radius_m{0.0};  ///< Maximum corner radius from rear axle, used for bounding swept spheres.
-  double half_width_m{0.0};     ///< Half of total vehicle width including safety margin: (width + 2*margin)/2.
-  double half_length_m{0.0};    ///< Half of total vehicle length including safety margin.
-  double center_x_m{0.0};       ///< Center of the footprint rectangle in body coordinates.
+  double x_min_m{0.0};          ///< 车体系纵向后向极限：-(rear_overhang + margin)（米）。
+  double x_max_m{0.0};          ///< 车体系纵向前向极限：wheelbase + front_overhang + margin（米）。
+  double y_min_m{0.0};          ///< 车体系横向右侧极限：-(width/2 + margin)（米）。
+  double y_max_m{0.0};          ///< 车体系横向左侧极限：+(width/2 + margin)（米）。
+  double corner_radius_m{0.0};  ///< 各角点相对后轴中心的最大回转半径，用于扫掠包围球上界估计（米）。
+  double half_width_m{0.0};     ///< 包含安全裕量的车身总半宽（米）。
+  double half_length_m{0.0};    ///< 包含安全裕量的车身总半长（米）。
+  double center_x_m{0.0};       ///< 足迹矩形几何中心在车体系下的 X 坐标（米）。
 
   /**
-   * @brief Computes body-frame corners ordered counter-clockwise starting from (x_min, y_min).
-   * @return Array of 4 body-frame corner coordinates.
+   * @brief 计算车体系下的 4 个角点坐标，从 (x_min, y_min) 起沿逆时针排列。
+   * @return 包含 4 个车体系角点的定长数组。
    */
   std::array<Point2d, 4> body_corners() const noexcept;
 
   /**
-   * @brief Computes world-frame corners for a given rear-axle pose.
-   * @param[in] pose Vehicle rear-axle pose in world frame.
-   * @return Array of 4 world-frame corner coordinates.
+   * @brief 计算车辆在指定世界位姿下的 4 个世界系角点坐标。
+   * @param[in] pose 车辆后轴中心在世界系下的位姿。
+   * @return 包含 4 个世界系角点的定长数组。
    */
   std::array<Point2d, 4> world_corners(const Pose2d& pose) const noexcept;
 };
 
 /**
- * @brief Validates vehicle model dimensions (wheelbase, width, overhangs, margin).
- * @param[in] vehicle Vehicle model parameters.
- * @param[out] reason Optional diagnostic failure reason.
- * @return True if dimensions are finite, positive/non-negative as required.
+ * @brief 校验车辆模型几何尺寸（轴距、车宽、前后悬、安全裕量）的合法性。
+ * @param[in] vehicle 车辆模型参数。
+ * @param[out] reason 失败时的诊断说明文本。
+ * @return 若所有尺寸均为有限正数/非负数则返回 true。
  */
 bool vehicle_footprint_valid(const VehicleModel& vehicle,
                              std::string* reason = nullptr);
 
 /**
- * @brief Constructs a Footprint from a VehicleModel.
- * @param[in] vehicle Validated vehicle parameters.
- * @return Rectangular footprint structure.
+ * @brief 根据车辆模型参数构造对应的矩形足迹模型。
+ * @param[in] vehicle 经校验合法的车辆参数。
+ * @return 构造生成的 Footprint 结构。
  */
 Footprint make_footprint(const VehicleModel& vehicle) noexcept;
 
 /**
- * @brief Coordinate frame geometry and fast transformations for 2D GridView.
- * @details Cell (r, c) spans [c * res, (c + 1) * res] x [r * res, (r + 1) * res] in grid frame.
+ * @brief 二维栅格地图坐标系几何定义与快速坐标变换缓存。
+ * @details 网格坐标系中，单元 (r, c) 占据的区间为 [c*res, (c+1)*res] x [r*res, (r+1)*res]。
  */
 struct GridFrame {
-  double cos_yaw{1.0};       ///< Cosine of grid origin orientation.
-  double sin_yaw{0.0};       ///< Sine of grid origin orientation.
-  double origin_x{0.0};      ///< Grid origin X in world coordinates.
-  double origin_y{0.0};      ///< Grid origin Y in world coordinates.
-  double width_m{0.0};       ///< Total grid width in meters: width * resolution_m.
-  double height_m{0.0};      ///< Total grid height in meters: height * resolution_m.
-  double resolution_m{0.0};  ///< Side length of square cell in meters.
+  double cos_yaw{1.0};       ///< 栅格原点航向角余弦值。
+  double sin_yaw{0.0};       ///< 栅格原点航向角正弦值。
+  double origin_x{0.0};      ///< 栅格原点在世界系下的 X 坐标（米）。
+  double origin_y{0.0};      ///< 栅格原点在世界系下的 Y 坐标（米）。
+  double width_m{0.0};       ///< 地图总物理宽度：width * resolution_m（米）。
+  double height_m{0.0};      ///< 地图总物理高度：height * resolution_m（米）。
+  double resolution_m{0.0};  ///< 正方形网格单边分辨率（米）。
 
   /**
-   * @brief Constructs GridFrame transformation cache from a GridView.
-   * @param[in] grid Occupancy grid view.
-   * @return Initialized GridFrame.
+   * @brief 从 GridView 提取并预计算 GridFrame 坐标变换结构。
+   * @param[in] grid 输入栅格地图视图。
+   * @return 初始化完成的 GridFrame。
    */
   static GridFrame from_grid(const GridView& grid) noexcept;
 
   /**
-   * @brief Transforms point from world coordinates to grid origin frame.
-   * @param[in] world_point Point in world frame.
-   * @return Point in grid frame.
+   * @brief 将世界坐标系下的点变换至栅格局部坐标系。
+   * @param[in] world_point 世界系点。
+   * @return 栅格局部系点。
    */
   Point2d to_grid_frame(const Point2d& world_point) const noexcept;
 
   /**
-   * @brief Checks if a point in grid frame is inside the map rectangle [0, width_m] x [0, height_m].
-   * @param[in] grid_point Point in grid coordinates.
-   * @return True if inside or on map boundary.
+   * @brief 判定栅格坐标系下的点是否位于地图矩形 [0, width_m] x [0, height_m] 内。
+   * @param[in] grid_point 栅格系点。
+   * @return 若在地图内或边界上返回 true。
    */
   bool inside_map(const Point2d& grid_point) const noexcept;
 
   /**
-   * @brief Computes signed distance from a point to the map rectangular boundary (negative if outside).
-   * @param[in] grid_point Point in grid coordinates.
-   * @return Distance to boundary in meters (positive inside, 0 on boundary, negative outside).
+   * @brief 计算栅格坐标点到地图矩形边界的有向最短距离（在外部为负，在内部为正）。
+   * @param[in] grid_point 栅格系点。
+   * @return 到边界的欧氏距离（米）。
    */
   double distance_to_boundary(const Point2d& grid_point) const noexcept;
 };
