@@ -1,20 +1,17 @@
-#pragma once
+/**
+ * @file collision_checker.hpp
+ * @brief Continuous and discrete collision checking for vehicle poses, circular motion segments, and paths.
+ * @details Core collision invariants:
+ *          - Closed set geometry: contact / tangency counts as collision.
+ *          - Out-of-bounds map regions and unknown grid cells (kCellUnknown) are treated conservatively as occupied.
+ *          - Continuous motion segments are verified via adaptive bisection with conservative displacement
+ *            bounding envelopes. Unresolved intervals down to `sweep_precision_m` (default 1e-3 m) are reported
+ *            as collision.
+ *          - Multi-waypoint paths are checked continuously by reconstructing circular transition arcs between
+ *            adjacent points from curvature, distance, and direction gear.
+ */
 
-// 公开碰撞检测接口（Docs/component_development_plan.md §6.1/§6.2）：
-// check_pose / check_motion / check_path 返回车辆足迹是否碰撞、首个接触
-// 位姿以及原因。
-//
-// 此处实现的共识规则：
-//   * 接触（相切）计为碰撞；
-//   * 未知栅格单元与地图矩形之外的一切区域均视为占据；
-//   * 运动分段使用自适应细分与保守的位移包络进行检查；当包络无法证明
-//     无碰撞时，检查器继续细分，而在整个车辆精度下限以下（车辆任一点的
-//     位移上限 1e-3 m，即 §7.1 默认值），未解决的区间报告为碰撞
-//     （保守）。
-//
-// check_path 还会在相邻路径点之间扫掠：每个过渡段是由首个路径点存储的
-// 曲率、弧长差与分段方向重建的常曲率圆弧；存储的点位姿始终精确检查。
-// 仅检查离散路径点永远不够（必须发现采样点之间的薄障碍物）。
+#pragma once
 
 #include <memory>
 #include <string>
@@ -26,96 +23,173 @@ namespace planner::collision {
 
 using planner::common::PathSegment;
 
+/**
+ * @brief High-level outcome status of a collision query.
+ */
 enum class CheckStatus {
-  kClear,        // 未发现碰撞
-  kCollision,    // 碰撞（含接触）；见 reason_code/detail
-  kInvalidInput  // 输入被拒绝；无判定结果
+  kClear,        ///< No collision detected across the evaluated pose or trajectory.
+  kCollision,    ///< Collision or contact detected (see reason_code and detail).
+  kInvalidInput  ///< Input parameters rejected; no collision evaluation performed.
 };
 
+/**
+ * @brief Specific cause of a detected collision or query rejection.
+ */
 enum class CollisionReason {
-  kNone,
-  kObstacle,       // 多边形障碍物重叠
-  kGridOccupied,   // 占据栅格单元重叠
-  kGridUnknown,    // 未知栅格单元重叠（视为占据）
-  kOutsideMap,     // 足迹的一部分位于栅格地图之外
-  kPrecisionFloor, // 运动包络在扫掠精度下限处未解决
-  kInvalidInput
+  kNone,            ///< No collision occurred.
+  kObstacle,        ///< Overlap or contact with a convex polygonal obstacle.
+  kGridOccupied,    ///< Overlap with an occupied grid cell (kCellOccupied).
+  kGridUnknown,     ///< Overlap with an unknown grid cell (kCellUnknown, treated as occupied).
+  kOutsideMap,      ///< Vehicle footprint partially or completely extends beyond map boundary.
+  kPrecisionFloor,  ///< Motion bounding envelope remained unresolved at sweep precision threshold.
+  kInvalidInput     ///< Input parameters were non-finite or structurally invalid.
 };
 
+/**
+ * @brief Converts a CheckStatus enum to a human-readable string.
+ * @param[in] status Check status enum value.
+ * @return String literal representation.
+ */
 const char* to_string(CheckStatus status) noexcept;
+
+/**
+ * @brief Converts a CollisionReason enum to a human-readable string.
+ * @param[in] reason Collision reason enum value.
+ * @return String literal representation.
+ */
 const char* to_string(CollisionReason reason) noexcept;
 
-// 单次碰撞检测的结果。`first_pose` 是首个检测到接触的后轴中心位姿：
-//   * check_pose：被检查的位姿，first_s_m = 0；
-//   * check_motion：圆弧上距起点弧长为 first_s_m 的位姿；
-//   * check_path：失败路径分段上的位姿；first_s_m 是从该分段起点算起的
-//     弧长，path_segment_index 标识该分段（从 0 开始）。
+/**
+ * @brief Detailed outcome of a single collision check query.
+ */
 struct CheckResult {
-  CheckStatus status{CheckStatus::kClear};
-  CollisionReason reason_code{CollisionReason::kNone};
-  std::string detail;
-  Pose2d first_pose;
-  double first_s_m{0.0};
-  int path_segment_index{-1};
+  CheckStatus status{CheckStatus::kClear};            ///< Overall query status (kClear, kCollision, or kInvalidInput).
+  CollisionReason reason_code{CollisionReason::kNone};///< Identified cause of collision.
+  std::string detail;                                 ///< Human-readable diagnostic details.
+  Pose2d first_pose;                                  ///< First rear-axle center pose where contact was detected.
+  double first_s_m{0.0};                              ///< Arc length along segment/path to the first contact point in meters.
+  int path_segment_index{-1};                         ///< Index of the failing path segment (for multi-segment path queries).
 
+  /**
+   * @brief Checks if a collision occurred.
+   * @return True if status == CheckStatus::kCollision.
+   */
   bool collided() const noexcept { return status == CheckStatus::kCollision; }
+
+  /**
+   * @brief Checks if the query was completely collision-free.
+   * @return True if status == CheckStatus::kClear.
+   */
   bool is_clear() const noexcept { return status == CheckStatus::kClear; }
+
+  /**
+   * @brief Checks if inputs were valid and a check was performed.
+   * @return True if status != CheckStatus::kInvalidInput.
+   */
   bool is_valid() const noexcept { return status != CheckStatus::kInvalidInput; }
 };
 
-// 所有检查共用的选项。
+/**
+ * @brief Configuration options controlling collision checking precision and acceleration.
+ */
 struct CheckOptions {
-  // 细分下限：单个扫掠区间内车辆任一点的最大位移（米）。§7.1 默认
-  // 1e-3 m。
+  /**
+   * @brief Adaptive bisection precision floor in meters (default: 1e-3 m).
+   * @details Upper bound on the maximum displacement of any point on the vehicle body
+   *          within a single leaf swept interval.
+   */
   double sweep_precision_m{1e-3};
 
-  // 可选的包围体 / 空间索引加速。默认禁用：纯几何路径是可信基准。启用后
-  // 结果与纯路径完全一致（由差分对比测试验证），因为每个被跳过的对象都
-  // 可证明比查询包络更远。
+  /**
+   * @brief Enables spatial bounding-volume acceleration indices.
+   * @details When disabled, pure geometric tests are run directly.
+   */
   bool enable_acceleration{false};
 };
 
-// 常曲率运动基元：起始位姿、弧长、挡位与带符号曲率。
-// yaw_change = curvature * signed_length，其中前进时
-// signed_length = +length、倒车时 -length（按 v1 约定，
-// yaw_rate = signed_speed * curvature）。
+/**
+ * @brief Constant-curvature motion primitive segment.
+ * @details Defined by start pose, arc length, gear direction, and signed curvature.
+ *          Satisfies \f$ \Delta\psi = \kappa \cdot s_{\text{signed}} \f$.
+ */
 struct MotionSegment {
-  Pose2d start;
-  double length_m{0.0};
-  Direction direction{Direction::kForward};
-  double curvature_inv_m{0.0};
+  Pose2d start;                             ///< Start pose of the vehicle rear-axle center.
+  double length_m{0.0};                     ///< Arc length traveled in meters (>= 0).
+  Direction direction{Direction::kForward}; ///< Motion gear (forward or reverse).
+  double curvature_inv_m{0.0};              ///< Signed curvature \f$ \kappa = \tan(\delta)/L \f$ in 1/m.
 };
 
-// 检查单个位姿。
+/**
+ * @brief Checks static collision of a vehicle footprint at a single pose.
+ * @param[in] pose Vehicle rear-axle pose.
+ * @param[in] vehicle Vehicle geometric model.
+ * @param[in] scene Environment scene (grid and obstacles).
+ * @param[in] options Collision check options.
+ * @return Query result indicating clear or first contact cause.
+ */
 CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,
                        const Scene& scene, const CheckOptions& options = {});
 
-// 检查一个常曲率运动分段。
+/**
+ * @brief Checks continuous collision along a constant-curvature circular motion segment.
+ * @param[in] segment Circular motion segment.
+ * @param[in] vehicle Vehicle geometric model.
+ * @param[in] scene Environment scene.
+ * @param[in] options Collision check options.
+ * @return Query result indicating clear or first contact pose and arc length.
+ */
 CheckResult check_motion(const MotionSegment& segment, const VehicleModel& vehicle,
                          const Scene& scene, const CheckOptions& options = {});
 
-// 检查一个方向一致的路径分段。
+/**
+ * @brief Checks continuous collision along a single directional path segment.
+ * @param[in] segment Waypoint sequence forming a continuous path segment.
+ * @param[in] vehicle Vehicle geometric model.
+ * @param[in] scene Environment scene.
+ * @param[in] options Collision check options.
+ * @return Query result.
+ */
 CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle,
                        const Scene& scene, const CheckOptions& options = {});
 
-// 检查有序的路径分段列表。结果中的 `path_segment_index` 标识失败的分段。
+/**
+ * @brief Checks continuous collision along an ordered sequence of path segments.
+ * @param[in] path Multi-segment path.
+ * @param[in] vehicle Vehicle geometric model.
+ * @param[in] scene Environment scene.
+ * @param[in] options Collision check options.
+ * @return Query result with path_segment_index indicating the first failing segment.
+ */
 CheckResult check_path(const std::vector<PathSegment>& path,
                        const VehicleModel& vehicle, const Scene& scene,
                        const CheckOptions& options = {});
 
-// 不可变检查器状态的前向声明（定义在 src/collision_checker.cpp）。
 struct CollisionCheckerImpl;
 
-// 可复用的检查器：对场景验证一次，并可选地预计算加速结构。每个规划器
-// 实例持有自己的检查器；检查器使用期间不得修改输入快照。
+/**
+ * @brief Reusable collision checker caching vehicle footprint and optional scene acceleration structures.
+ */
 class CollisionChecker {
  public:
+  /**
+   * @brief Constructs and validates a reusable collision checker instance.
+   * @param[in] vehicle Vehicle geometric model.
+   * @param[in] scene Environment scene snapshot.
+   * @param[in] options Collision checking configuration options.
+   */
   CollisionChecker(const VehicleModel& vehicle, const Scene& scene,
                    CheckOptions options = {});
 
-  // 构造函数拒绝输入时为 false；`reason` 说明原因，且所有检查都返回
-  // kInvalidInput。
+  /**
+   * @brief Returns true if inputs were validated successfully.
+   * @return True if valid, false if rejected.
+   */
   bool valid() const noexcept;
+
+  /**
+   * @brief Returns error diagnostic message if construction validation failed.
+   * @return Diagnostic string.
+   */
   const std::string& invalid_reason() const noexcept;
 
   const VehicleModel& vehicle() const noexcept;

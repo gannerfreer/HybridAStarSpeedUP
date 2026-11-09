@@ -1,4 +1,9 @@
-// 用户 Hybrid A*：标准倒车运动学、碰撞检测、RS 连接及目标势场。
+/**
+ * @file user_astar.cpp
+ * @brief Implementation of Hybrid A* planner with standard reverse kinematics, swept collision checking,
+ *        Reeds-Shepp analytic expansions, and Dijkstra goal potential heuristic.
+ */
+
 #include "user_astar.hpp"
 
 #include <algorithm>
@@ -26,8 +31,8 @@ using Clock = std::chrono::steady_clock;
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kStartPoseToleranceM = 1e-6;
 constexpr double kStartYawToleranceRad = 1e-6;
-constexpr double kEndpointPositionToleranceM = 0.05;  // §7.1
-constexpr double kEndpointYawToleranceRad = 0.02;     // §7.1
+constexpr double kEndpointPositionToleranceM = 0.05;  ///< Terminal position tolerance (m).
+constexpr double kEndpointYawToleranceRad = 0.02;     ///< Terminal heading angle tolerance (rad).
 constexpr double kCurvatureTolerance = 1e-9;
 
 bool finite_pose(const common::Pose2d& pose) {
@@ -65,7 +70,7 @@ std::string collision_detail(const collision::CheckResult& check) {
   return text;
 }
 
-// 确认目标势场与碰撞检测使用同一栅格快照。
+/// Validates that two grid views share the same snapshot identifiers, dimensions, and contents.
 bool grids_equal(const common::GridView& a, const common::GridView& b) {
   return a.map_id == b.map_id && a.map_version == b.map_version &&
          a.width == b.width && a.height == b.height &&
@@ -73,9 +78,9 @@ bool grids_equal(const common::GridView& a, const common::GridView& b) {
          a.cells == b.cells;
 }
 
-// 剔除 RS 连接中的数值退化分段（远小于毫米级）：这些微米级位移来自 RS
-// 字分解的边界情况，没有几何意义，却会制造虚假换向并扰动端点。长度按
-// 剩余分段重算，start/goal 回显保持不变。
+/// Prunes numerically degenerate segments (sub-millimeter displacements) from Reeds-Shepp connectors.
+/// These micro-displacements arise from word-boundary corner cases without geometric significance,
+/// creating spurious gear switches and corrupting endpoints.
 rs::RsPlan clean_connector(rs::RsPlan plan) {
   constexpr double kDegenerateSegmentM = 1e-3;
   rs::RsPlan cleaned;
@@ -94,9 +99,9 @@ rs::RsPlan clean_connector(rs::RsPlan plan) {
   return cleaned;
 }
 
-// 由相邻节点位姿反推常曲率基元的曲率：curvature = Δyaw / signed_arc。
-// 上游 `Propagate` 的每段基元弧长恒为 delta_dist（前进/倒车相同），
-// 因此必须按弧长而不是弦长换算（弦长会把曲率系统性放大 β²/24）。
+/// Infers constant primitive curvature from adjacent node poses: curvature = delta_yaw / signed_arc.
+/// Upstream Propagate keeps arc length fixed at delta_dist for both forward and reverse,
+/// so conversion must use arc length rather than chord length (which introduces beta^2/24 distortion).
 double primitive_curvature(const astar::Pose2D& from,
                            const astar::Pose2D& to, double arc_length_m) {
   if (arc_length_m <= 1e-12) {
@@ -166,7 +171,7 @@ void UserAstar::set_cancel_callback(std::function<bool()> callback) {
 }
 
 void UserAstar::reset_cache() {
-  // 清除目标势场缓存。
+  // Invalidate goal potential field cache.
   impl_->potential_valid = false;
   impl_->potential_key = 0;
   impl_->potential = internal::GridPotential{};
@@ -238,7 +243,7 @@ common::PlanResult UserAstar::plan(
   };
 
   // ------------------------------------------------------------------
-  // 上游配置映射。
+  // Upstream configuration mapping
   // ------------------------------------------------------------------
   astar::PlannerConfig config;
   config.vehicle.center2front =
@@ -274,7 +279,9 @@ common::PlanResult UserAstar::plan(
   config.hybrid_astar.standard_reverse_kinematics = true;
 
   // ------------------------------------------------------------------
-  // 目标势场连通性预检及不可达状态剪枝；起终点先做完整足迹检查。
+  // Goal potential connectivity check and unreachable state pruning.
+  // Start and goal poses are evaluated with full footprint check first.
+  // ------------------------------------------------------------------
   bool potential_usable = false;
   collision::GridFrame potential_frame = collision::GridFrame::from_grid(grid);
   const internal::GridPotential* potential = nullptr;
@@ -371,12 +378,12 @@ common::PlanResult UserAstar::plan(
 
   astar::HybridAStar planner(config);
 
-  // RS 目标连接的缓存（由 goal hook 填充）。
+  // Reeds-Shepp goal connector cache (populated by goal hook).
   bool connector_valid = false;
   rs::RsPath connector;
   std::int64_t goal_hook_calls = 0;
 
-  // 整车位姿和运动段碰撞检查。
+  // Vehicle footprint pose and motion segment collision hooks.
   planner.SetPoseCollisionHook([&](const astar::Pose2D& pose) {
     const collision::CheckResult check =
         collision_checker.check_pose(to_common(pose));
@@ -384,8 +391,9 @@ common::PlanResult UserAstar::plan(
   });
   planner.SetMotionCollisionHook(
       [&](const astar::Pose2D& from, const astar::Pose2D& to) {
-        // 可达性松弛剪枝（仅势能可用时）：自由栅格图上不可达的后继单元
-        // 不可能是碰撞自由路径的一部分，直接拒绝（见 grid_potential.hpp）。
+        // Reachability relaxation pruning (when potential map is available):
+        // successor cells unreachable on the free grid cannot form part of any
+        // collision-free path and are rejected immediately (see grid_potential.hpp).
         if (potential_usable) {
           int row = 0;
           int col = 0;
@@ -431,17 +439,15 @@ common::PlanResult UserAstar::plan(
     if (solved.status != common::Status::kSuccess) {
       return false;
     }
-    // 数值退化分段（微米级位移）没有几何意义，却会制造虚假换向并污染
-    // 端点；先剔除并重算长度，剩余分段仍逐一做完整运动碰撞检查。
+    // Strip degenerate micro-segments before testing collision on remaining segments.
     solved = clean_connector(std::move(solved));
     if (impl_->config.analytic_expansion_max_length_m > 0.0 &&
         solved.path.length_m >
             impl_->config.analytic_expansion_max_length_m) {
       return false;
     }
-    // 亚原语分段（小于 min_connector_segment_m）视为连接退化：仅当它
-    // 与相邻分段构成换向（虚假 cusp）时拒绝该连接，让搜索继续寻找更
-    // 干净的目标连接（目标连接策略，非门槛放宽）；同向的短分段无害。
+    // Sub-primitive segments shorter than min_connector_segment_m: reject connector only
+    // if forming a spurious cusp with adjacent segments, prompting search to find a cleaner connection.
     if (impl_->config.min_connector_segment_m > 0.0) {
       const std::vector<rs::RsSegment>& segments = solved.path.segments;
       for (std::size_t i = 0; i + 1 < segments.size(); ++i) {
@@ -501,7 +507,7 @@ common::PlanResult UserAstar::plan(
   });
 
   // ------------------------------------------------------------------
-  // 搜索。
+  // Search execution
   // ------------------------------------------------------------------
   astar::Pose2D start_pose;
   start_pose.x = request.start.x_m;
@@ -543,7 +549,7 @@ common::PlanResult UserAstar::plan(
   }
 
   // ------------------------------------------------------------------
-  // 路径构建（含 RS 连接）与输出校验。
+  // Path construction (including Reeds-Shepp connector) and validation
   // ------------------------------------------------------------------
   std::vector<common::PathPoint> flat;
   flat.reserve(search.path.size() + 64);
@@ -570,7 +576,7 @@ common::PlanResult UserAstar::plan(
     }
     flat.push_back(point);
     if (i + 1 < node_count) {
-      // 上游基元弧长恒为 delta_dist（前进/倒车相同）。
+      // Upstream primitive arc length is fixed at delta_dist for both forward and reverse.
       s_cum += impl_->config.motion_step_m;
     }
   }

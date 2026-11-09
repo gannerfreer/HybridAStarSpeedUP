@@ -1,3 +1,8 @@
+/**
+ * @file hybrid_astar.cpp
+ * @brief Implementation of Hybrid A* search algorithm and kinodynamic state expansion.
+ */
+
 #include "hybrid_astar.h"
 
 #include <algorithm>
@@ -73,7 +78,9 @@ std::size_t HybridAStar::BoundaryCount() const {
     return boundaries_.size();
 }
 
-// [planner-adapter 扩展] 钩子与栅格化入口实现（不改变默认搜索语义）。
+// ---------------------------------------------------------------------------
+// Search hooks and programmatic boundary rasterization
+// ---------------------------------------------------------------------------
 void HybridAStar::SetAbortCallback(std::function<bool()> callback) {
     abort_callback_ = std::move(callback);
 }
@@ -558,8 +565,8 @@ HybridAStar::Vertex3D HybridAStar::Propagate(const Vertex3D& start, MotionDirect
         const double wheel_base = std::max(1e-3, config_.vehicle.wheel_base);
         const double beta = config_.hybrid_astar.delta_dist / wheel_base * std::tan(steering_rad);
         const double radius = config_.hybrid_astar.delta_dist / beta;
-        // [planner-adapter 扩展] 默认保持上游原行为；standard_reverse_kinematics
-        // 打开时倒车使用标准自行车模型（yaw 变化 -beta、精确圆弧位移）。
+        // Standard bicycle reverse kinematics: yaw change is dir_sign * beta,
+        // and position integrates along the circular arc.
         double yaw_delta = beta;
         double position_sign = dir_sign;
         if (config_.hybrid_astar.standard_reverse_kinematics) {

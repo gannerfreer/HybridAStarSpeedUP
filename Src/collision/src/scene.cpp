@@ -1,4 +1,7 @@
-// 场景类型：障碍物、车辆足迹与栅格几何。
+/**
+ * @file scene.cpp
+ * @brief Implementations of scene validation, footprints, and grid transformations.
+ */
 
 #include "scene.hpp"
 
@@ -32,7 +35,7 @@ Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
   std::string reason;
   obstacle.vertices = rectangle_polygon(x_min_m, y_min_m, x_max_m, y_max_m,
                                         &reason);
-  return obstacle;  // 无效时顶点为空
+  return obstacle;  // Returns empty vertices if invalid
 }
 
 Obstacle Obstacle::convex_polygon(const std::string& id,
@@ -113,11 +116,9 @@ std::array<Point2d, 4> Footprint::body_corners() const noexcept {
 
 std::array<Point2d, 4> Footprint::world_corners(
     const Pose2d& pose) const noexcept {
-  // 与原实现（逐角点调用 transform_point）数值逐位一致，但 cos/sin 只计算
-  // 一次：transform_point 的公式是
-  //   {pose.x + c*bx - s*by, pose.y + s*bx + c*by}，c=cos(yaw), s=sin(yaw)。
-  // 热路径上一次 world_corners 的 4 次三角函数调用降为 1 次（callgrind 显示
-  // sincos 曾占 case_39 约 7%）。
+  // Numerically bit-for-bit identical to per-corner transform_point, but cos/sin
+  // are evaluated once for all 4 corners:
+  // transform_point: {pose.x + c*bx - s*by, pose.y + s*bx + c*by}, c=cos(yaw), s=sin(yaw).
   const double c = std::cos(pose.yaw_rad);
   const double s = std::sin(pose.yaw_rad);
   const std::array<Point2d, 4> body = body_corners();
@@ -205,7 +206,7 @@ bool GridFrame::inside_map(const Point2d& grid_point) const noexcept {
 double GridFrame::distance_to_boundary(const Point2d& grid_point) const noexcept {
   const double d = std::min(std::min(grid_point.x_m, width_m - grid_point.x_m),
                             std::min(grid_point.y_m, height_m - grid_point.y_m));
-  return d;  // 在外部时为负
+  return d;  // Negative if outside map
 }
 
 }  // namespace planner::collision

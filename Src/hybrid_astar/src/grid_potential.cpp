@@ -1,4 +1,7 @@
-// 内部目标势场计算（见 grid_potential.hpp）。
+/**
+ * @file grid_potential.cpp
+ * @brief Implementation of 8-connected Dijkstra potential field over occupancy grids.
+ */
 
 #include "grid_potential.hpp"
 
@@ -36,7 +39,7 @@ void hash_double(std::uint64_t* hash, double value) {
 
 std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row,
                              int goal_col) {
-  std::uint64_t hash = 14695981039346656037ull;  // FNV-1a 偏移基准
+  std::uint64_t hash = 14695981039346656037ull;  // FNV-1a offset basis
   hash_byte_block(&hash, grid.map_id.data(), grid.map_id.size());
   hash_byte_block(&hash, grid.map_version.data(), grid.map_version.size());
   hash_u64(&hash, static_cast<std::uint64_t>(grid.width));
@@ -106,7 +109,7 @@ GridPotential compute_grid_potential(
     queue.pop();
     if (top.distance >
         potential.distance_m[static_cast<std::size_t>(top.index)]) {
-      continue;  // 过期堆条目
+      continue;  // Stale heap entry
     }
     const int row = top.index / grid.width;
     const int col = top.index % grid.width;
