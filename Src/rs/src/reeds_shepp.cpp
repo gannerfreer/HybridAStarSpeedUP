@@ -1,4 +1,9 @@
-#include "planner/rs/reeds_shepp.hpp"
+/**
+ * @file reeds_shepp.cpp
+ * @brief Implementation of the native 48-word analytic Reeds-Shepp solver.
+ */
+
+#include "reeds_shepp.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,22 +13,12 @@
 #include <utility>
 
 // ---------------------------------------------------------------------------
-// 原生解析式 Reeds-Shepp 求解器。
+// Native analytic Reeds-Shepp solver.
 //
-// 下面的 48 词枚举沿用 OMPL 1.6.0
-// `src/ompl/base/spaces/src/ReedsSheppStateSpace.cpp`
-// （BSD-3-Clause，Copyright (c) 2010 Rice University）的结构与公式，
-// 后者实现了：
+// The 48-word enumeration follows the formulations from:
 //   J.A. Reeds and L.A. Shepp, "Optimal paths for a car that goes both
-//   forwards and backwards", Pacific Journal of Mathematics, 145(2):367-393,
-//   1990.
-//
-// 本次重写去除了所有 OMPL 类型：planner::rs 从不暴露 OMPL 对象，
-// 且该组件不依赖 OMPL 也能工作。可选的 OMPL 适配器
-// （src/ompl_reference.cpp）仅作封装一致性参照；由于两侧实现
-// 同一曲线族，其比较明确*不是*独立的双重验证
-// （Docs/component_development_plan.md 3.7）。独立证据来自解析直线/圆弧
-// 测试、刚体变换不变性、曲率界和终点重构。
+//   forwards and backwards", Pacific Journal of Mathematics, 145(2):367-393, 1990.
+// (Structured analogously to OMPL ReedsSheppStateSpace BSD-3 implementation).
 // ---------------------------------------------------------------------------
 
 namespace planner::rs {
@@ -34,11 +29,10 @@ constexpr double kTwoPi = 2.0 * common::kPi;
 constexpr double kZero = 10.0 * std::numeric_limits<double>::epsilon();
 
 // ---------------------------------------------------------------------------
-// 从 Reeds-Shepp 术语体系转写的小型辅助函数。
+// Auxiliary math functions for Reeds-Shepp curves.
 // ---------------------------------------------------------------------------
 
-// 与参考实现一致地环绕到 (-pi, pi]；公开结果再用
-// common::normalize_angle_rad 重新归一化到 (-pi, pi]。
+// Wraps an angle to the interval (-pi, pi].
 double mod2pi(double x) {
   double v = std::fmod(x, kTwoPi);
   if (v < -kPi) {
@@ -66,15 +60,14 @@ void tauOmega(double u, double v, double xi, double eta, double phi, double& tau
 }
 
 // ---------------------------------------------------------------------------
-// 原始路径表示：按行进顺序排列的带符号常曲率原始段，
-// 转弯半径为单位 1。
+// Raw path representation: signed constant-curvature segments with unit turning radius.
 // ---------------------------------------------------------------------------
 
 enum class Turn { kLeft, kStraight, kRight, kNone };
 
 struct RawSegment {
   Turn turn{Turn::kNone};
-  double length{0.0};  // 带符号的单位半径弧长；< 0 == 倒车挡
+  double length{0.0};  // Signed unit-radius arc length (< 0 for reverse motion)
 };
 
 struct RawPath {
@@ -83,8 +76,7 @@ struct RawPath {
   double total{std::numeric_limits<double>::max()};
 };
 
-// 枚举中的 18 个路径词 (L/R/S)。索引与参考实现一致；
-// 末尾的 kNone 项用于终止路径词。
+// The 18 base path words (L/R/S). kNone terminates the word sequence.
 constexpr Turn kPathType[18][5] = {
     {Turn::kLeft, Turn::kRight, Turn::kLeft, Turn::kNone, Turn::kNone},        // 0
     {Turn::kRight, Turn::kLeft, Turn::kRight, Turn::kNone, Turn::kNone},       // 1
@@ -128,10 +120,10 @@ RawPath makeRawPath(int type_index, double a, double b = 0.0, double c = 0.0,
 }
 
 // ---------------------------------------------------------------------------
-// Reeds-Shepp 论文的九组公式。注释沿用参考实现使用的论文编号。
+// Nine formula sets from the Reeds-Shepp paper. Section numbers follow the 1990 paper.
 // ---------------------------------------------------------------------------
 
-// 公式 8.1
+// Formula 8.1
 bool LpSpLp(double x, double y, double phi, double& t, double& u, double& v) {
   polar(x - std::sin(phi), y - 1.0 + std::cos(phi), u, t);
   if (t >= -kZero) {
@@ -143,7 +135,7 @@ bool LpSpLp(double x, double y, double phi, double& t, double& u, double& v) {
   return false;
 }
 
-// 公式 8.2
+// Formula 8.2
 bool LpSpRp(double x, double y, double phi, double& t, double& u, double& v) {
   double t1, u1;
   polar(x + std::sin(phi), y - 1.0 - std::cos(phi), u1, t1);
@@ -165,17 +157,17 @@ void CSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(14, t, u, v);
     Lmin = L;
   }
-  if (LpSpLp(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpSpLp(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(14, -t, -u, -v);
     Lmin = L;
   }
-  if (LpSpLp(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpSpLp(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(15, t, u, v);
     Lmin = L;
   }
-  if (LpSpLp(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpSpLp(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(15, -t, -u, -v);
     Lmin = L;
@@ -184,24 +176,24 @@ void CSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(12, t, u, v);
     Lmin = L;
   }
-  if (LpSpRp(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpSpRp(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(12, -t, -u, -v);
     Lmin = L;
   }
-  if (LpSpRp(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpSpRp(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(13, t, u, v);
     Lmin = L;
   }
-  if (LpSpRp(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpSpRp(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(13, -t, -u, -v);
     Lmin = L;
   }
 }
 
-// 公式 8.3 / 8.4 *** 论文原文有笔误 ***
+// Formulas 8.3 / 8.4 (corrected for typo in original paper)
 bool LpRmL(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x - std::sin(phi), eta = y - 1.0 + std::cos(phi);
   double u1, theta;
@@ -222,23 +214,23 @@ void CCC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(0, t, u, v);
     Lmin = L;
   }
-  if (LpRmL(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRmL(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(0, -t, -u, -v);
     Lmin = L;
   }
-  if (LpRmL(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRmL(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(1, t, u, v);
     Lmin = L;
   }
-  if (LpRmL(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmL(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(1, -t, -u, -v);
     Lmin = L;
   }
 
-  // 反向
+  // Reverse direction
   const double xb = x * std::cos(phi) + y * std::sin(phi);
   const double yb = x * std::sin(phi) - y * std::cos(phi);
   if (LpRmL(xb, yb, phi, t, u, v) &&
@@ -246,24 +238,24 @@ void CCC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(0, v, u, t);
     Lmin = L;
   }
-  if (LpRmL(-xb, yb, -phi, t, u, v) &&  // 时间反转
+  if (LpRmL(-xb, yb, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(0, -v, -u, -t);
     Lmin = L;
   }
-  if (LpRmL(xb, -yb, -phi, t, u, v) &&  // 镜像
+  if (LpRmL(xb, -yb, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(1, v, u, t);
     Lmin = L;
   }
-  if (LpRmL(-xb, -yb, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmL(-xb, -yb, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(1, -v, -u, -t);
     Lmin = L;
   }
 }
 
-// 公式 8.7
+// Formula 8.7
 bool LpRupLumRm(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x + std::sin(phi), eta = y - 1.0 - std::cos(phi);
   const double rho = 0.25 * (2.0 + std::sqrt(xi * xi + eta * eta));
@@ -275,7 +267,7 @@ bool LpRupLumRm(double x, double y, double phi, double& t, double& u, double& v)
   return false;
 }
 
-// 公式 8.8
+// Formula 8.8
 bool LpRumLumRp(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x + std::sin(phi), eta = y - 1.0 - std::cos(phi);
   const double rho = (20.0 - xi * xi - eta * eta) / 16.0;
@@ -297,17 +289,17 @@ void CCCC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(2, t, u, -u, v);
     Lmin = L;
   }
-  if (LpRupLumRm(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRupLumRm(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(2, -t, -u, u, -v);
     Lmin = L;
   }
-  if (LpRupLumRm(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRupLumRm(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(3, t, u, -u, v);
     Lmin = L;
   }
-  if (LpRupLumRm(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRupLumRm(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(3, -t, -u, u, -v);
     Lmin = L;
@@ -318,24 +310,24 @@ void CCCC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(2, t, u, u, v);
     Lmin = L;
   }
-  if (LpRumLumRp(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRumLumRp(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(2, -t, -u, -u, -v);
     Lmin = L;
   }
-  if (LpRumLumRp(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRumLumRp(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(3, t, u, u, v);
     Lmin = L;
   }
-  if (LpRumLumRp(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRumLumRp(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(3, -t, -u, -u, -v);
     Lmin = L;
   }
 }
 
-// 公式 8.9
+// Formula 8.9
 bool LpRmSmLm(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x - std::sin(phi), eta = y - 1.0 + std::cos(phi);
   double rho, theta;
@@ -350,7 +342,7 @@ bool LpRmSmLm(double x, double y, double phi, double& t, double& u, double& v) {
   return false;
 }
 
-// 公式 8.10
+// Formula 8.10
 bool LpRmSmRm(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x + std::sin(phi), eta = y - 1.0 - std::cos(phi);
   double rho, theta;
@@ -372,17 +364,17 @@ void CCSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(4, t, -0.5 * kPi, u, v);
     Lmin = L;
   }
-  if (LpRmSmLm(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRmSmLm(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(4, -t, 0.5 * kPi, -u, -v);
     Lmin = L;
   }
-  if (LpRmSmLm(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRmSmLm(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(5, t, -0.5 * kPi, u, v);
     Lmin = L;
   }
-  if (LpRmSmLm(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmSmLm(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(5, -t, 0.5 * kPi, -u, -v);
     Lmin = L;
@@ -393,23 +385,23 @@ void CCSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(8, t, -0.5 * kPi, u, v);
     Lmin = L;
   }
-  if (LpRmSmRm(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRmSmRm(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(8, -t, 0.5 * kPi, -u, -v);
     Lmin = L;
   }
-  if (LpRmSmRm(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRmSmRm(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(9, t, -0.5 * kPi, u, v);
     Lmin = L;
   }
-  if (LpRmSmRm(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmSmRm(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(9, -t, 0.5 * kPi, -u, -v);
     Lmin = L;
   }
 
-  // 反向
+  // Reverse direction
   const double xb = x * std::cos(phi) + y * std::sin(phi);
   const double yb = x * std::sin(phi) - y * std::cos(phi);
   if (LpRmSmLm(xb, yb, phi, t, u, v) &&
@@ -417,17 +409,17 @@ void CCSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(6, v, u, -0.5 * kPi, t);
     Lmin = L;
   }
-  if (LpRmSmLm(-xb, yb, -phi, t, u, v) &&  // 时间反转
+  if (LpRmSmLm(-xb, yb, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(6, -v, -u, 0.5 * kPi, -t);
     Lmin = L;
   }
-  if (LpRmSmLm(xb, -yb, -phi, t, u, v) &&  // 镜像
+  if (LpRmSmLm(xb, -yb, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(7, v, u, -0.5 * kPi, t);
     Lmin = L;
   }
-  if (LpRmSmLm(-xb, -yb, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmSmLm(-xb, -yb, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(7, -v, -u, 0.5 * kPi, -t);
     Lmin = L;
@@ -438,24 +430,24 @@ void CCSC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(10, v, u, -0.5 * kPi, t);
     Lmin = L;
   }
-  if (LpRmSmRm(-xb, yb, -phi, t, u, v) &&  // 时间反转
+  if (LpRmSmRm(-xb, yb, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(10, -v, -u, 0.5 * kPi, -t);
     Lmin = L;
   }
-  if (LpRmSmRm(xb, -yb, -phi, t, u, v) &&  // 镜像
+  if (LpRmSmRm(xb, -yb, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(11, v, u, -0.5 * kPi, t);
     Lmin = L;
   }
-  if (LpRmSmRm(-xb, -yb, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmSmRm(-xb, -yb, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(11, -v, -u, 0.5 * kPi, -t);
     Lmin = L;
   }
 }
 
-// 公式 8.11 *** 论文原文有笔误 ***
+// Formula 8.11 (corrected for typo in original paper)
 bool LpRmSLmRp(double x, double y, double phi, double& t, double& u, double& v) {
   const double xi = x + std::sin(phi), eta = y - 1.0 - std::cos(phi);
   double rho, theta;
@@ -479,24 +471,24 @@ void CCSCC(double x, double y, double phi, RawPath& path) {
     path = makeRawPath(16, t, -0.5 * kPi, u, -0.5 * kPi, v);
     Lmin = L;
   }
-  if (LpRmSLmRp(-x, y, -phi, t, u, v) &&  // 时间反转
+  if (LpRmSLmRp(-x, y, -phi, t, u, v) &&  // Time flip
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(16, -t, 0.5 * kPi, -u, 0.5 * kPi, -v);
     Lmin = L;
   }
-  if (LpRmSLmRp(x, -y, -phi, t, u, v) &&  // 镜像
+  if (LpRmSLmRp(x, -y, -phi, t, u, v) &&  // Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(17, t, -0.5 * kPi, u, -0.5 * kPi, v);
     Lmin = L;
   }
-  if (LpRmSLmRp(-x, -y, phi, t, u, v) &&  // 时间反转 + 镜像
+  if (LpRmSLmRp(-x, -y, phi, t, u, v) &&  // Time flip + Reflection
       Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
     path = makeRawPath(17, -t, 0.5 * kPi, -u, 0.5 * kPi, -v);
     Lmin = L;
   }
 }
 
-// 完整的 48 词枚举；返回找到的最短有效词。
+// Full 48-word Reeds-Shepp enumeration; returns the shortest valid word.
 RawPath reedsSheppUnit(double x, double y, double phi) {
   RawPath path;
   CSC(x, y, phi, path);
@@ -508,7 +500,7 @@ RawPath reedsSheppUnit(double x, double y, double phi) {
 }
 
 // ---------------------------------------------------------------------------
-// 转换辅助函数。
+// Conversion and integration helper functions.
 // ---------------------------------------------------------------------------
 
 common::Pose2d normalize_pose(const common::Pose2d& pose) {
@@ -536,8 +528,8 @@ double curvature_for_turn(Turn turn, double radius_m) {
   return 0.0;
 }
 
-// 不做角度归一化的原始双精度推进（三角函数使归一化对位置更新无影响；
-// 位姿对外暴露时 yaw 只归一化一次）。
+// Advances pose along a segment without intermediate yaw normalization
+// (trigonometric functions are periodic; yaw is normalized once when exposed).
 common::Pose2d advance_unchecked(const common::Pose2d& pose,
                                  const RsSegment& segment, double ds_m) {
   const double gear = (segment.direction == common::Direction::kForward) ? 1.0 : -1.0;
@@ -552,14 +544,14 @@ common::Pose2d advance_unchecked(const common::Pose2d& pose,
           yaw_end};
 }
 
-// 将单位半径原始词转换为缩放后的分段路径。零长度原始段会被丢弃，
-// 挡位与曲率相同的相邻原始段会被合并（之间无尖点），
-// 从而保持尖点边界精确。
+// Converts a unit-radius raw word into a physical, scaled segmented path.
+// Zero-length raw segments are discarded, and adjacent segments with matching
+// gear and curvature are merged to ensure precise cusp boundaries.
 //
-// *归一化*（单位半径）长度不超过该阈值的原始段是闭式公式的舍入幻影
-// （例如 polar(0, cos(pi/2)) 得到约 6e-17）。丢弃它们至多使终点变化
-// 5 * 1e-14 * R，远在 1e-6 m / 1e-6 rad 验收容差之内，并使分段结构
-// 中不含亚纳米级的碎片。
+// Sub-nanometer segments below kMinNormalizedStroke are numerical artifacts
+// of closed-form trigonometry (e.g. polar(0, cos(pi/2)) returning ~6e-17).
+// Discarding them shifts the endpoint by at most 5 * 1e-14 * R (far below
+// the 1e-6 m tolerance) while preventing degenerate micro-segments.
 constexpr double kMinNormalizedStroke = 1e-14;
 
 RsPath build_path(const common::Pose2d& start, const common::Pose2d& goal,
@@ -603,7 +595,7 @@ RsPath build_path(const common::Pose2d& start, const common::Pose2d& goal,
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// 公开 API。
+// Public API implementation.
 // ---------------------------------------------------------------------------
 
 bool is_valid_query(const common::Pose2d& start, const common::Pose2d& goal,
@@ -651,7 +643,7 @@ RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
   const common::Pose2d start_norm = normalize_pose(start);
   const common::Pose2d goal_norm = normalize_pose(goal);
 
-  // 起点坐标系下的目标点，按转弯半径归一化（论文单位）。
+  // Transform goal into start coordinate frame and normalize by turning radius.
   const double c = std::cos(start_norm.yaw_rad);
   const double s = std::sin(start_norm.yaw_rad);
   const double dx = goal_norm.x_m - start_norm.x_m;
@@ -663,7 +655,7 @@ RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
   const RawPath raw = reedsSheppUnit(x, y, phi);
   RsPath result = build_path(start_norm, goal_norm, radius, raw);
 
-  // 硬性终点验证：路径未在冻结容差内到达目标时，绝不报告成功。
+  // Strict endpoint verification: ensure candidate path terminates at goal within tolerance.
   common::Pose2d cursor = result.start;
   for (const RsSegment& segment : result.segments) {
     cursor = advance_unchecked(cursor, segment, segment.length_m);

@@ -7,7 +7,7 @@
 #include <queue>
 #include <utility>
 
-#include "planner/common/types.hpp"
+#include "types.hpp"
 
 namespace planner::hybrid_astar::internal {
 

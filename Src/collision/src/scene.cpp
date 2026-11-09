@@ -1,11 +1,11 @@
 // 场景类型：障碍物、车辆足迹与栅格几何。
 
-#include "planner/collision/scene.hpp"
+#include "scene.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "planner/common/types.hpp"
+#include "types.hpp"
 
 namespace planner::collision {
 

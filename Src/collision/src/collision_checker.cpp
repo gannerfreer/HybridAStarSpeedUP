@@ -10,7 +10,7 @@
 //     sweep_precision_m（默认 1e-3 m）。在精度下限处仍未解决的区间报告为
 //     碰撞（保守方向，不漏检接触）。
 
-#include "planner/collision/collision_checker.hpp"
+#include "collision_checker.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "geometry_internal.hpp"
-#include "planner/common/types.hpp"
+#include "types.hpp"
 
 namespace planner::collision {
 

@@ -1,3 +1,8 @@
+/**
+ * @file path_sampling.cpp
+ * @brief Implementation of Reeds-Shepp path waypoint sampling and continuous evaluation.
+ */
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -5,17 +10,17 @@
 #include <utility>
 #include <vector>
 
-#include "planner/rs/reeds_shepp.hpp"
+#include "reeds_shepp.hpp"
 
 namespace planner::rs {
 namespace {
 
-// 防止病态输入造成意外的无界分配。
+// Prevents unbounded memory allocation from pathological or ill-conditioned inputs.
 constexpr std::size_t kMaxSampleCount = 20'000'000;
 
 struct PathView {
-  std::vector<double> bounds;             // n + 1 个累计边界
-  std::vector<common::Pose2d> seg_start;  // n 个分段起始位姿
+  std::vector<double> bounds;             // (n + 1) cumulative arc length boundaries
+  std::vector<common::Pose2d> seg_start;  // n segment start poses
   double length_m{0.0};
 };
 
@@ -23,8 +28,8 @@ double tolerance_for(double length_m) {
   return 1e-12 * std::max(1.0, length_m);
 }
 
-// 校验分段结构，并预计算累计边界和分段起始位姿。
-// 路径畸形时抛出 std::invalid_argument。
+// Validates segment structure and precomputes cumulative boundaries and start poses.
+// Throws std::invalid_argument if the path structure is malformed.
 PathView make_view(const RsPath& path) {
   PathView view;
   view.length_m = path.length_m;
@@ -62,13 +67,13 @@ PathView make_view(const RsPath& path) {
     throw std::invalid_argument(
         "rs::sample: path.length_m does not match the segment sum");
   }
-  // `path.length_m` 仍是权威总长，使采样出的 s_m 与调用方的路径精确一致；
-  // 各分段的局部偏移无论如何都会被夹紧。
+  // `path.length_m` remains the authoritative total length so that sampled s_m matches caller expectations;
+  // local segment offsets are clamped within segment bounds.
   return view;
 }
 
-// 弧长 `s` 所属分段的索引；尖点边界属于从该处开始的分段
-// （最后一个分段拥有 s == length）。
+// Locates the segment index containing arc length s; cusps belong to the outgoing segment
+// (the final segment owns s == path.length_m).
 std::size_t locate_segment(const PathView& view, double s) {
   const std::size_t n = view.seg_start.size();
   const double tol = tolerance_for(view.length_m);
@@ -119,8 +124,8 @@ std::vector<common::PathPoint> sample(const RsPath& path, double ds_m) {
   }
   const std::size_t grid_count = static_cast<std::size_t>(std::floor(expected));
 
-  // 将规则 ds 网格与每个分段边界合并（尖点必须被精确采样）。
-  // 去重时容差内的边界优先，以保证尖点精确。
+  // Merge regular ds_m grid targets with exact segment boundaries (cusps must be sampled exactly).
+  // When deduplicating within numerical tolerance, boundary targets take precedence.
   struct Target {
     double s;
     bool boundary;
@@ -155,8 +160,8 @@ std::vector<common::PathPoint> sample(const RsPath& path, double ds_m) {
   if (merged.empty()) {
     merged.push_back({0.0, false});
   }
-  // 首个采样点总是恰为 s = 0（比合并容差更近的分段边界
-  // 不得替换起点）。
+  // The first waypoint is guaranteed to be at s = 0 (a segment boundary within merge tolerance
+  // cannot overwrite the start pose).
   merged.front().s = 0.0;
   if (length - merged.back().s > tol) {
     merged.push_back({length, true});
@@ -169,7 +174,7 @@ std::vector<common::PathPoint> sample(const RsPath& path, double ds_m) {
     const double s = std::min(std::max(target.s, 0.0), length);
     points.push_back(point_at(path, view, s));
   }
-  // 末个采样点恰为路径终点（空分段已在上方处理）。
+  // The final waypoint is guaranteed to be at s = length (empty paths are handled above).
   points.back().s_m = length;
   return points;
 }

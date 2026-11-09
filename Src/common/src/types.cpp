@@ -1,17 +1,20 @@
-#include "planner/common/types.hpp"
+/**
+ * @file types.cpp
+ * @brief Implementations of common utilities, conversions, and operators.
+ */
+
+#include "types.hpp"
 
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 
-#include "planner/common/errors.hpp"
-
 namespace planner::common {
 
 double normalize_angle_rad(double angle_rad) {
-  // 假定输入有限；JSON 编解码器在调用前检查有限性。
-  // 规范值原样通过，使该函数严格幂等（JSON 编解码器依赖这一点保证往返稳定）。
+  // Assume the input is a finite floating-point value.
+  // Values already in [-pi, pi) pass through directly to preserve idempotence.
   if (angle_rad >= -kPi && angle_rad < kPi) {
     return angle_rad;
   }
@@ -21,7 +24,7 @@ double normalize_angle_rad(double angle_rad) {
   }
   double result = wrapped - kPi;
   if (result >= kPi) {
-    // 只有在 fmod 舍入误差下才会到达；保持半开区间。
+    // Only reachable due to floating-point rounding errors in fmod; maintain half-open interval.
     result = -kPi;
   }
   return result;
@@ -55,30 +58,6 @@ std::string to_string(Status status) {
       return "validation_failed";
   }
   throw std::invalid_argument("to_string(Status): invalid enumerator");
-}
-
-const char* to_string(ErrorCode code) noexcept {
-  switch (code) {
-    case ErrorCode::kParseError:
-      return "parse_error";
-    case ErrorCode::kInvalidDocument:
-      return "invalid_document";
-    case ErrorCode::kMissingField:
-      return "missing_field";
-    case ErrorCode::kTypeError:
-      return "type_error";
-    case ErrorCode::kUnsupportedSchemaVersion:
-      return "unsupported_schema_version";
-    case ErrorCode::kUnknownType:
-      return "unknown_type";
-    case ErrorCode::kInvalidValue:
-      return "invalid_value";
-    case ErrorCode::kUnknownEnumValue:
-      return "unknown_enum_value";
-    case ErrorCode::kNonFiniteValue:
-      return "non_finite_value";
-  }
-  return "unknown";
 }
 
 int GridView::cell(int row, int col) const {
@@ -117,32 +96,6 @@ bool operator==(const PathPoint& lhs, const PathPoint& rhs) {
 
 bool operator==(const PathSegment& lhs, const PathSegment& rhs) {
   return lhs.points == rhs.points;
-}
-
-bool operator==(const TrajectoryPoint& lhs, const TrajectoryPoint& rhs) {
-  return lhs.t_s == rhs.t_s && lhs.pose == rhs.pose && lhs.velocity_mps == rhs.velocity_mps &&
-         lhs.acceleration_mps2 == rhs.acceleration_mps2 && lhs.curvature_inv_m == rhs.curvature_inv_m;
-}
-
-bool operator==(const PlanRequest& lhs, const PlanRequest& rhs) {
-  return lhs.request_id == rhs.request_id && lhs.map_id == rhs.map_id && lhs.map_version == rhs.map_version &&
-         lhs.vehicle == rhs.vehicle && lhs.start == rhs.start && lhs.goal == rhs.goal &&
-         lhs.config == rhs.config && lhs.time_budget_s == rhs.time_budget_s &&
-         lhs.node_budget == rhs.node_budget && lhs.cancelled == rhs.cancelled;
-}
-
-bool operator==(const PlanResult& lhs, const PlanResult& rhs) {
-  return lhs.request_id == rhs.request_id && lhs.status == rhs.status && lhs.reason == rhs.reason &&
-         lhs.path == rhs.path && lhs.trajectory == rhs.trajectory && lhs.statistics == rhs.statistics;
-}
-
-bool operator==(const CorridorPolygon& lhs, const CorridorPolygon& rhs) {
-  return lhs.s_start_m == rhs.s_start_m && lhs.s_end_m == rhs.s_end_m && lhs.vertices == rhs.vertices;
-}
-
-bool operator==(const Corridor& lhs, const Corridor& rhs) {
-  return lhs.id == rhs.id && lhs.map_id == rhs.map_id && lhs.map_version == rhs.map_version &&
-         lhs.frame_id == rhs.frame_id && lhs.polygons == rhs.polygons;
 }
 
 }  // namespace planner::common

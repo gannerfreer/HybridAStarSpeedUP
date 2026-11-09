@@ -17,7 +17,7 @@
 #include <limits>
 #include <vector>
 
-#include "planner/common/types.hpp"
+#include "types.hpp"
 
 namespace planner::hybrid_astar::internal {
 
