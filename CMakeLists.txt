@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.16)
+project(user_hybrid_astar LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+endif()
+
+add_subdirectory(Src/common)
+add_subdirectory(Src/collision)
+add_subdirectory(Src/rs)
+add_subdirectory(Src/hybrid_astar)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(user_astar_test Src/hybrid_astar/tests/test_obstacle_detour.cpp)
+  target_link_libraries(user_astar_test PRIVATE planner::hybrid_astar)
+  add_test(NAME user_astar.obstacle_detour COMMAND user_astar_test)
+  set_tests_properties(user_astar.obstacle_detour PROPERTIES TIMEOUT 20)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  foreach(target planner_common planner_collision planner_rs planner_hybrid_astar user_astar_test)
+    if(TARGET ${target})
+      target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+  endforeach()
+endif()
