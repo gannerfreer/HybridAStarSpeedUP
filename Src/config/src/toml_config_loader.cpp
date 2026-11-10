@@ -510,7 +510,7 @@ ConfigResult<common::UserAstarConfig> load_planner_config(
                               &config.backward_search_range_m) ||
           !loader.read_double(*search, "linear_preferred_distance_m2",
                               "search.linear_preferred_distance_m2", false,
-                              &config.linear_preferred_distance_square) ||
+                              &config.linear_preferred_distance_m2) ||
           !loader.read_double(*search, "goal_capture_radius_m",
                               "search.goal_capture_radius_m", false,
                               &config.goal_capture_radius_m))) ||
@@ -559,7 +559,7 @@ ConfigResult<common::UserAstarConfig> load_planner_config(
           {"backward_search_range_m", "search.backward_search_range_m",
            search != nullptr ? search->get("backward_search_range_m")
                              : nullptr},
-          {"linear_preferred_distance_square",
+          {"linear_preferred_distance_m2",
            "search.linear_preferred_distance_m2",
            search != nullptr ? search->get("linear_preferred_distance_m2")
                              : nullptr},

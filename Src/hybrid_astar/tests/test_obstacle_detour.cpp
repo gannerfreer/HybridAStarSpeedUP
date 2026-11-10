@@ -78,9 +78,9 @@ TEST(ObstacleDetour, PlansCollisionFreeDetour) {
       EXPECT_TRUE(std::isfinite(point.s_m) && std::isfinite(point.pose.x_m) &&
                   std::isfinite(point.pose.y_m) &&
                   std::isfinite(point.pose.yaw_rad) &&
-                  std::isfinite(point.curvature_inv_m))
+                  std::isfinite(point.curvature_per_m))
           << "path contains nonfinite values";
-      EXPECT_LE(std::abs(point.curvature_inv_m),
+      EXPECT_LE(std::abs(point.curvature_per_m),
                 1.0 / vehicle.min_turn_radius_m() + 1e-9)
           << "path exceeds the vehicle curvature limit";
     }

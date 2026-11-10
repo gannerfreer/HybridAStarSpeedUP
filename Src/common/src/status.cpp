@@ -5,12 +5,11 @@
 
 #include "planner/common/status.hpp"
 
-#include <stdexcept>
-#include <string>
+#include <string_view>
 
 namespace planner::common {
 
-std::string to_string(Status status) {
+std::string_view to_string(Status status) noexcept {
   switch (status) {
     case Status::kSuccess:
       return "success";
@@ -27,7 +26,7 @@ std::string to_string(Status status) {
     case Status::kValidationFailed:
       return "validation_failed";
   }
-  throw std::invalid_argument("to_string(Status): invalid enumerator");
+  return "unknown";
 }
 
 }  // namespace planner::common

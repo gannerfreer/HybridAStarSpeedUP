@@ -12,6 +12,7 @@
 #include <array>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "planner/common/grid_view.hpp"
@@ -46,7 +47,7 @@ struct Obstacle {
    * @param[in] y_max_m Y 轴上界（米）。
    * @return 包含 4 个 CCW 顶点的 Obstacle，若参数非法则返回空多边形。
    */
-  static Obstacle rectangle(const std::string& id, double x_min_m,
+  static Obstacle rectangle(std::string_view id, double x_min_m,
                             double y_min_m, double x_max_m, double y_max_m);
 
   /**
@@ -55,7 +56,7 @@ struct Obstacle {
    * @param[in] vertices 多边形顶点数组。
    * @return 包含逆时针顶点的 Obstacle，若非凸或退化则返回空多边形。
    */
-  static Obstacle convex_polygon(const std::string& id,
+  static Obstacle convex_polygon(std::string_view id,
                                  std::vector<Point2d> vertices);
 
   /**

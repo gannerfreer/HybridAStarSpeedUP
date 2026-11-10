@@ -40,7 +40,7 @@ struct ScenarioConfig {
  * @param[out] reason 失败时的诊断说明文本指针，可为 nullptr。
  * @return 若场景配置全部合法则返回 true。
  */
-bool scenario_config_valid(const ScenarioConfig& scenario,
-                           std::string* reason = nullptr);
+[[nodiscard]] bool scenario_config_valid(const ScenarioConfig& scenario,
+                                         std::string* reason = nullptr);
 
 }  // namespace planner::common

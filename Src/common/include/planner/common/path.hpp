@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "planner/math/pose2d.hpp"
@@ -27,21 +28,20 @@ enum class Direction {
 /**
  * @brief 将行驶方向枚举转换为易读的字符串形式。
  * @param[in] direction 行驶方向枚举值。
- * @return 对应的字符串表示（"forward" 或 "reverse"）。
- * @throw std::invalid_argument 若传入未知枚举值。
+ * @return 对应的字符串视图（"forward" 或 "reverse"）；未知枚举值返回 "unknown"。
  */
-std::string to_string(Direction direction);
+[[nodiscard]] std::string_view to_string(Direction direction) noexcept;
 
 /**
  * @brief 车辆轨迹路径采样点。
  * @details `s_m` 为从路径起点算起的非负累计弧长（米）。
- *          `curvature_inv_m` 为有符号曲率 \f$ \kappa = \tan(\delta) / L \f$，
+ *          `curvature_per_m` 为有符号曲率 \f$ \kappa = \tan(\delta) / L \f$，
  *          满足运动学关系 \f$ \dot{\psi} = v_{\text{signed}} \cdot \kappa \f$。
  */
 struct PathPoint {
   Pose2d pose;                  ///< 采样点处的车辆后轴中心位姿。
   double s_m{0.0};              ///< 沿路径的累计弧长（米）。
-  double curvature_inv_m{0.0};  ///< 有符号路径曲率（1/m，左转为正，右转为负）。
+  double curvature_per_m{0.0};  ///< 有符号路径曲率（1/m，左转为正，右转为负）。
   Direction direction{Direction::kForward};  ///< 该点对应的行驶方向（前进/倒车）。
 };
 

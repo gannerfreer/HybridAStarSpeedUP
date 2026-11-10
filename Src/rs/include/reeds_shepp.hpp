@@ -36,7 +36,7 @@ inline constexpr double kEndpointYawToleranceRad = 1e-6;     ///< 终点航向�
 struct RsSegment {
   common::Direction direction{common::Direction::kForward};  ///< 行驶挡位方向（前进或倒车）。
   double length_m{0.0};         ///< 本段沿曲线行进的弧长（米，非负）。
-  double curvature_inv_m{0.0};  ///< 有符号曲率 \f$ \tan(\delta)/L \f$（1/m，直线为 0，圆弧为 \f$\pm 1/R_{\min}\f$）。
+  double curvature_per_m{0.0};  ///< 有符号曲率 \f$ \tan(\delta)/L \f$（1/m，直线为 0，圆弧为 \f$\pm 1/R_{\min}\f$）。
 };
 
 /**
@@ -84,8 +84,9 @@ double min_turn_radius_m(const common::VehicleModel& vehicle);
  * @param[in] vehicle 车辆运动学模型。
  * @return 包含执行状态、诊断文本及最优路径的 RsPlan 结构。
  */
-RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
-            const common::VehicleModel& vehicle);
+[[nodiscard]] RsPlan plan(const common::Pose2d& start,
+                          const common::Pose2d& goal,
+                          const common::VehicleModel& vehicle);
 
 /**
  * @brief 求解两车辆位姿之间的最短 Reeds-Shepp 距离（抛出异常的包装接口）。
@@ -96,8 +97,9 @@ RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
  * @throw std::invalid_argument 若输入参数非法。
  * @throw std::runtime_error 若路径求解或几何校验失败。
  */
-double distance(const common::Pose2d& start, const common::Pose2d& goal,
-                const common::VehicleModel& vehicle);
+[[nodiscard]] double distance(const common::Pose2d& start,
+                              const common::Pose2d& goal,
+                              const common::VehicleModel& vehicle);
 
 /**
  * @brief 求解两车辆位姿之间的最短 Reeds-Shepp 路径（抛出异常的包装接口）。

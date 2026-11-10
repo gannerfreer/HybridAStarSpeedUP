@@ -38,8 +38,8 @@ class Polygon2d {
    * @param[out] reason 校验失败时的可选原因说明文本。
    * @return 有效凸多边形；输入非法时返回 std::nullopt。
    */
-  static std::optional<Polygon2d> convex(std::vector<Point2d> vertices,
-                                         std::string* reason = nullptr);
+  [[nodiscard]] static std::optional<Polygon2d> convex(
+      std::vector<Point2d> vertices, std::string* reason = nullptr);
 
   /**
    * @brief 获取逆时针顶点序列。

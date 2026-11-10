@@ -48,7 +48,7 @@ using planner::common::kCellUnknown;
 using planner::math::kPi;
 using planner::math::normalize_angle_rad;
 
-constexpr double kMaxAbsCurvature_inv_m = 1.0e6;  ///< 最大绝对曲率限制（对应转弯半径 >= 1 um）
+constexpr double kMaxAbsCurvature_per_m = 1.0e6;  ///< 最大绝对曲率限制（对应转弯半径 >= 1 um）
 constexpr int kGridChunkCells = 8;                ///< 栅格分块加速的像元块尺寸
 
 // 多分辨率前缀和金字塔层数：第 l 层的块边长为 2^l（1, 2, 4...）。
@@ -759,11 +759,11 @@ bool validate_motion_segment(const MotionSegment& segment,
     *reason = "motion length must be finite and non-negative";
     return false;
   }
-  if (!std::isfinite(segment.curvature_inv_m)) {
+  if (!std::isfinite(segment.curvature_per_m)) {
     *reason = "motion curvature is not finite";
     return false;
   }
-  if (std::abs(segment.curvature_inv_m) > kMaxAbsCurvature_inv_m) {
+  if (std::abs(segment.curvature_per_m) > kMaxAbsCurvature_per_m) {
     *reason = "motion curvature magnitude exceeds the supported limit";
     return false;
   }
@@ -807,7 +807,7 @@ CheckResult check_motion_impl(const CollisionCheckerImpl& st, const MotionSegmen
   SweepContext ctx;
   ctx.state = &st;
   ctx.start = segment.start;
-  ctx.kappa = segment.curvature_inv_m;
+  ctx.kappa = segment.curvature_per_m;
   ctx.precision_m = st.options.sweep_precision_m;
   ctx.cos_yaw = std::cos(segment.start.yaw_rad);
   ctx.sin_yaw = std::sin(segment.start.yaw_rad);
@@ -861,8 +861,8 @@ bool validate_path_segment(const PathSegment& segment, std::string* reason) {
                 "start a new segment";
       return false;
     }
-    if (!std::isfinite(point.curvature_inv_m) ||
-        std::abs(point.curvature_inv_m) > kMaxAbsCurvature_inv_m) {
+    if (!std::isfinite(point.curvature_per_m) ||
+        std::abs(point.curvature_per_m) > kMaxAbsCurvature_per_m) {
       *reason = "path point " + std::to_string(i) +
                 " curvature is not finite or out of range";
       return false;
@@ -896,7 +896,7 @@ CheckResult check_path_impl(const CollisionCheckerImpl& st,
       motion.start = points[i].pose;
       motion.length_m = points[i + 1].s_m - points[i].s_m;
       motion.direction = points[i].direction;
-      motion.curvature_inv_m = points[i].curvature_inv_m;
+      motion.curvature_per_m = points[i].curvature_per_m;
       if (motion.length_m == 0.0) {
         continue;  // 重复航向点，直接跳过
       }
@@ -1114,7 +1114,7 @@ CheckResult check_path(const std::vector<PathSegment>& path,
   return checker.check_path(path);
 }
 
-const char* to_string(CheckStatus status) noexcept {
+std::string_view to_string(CheckStatus status) noexcept {
   switch (status) {
     case CheckStatus::kClear:
       return "clear";
@@ -1126,7 +1126,7 @@ const char* to_string(CheckStatus status) noexcept {
   return "unknown";
 }
 
-const char* to_string(CollisionReason reason) noexcept {
+std::string_view to_string(CollisionReason reason) noexcept {
   switch (reason) {
     case CollisionReason::kNone:
       return "none";

@@ -65,7 +65,7 @@ TEST(SearchRegression, RejectsCollisionInArcTail) {
     collision::MotionSegment segment;
     segment.start = samples[i].pose;
     segment.direction = samples[i].direction;
-    segment.curvature_inv_m = samples[i].curvature_inv_m;
+    segment.curvature_per_m = samples[i].curvature_per_m;
     segment.length_m =
         std::hypot(samples[i + 1].pose.x_m - samples[i].pose.x_m,
                    samples[i + 1].pose.y_m - samples[i].pose.y_m);
@@ -287,11 +287,11 @@ TEST(SearchEngineRegression, MotionHookReceivesSiPrimitive) {
   ASSERT_GT(calls, 0);
   const double expected_curvature = math::kinematics::curvature_from_steer(
       -vehicle.max_steer_rad, vehicle.wheelbase_m);
-  EXPECT_NEAR(first_from.curvature_inv_m, 0.0, 1e-12);
+  EXPECT_NEAR(first_from.curvature_per_m, 0.0, 1e-12);
   EXPECT_NEAR(first_from.arc_length_m, 0.0, 1e-12);
   EXPECT_EQ(first_to.direction, common::Direction::kForward);
   EXPECT_NEAR(first_to.arc_length_m, config.motion_step_m, 1e-12);
-  EXPECT_NEAR(first_to.curvature_inv_m, expected_curvature, 1e-12);
+  EXPECT_NEAR(first_to.curvature_per_m, expected_curvature, 1e-12);
   const math::Pose2d expected =
       math::integrate_arc({0, 0, 0}, config.motion_step_m, expected_curvature);
   EXPECT_NEAR(first_to.pose.x_m, expected.x_m, 1e-12);
@@ -369,7 +369,7 @@ TEST(UserAstarRegression,
   // 对外 RS 积分应使用共享内核；包括微小曲率与倒车。
   rs::RsSegment segment;
   segment.length_m = 2;
-  segment.curvature_inv_m = 1e-12;
+  segment.curvature_per_m = 1e-12;
   segment.direction = common::Direction::kReverse;
   const auto sampled = rs::integrate_segment({2, 3, 0.7}, segment, 2);
   const auto expected = math::integrate_arc({2, 3, 0.7}, -2, 1e-12);

@@ -297,7 +297,7 @@ SearchEngine::Vertex3D SearchEngine::propagate(
   Vertex3D end;
   end.parent_id = start.id;
   end.state.direction = direction;
-  end.state.curvature_inv_m =
+  end.state.curvature_per_m =
       math::kinematics::curvature_from_steer(steering_rad,
                                              vehicle_.wheelbase_m);
   end.state.arc_length_m = config_.motion_step_m;
@@ -305,7 +305,7 @@ SearchEngine::Vertex3D SearchEngine::propagate(
       direction == common::Direction::kForward ? 1.0 : -1.0;
   end.state.pose = math::integrate_arc(start.state.pose,
                                        sign * end.state.arc_length_m,
-                                       end.state.curvature_inv_m);
+                                       end.state.curvature_per_m);
   return end;
 }
 
@@ -315,8 +315,7 @@ double SearchEngine::transition_cost(const Vertex3D& from,
   const double dy_start = from.state.pose.y_m - search_start_pose_.y_m;
   const double dist_to_start_sq = dx_start * dx_start + dy_start * dy_start;
   const double coeff =
-      (dist_to_start_sq > config_.linear_preferred_distance_square) ? 1.0
-                                                                    : 5.0;
+      (dist_to_start_sq > config_.linear_preferred_distance_m2) ? 1.0 : 5.0;
   const double heading_change = std::fabs(math::normalize_angle_rad(
       to.state.pose.yaw_rad - from.state.pose.yaw_rad));
   const double direction_cost =

@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "scene.hpp"
@@ -46,16 +47,16 @@ enum class CollisionReason {
 /**
  * @brief 将 CheckStatus 状态码转换为易读的字符串。
  * @param[in] status 检测状态枚举值。
- * @return 对应的字符串字面量。
+ * @return 对应的字符串视图；未知枚举值返回 "unknown"。
  */
-const char* to_string(CheckStatus status) noexcept;
+[[nodiscard]] std::string_view to_string(CheckStatus status) noexcept;
 
 /**
  * @brief 将 CollisionReason 原因枚举转换为易读的字符串。
  * @param[in] reason 碰撞原因枚举值。
- * @return 对应的字符串字面量。
+ * @return 对应的字符串视图；未知枚举值返回 "unknown"。
  */
-const char* to_string(CollisionReason reason) noexcept;
+[[nodiscard]] std::string_view to_string(CollisionReason reason) noexcept;
 
 /**
  * @brief 单次碰撞检测查询的完整结果载荷。
@@ -113,7 +114,7 @@ struct MotionSegment {
   Pose2d start;                             ///< 车辆后轴中心起始位姿。
   double length_m{0.0};                     ///< 沿曲线行进的弧长（米，非负）。
   Direction direction{Direction::kForward}; ///< 行驶挡位（前进或倒车）。
-  double curvature_inv_m{0.0};              ///< 有符号路径曲率 \f$ \kappa = \tan(\delta)/L \f$（1/m）。
+  double curvature_per_m{0.0};              ///< 有符号路径曲率 \f$ \kappa = \tan(\delta)/L \f$（1/m）。
 };
 
 /**
@@ -124,8 +125,10 @@ struct MotionSegment {
  * @param[in] options 碰撞检测选项。
  * @return 包含无碰撞或首个接触原因的结果体。
  */
-CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,
-                       const Scene& scene, const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_pose(const Pose2d& pose,
+                                     const VehicleModel& vehicle,
+                                     const Scene& scene,
+                                     const CheckOptions& options = {});
 
 /**
  * @brief 检测沿单一常曲率运动分段的连续扫掠运动碰撞。
@@ -135,8 +138,10 @@ CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,
  * @param[in] options 碰撞检测选项。
  * @return 包含无碰撞或首次接触位姿与弧长的检测结果。
  */
-CheckResult check_motion(const MotionSegment& segment, const VehicleModel& vehicle,
-                         const Scene& scene, const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_motion(const MotionSegment& segment,
+                                       const VehicleModel& vehicle,
+                                       const Scene& scene,
+                                       const CheckOptions& options = {});
 
 /**
  * @brief 检测沿单一连续同向路径分段的连续运动碰撞。
@@ -146,8 +151,10 @@ CheckResult check_motion(const MotionSegment& segment, const VehicleModel& vehic
  * @param[in] options 碰撞检测选项。
  * @return 检测结果。
  */
-CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle,
-                       const Scene& scene, const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_path(const PathSegment& segment,
+                                     const VehicleModel& vehicle,
+                                     const Scene& scene,
+                                     const CheckOptions& options = {});
 
 /**
  * @brief 检测包含多个分段的完整换向规划路径的连续运动碰撞。
@@ -157,9 +164,10 @@ CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle,
  * @param[in] options 碰撞检测选项。
  * @return 检测结果，包含首次碰撞所在的分段索引。
  */
-CheckResult check_path(const std::vector<PathSegment>& path,
-                       const VehicleModel& vehicle, const Scene& scene,
-                       const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_path(const std::vector<PathSegment>& path,
+                                     const VehicleModel& vehicle,
+                                     const Scene& scene,
+                                     const CheckOptions& options = {});
 
 struct CollisionCheckerImpl;
 
@@ -193,10 +201,11 @@ class CollisionChecker {
   const Scene& scene() const noexcept;
   const CheckOptions& options() const noexcept;
 
-  CheckResult check_pose(const Pose2d& pose) const;
-  CheckResult check_motion(const MotionSegment& segment) const;
-  CheckResult check_path(const PathSegment& segment) const;
-  CheckResult check_path(const std::vector<PathSegment>& path) const;
+  [[nodiscard]] CheckResult check_pose(const Pose2d& pose) const;
+  [[nodiscard]] CheckResult check_motion(const MotionSegment& segment) const;
+  [[nodiscard]] CheckResult check_path(const PathSegment& segment) const;
+  [[nodiscard]] CheckResult check_path(
+      const std::vector<PathSegment>& path) const;
 
  private:
   std::shared_ptr<const CollisionCheckerImpl> state_;

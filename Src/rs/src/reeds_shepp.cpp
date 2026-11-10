@@ -525,7 +525,7 @@ double curvature_for_turn(Turn turn, double radius_m) {
 common::Pose2d advance_unchecked(const common::Pose2d& pose,
                                  const RsSegment& segment, double ds_m) {
   const double gear = segment.direction == common::Direction::kForward ? 1.0 : -1.0;
-  return math::internal::advance_arc_trig_unchecked(pose, gear * ds_m, segment.curvature_inv_m,
+  return math::internal::advance_arc_trig_unchecked(pose, gear * ds_m, segment.curvature_per_m,
                                                    std::cos(pose.yaw_rad), std::sin(pose.yaw_rad));
 }
 
@@ -556,13 +556,13 @@ RsPath build_path(const common::Pose2d& start, const common::Pose2d& goal,
     segment.direction = (signed_length >= 0.0) ? common::Direction::kForward
                                                : common::Direction::kReverse;
     segment.length_m = length_m;
-    segment.curvature_inv_m = curvature_for_turn(turn, radius_m);
+    segment.curvature_per_m = curvature_for_turn(turn, radius_m);
     total += segment.length_m;
     cursor = advance_unchecked(cursor, segment, segment.length_m);
     if (!out.segments.empty()) {
       RsSegment& last = out.segments.back();
       if (last.direction == segment.direction &&
-          last.curvature_inv_m == segment.curvature_inv_m) {
+          last.curvature_per_m == segment.curvature_per_m) {
         last.length_m += segment.length_m;
         continue;
       }
@@ -692,7 +692,7 @@ common::Pose2d integrate_segment(const common::Pose2d& start,
         "integrate_segment: ds_m must be finite and >= 0");
   }
   if (!finite(segment.length_m) || segment.length_m < 0.0 ||
-      !finite(segment.curvature_inv_m)) {
+      !finite(segment.curvature_per_m)) {
     throw std::invalid_argument("integrate_segment: malformed segment");
   }
   if (!finite_pose(start)) {

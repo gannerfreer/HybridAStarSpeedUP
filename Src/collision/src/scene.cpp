@@ -31,10 +31,10 @@ bool grid_value_allowed(int value) {
 // 凸多边形障碍物 Obstacle
 // ---------------------------------------------------------------------------
 
-Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
+Obstacle Obstacle::rectangle(std::string_view id, double x_min_m,
                              double y_min_m, double x_max_m, double y_max_m) {
   Obstacle obstacle;
-  obstacle.id = id;
+  obstacle.id = std::string(id);
   std::string reason;
   std::vector<Point2d> vertices = math::rectangle_polygon(
       x_min_m, y_min_m, x_max_m, y_max_m, &reason);
@@ -44,10 +44,10 @@ Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
   return obstacle;  // 输入非法时返回空顶点多边形
 }
 
-Obstacle Obstacle::convex_polygon(const std::string& id,
+Obstacle Obstacle::convex_polygon(std::string_view id,
                                   std::vector<Point2d> vertices) {
   Obstacle obstacle;
-  obstacle.id = id;
+  obstacle.id = std::string(id);
   if (auto polygon = math::Polygon2d::convex(std::move(vertices))) {
     obstacle.polygon = std::move(*polygon);
   }

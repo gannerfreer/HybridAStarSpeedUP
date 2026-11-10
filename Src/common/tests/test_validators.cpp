@@ -3,7 +3,9 @@
  * @brief 车辆模型与 Hybrid A* 规划器配置合法性校验单元测试。
  */
 
+#include "planner/common/path.hpp"
 #include "planner/common/planner_config.hpp"
+#include "planner/common/status.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/angle.hpp"
 
@@ -12,6 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -194,7 +197,7 @@ TEST(PlannerConfigValid, RejectsInvalidCostsAndRanges) {
   EXPECT_FALSE(common::planner_config_valid(config, &reason));
 
   config = common::UserAstarConfig{};
-  config.linear_preferred_distance_square = -0.1;
+  config.linear_preferred_distance_m2 = -0.1;
   EXPECT_FALSE(common::planner_config_valid(config, &reason));
 
   config = common::UserAstarConfig{};
@@ -228,6 +231,28 @@ TEST(PlannerConfigValid, RejectsInvalidDiscreteSearchParameters) {
   config = common::UserAstarConfig{};
   config.default_node_budget = 0;
   EXPECT_FALSE(common::planner_config_valid(config, &reason));
+}
+
+TEST(CommonToString, KnownAndInvalidEnumerators) {
+  EXPECT_EQ(common::to_string(common::Status::kSuccess),
+            std::string_view("success"));
+  EXPECT_EQ(common::to_string(common::Direction::kReverse),
+            std::string_view("reverse"));
+  EXPECT_EQ(common::to_string(static_cast<common::Status>(999)),
+            std::string_view("unknown"));
+  EXPECT_EQ(common::to_string(static_cast<common::Direction>(999)),
+            std::string_view("unknown"));
+}
+
+TEST(RenamedFields, PreserveCurvatureAndDistanceValues) {
+  common::PathPoint point;
+  point.curvature_per_m = 0.25;
+  EXPECT_DOUBLE_EQ(point.curvature_per_m, 0.25);
+
+  common::UserAstarConfig config;
+  config.linear_preferred_distance_m2 = 4.0;
+  EXPECT_DOUBLE_EQ(config.linear_preferred_distance_m2, 4.0);
+  EXPECT_TRUE(common::planner_config_valid(config));
 }
 
 }  // namespace

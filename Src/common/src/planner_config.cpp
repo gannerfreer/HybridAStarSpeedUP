@@ -69,8 +69,8 @@ bool planner_config_valid(const UserAstarConfig& config, std::string* reason) {
                           "backward_search_range_m", reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.linear_preferred_distance_square,
-                          "linear_preferred_distance_square", reason)) {
+  if (!finite_nonnegative(config.linear_preferred_distance_m2,
+                          "linear_preferred_distance_m2", reason)) {
     return false;
   }
   if (!finite_nonnegative(config.analytic_shot_distance_m,

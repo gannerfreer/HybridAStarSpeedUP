@@ -24,7 +24,7 @@ struct UserAstarConfig {
   double turn_penalty = 1.0;                      ///< 弯道转向脱离直行时的代价惩罚乘数。
   double switch_cost = 2.0;                       ///< 换向挡位切换（前进 <-> 倒车）代价惩罚。
   double backward_search_range_m = 0.0;           ///< 允许倒车外扩的最大行驶距离（米，m）；0 表示不受限制。
-  double linear_preferred_distance_square = 0.0;  ///< 起点附近偏好直行路径的平方距离阈值。
+  double linear_preferred_distance_m2 = 0.0;     ///< 起点附近偏好直行路径的平方距离阈值。
   int analytic_expansion_ratio = 3;               ///< 尝试 Reeds-Shepp 解析展开的节点外扩频率比率。
   double analytic_shot_distance_m = 0.0;          ///< 允许尝试解析展开的最大欧氏目标距离（米，m）；0 表示不受限制。
 
@@ -53,7 +53,7 @@ struct UserAstarConfig {
  * @param[out] reason 失败时的诊断说明文本指针，可为 nullptr。
  * @return 若配置全部合法则返回 true。
  */
-bool planner_config_valid(const UserAstarConfig& config,
-                          std::string* reason = nullptr);
+[[nodiscard]] bool planner_config_valid(const UserAstarConfig& config,
+                                        std::string* reason = nullptr);
 
 }  // namespace planner::common

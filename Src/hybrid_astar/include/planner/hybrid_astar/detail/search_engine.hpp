@@ -31,7 +31,7 @@ inline constexpr std::uint64_t kInvalidNodeId =
 struct SearchState {
   math::Pose2d pose;                             ///< 车辆后轴中心位姿。
   common::Direction direction{common::Direction::kForward};  ///< 进入当前状态时所采用的行驶方向。
-  double curvature_inv_m{0.0};  ///< 从父驱状态进入当前状态的路径曲率（1/m）。
+  double curvature_per_m{0.0};  ///< 从父驱状态进入当前状态的路径曲率（1/m）。
   double arc_length_m{0.0};     ///< 从父驱状态进入当前状态的圆弧弧长（米，m）。
 };
 

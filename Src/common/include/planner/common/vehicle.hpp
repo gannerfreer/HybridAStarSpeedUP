@@ -41,7 +41,8 @@ struct VehicleModel {
  * @param[out] reason 失败时的诊断说明文本指针，可为 nullptr。
  * @return 若所有尺寸与转角参数均为有限合法值则返回 true。
  */
-bool vehicle_valid(const VehicleModel& vehicle, std::string* reason = nullptr);
+[[nodiscard]] bool vehicle_valid(const VehicleModel& vehicle,
+                                 std::string* reason = nullptr);
 
 /**
  * @name 精确全等比较操作符

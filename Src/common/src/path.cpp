@@ -5,23 +5,22 @@
 
 #include "planner/common/path.hpp"
 
-#include <stdexcept>
-#include <string>
+#include <string_view>
 
 namespace planner::common {
 
-std::string to_string(Direction direction) {
+std::string_view to_string(Direction direction) noexcept {
   switch (direction) {
     case Direction::kForward:
       return "forward";
     case Direction::kReverse:
       return "reverse";
   }
-  throw std::invalid_argument("to_string(Direction): invalid enumerator");
+  return "unknown";
 }
 
 bool operator==(const PathPoint& lhs, const PathPoint& rhs) {
-  return lhs.pose == rhs.pose && lhs.s_m == rhs.s_m && lhs.curvature_inv_m == rhs.curvature_inv_m &&
+  return lhs.pose == rhs.pose && lhs.s_m == rhs.s_m && lhs.curvature_per_m == rhs.curvature_per_m &&
          lhs.direction == rhs.direction;
 }
 

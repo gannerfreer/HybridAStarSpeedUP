@@ -56,7 +56,7 @@ TEST(PlannerConfig, LoadsNestedTables) {
   EXPECT_EQ(result.value->steering_samples, 7);
   EXPECT_FALSE(result.value->allow_reverse);
   EXPECT_DOUBLE_EQ(result.value->backward_search_range_m, 3.5);
-  EXPECT_DOUBLE_EQ(result.value->linear_preferred_distance_square, 4.0);
+  EXPECT_DOUBLE_EQ(result.value->linear_preferred_distance_m2, 4.0);
   EXPECT_DOUBLE_EQ(result.value->goal_capture_radius_m, 6.0);
   EXPECT_DOUBLE_EQ(result.value->forward_cost, 1.2);
   EXPECT_DOUBLE_EQ(result.value->reverse_cost, 2.5);

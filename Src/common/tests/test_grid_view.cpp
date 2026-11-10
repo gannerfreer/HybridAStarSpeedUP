@@ -17,7 +17,7 @@ TEST(GridView, InBoundsAndCellAccess) {
   common::GridView grid;
   EXPECT_FALSE(grid.in_bounds(0, 0));
   EXPECT_FALSE(grid.in_bounds(-1, 0));
-  EXPECT_THROW(grid.cell(0, 0), std::out_of_range);
+  EXPECT_THROW((void)grid.cell(0, 0), std::out_of_range);
 
   grid.width = 3;
   grid.height = 2;
@@ -33,10 +33,10 @@ TEST(GridView, InBoundsAndCellAccess) {
   EXPECT_EQ(grid.cell(0, 2), 2);
   EXPECT_EQ(grid.cell(1, 0), 3);
   EXPECT_EQ(grid.cell(1, 2), 5);
-  EXPECT_THROW(grid.cell(2, 0), std::out_of_range);
-  EXPECT_THROW(grid.cell(0, 3), std::out_of_range);
-  EXPECT_THROW(grid.cell(-1, 0), std::out_of_range);
-  EXPECT_THROW(grid.cell(0, -1), std::out_of_range);
+  EXPECT_THROW((void)grid.cell(2, 0), std::out_of_range);
+  EXPECT_THROW((void)grid.cell(0, 3), std::out_of_range);
+  EXPECT_THROW((void)grid.cell(-1, 0), std::out_of_range);
+  EXPECT_THROW((void)grid.cell(0, -1), std::out_of_range);
 }
 
 TEST(GridView, TryCellBounds) {

@@ -17,11 +17,11 @@ double curvature_from_steer(double steer_rad, double wheelbase_m) noexcept;
 
 /**
  * @brief 由后轴中心轨迹曲率反算所需前轮转角。
- * @param[in] curvature_inv_m 有符号曲率（1/m）。
+ * @param[in] curvature_per_m 有符号曲率（1/m）。
  * @param[in] wheelbase_m 车辆轴距（米）。
  * @return 前轮转向角（弧度）。
  */
-double steer_from_curvature(double curvature_inv_m,
+double steer_from_curvature(double curvature_per_m,
                             double wheelbase_m) noexcept;
 
 /**

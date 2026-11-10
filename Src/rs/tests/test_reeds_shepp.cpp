@@ -51,8 +51,8 @@ TEST(ReedsShepp, PlansKnownQueriesAndClosesEndpoint) {
     for (const auto& segment : solved.path.segments) {
       EXPECT_TRUE(std::isfinite(segment.length_m));
       EXPECT_GE(segment.length_m, 0.0);
-      EXPECT_TRUE(std::isfinite(segment.curvature_inv_m));
-      EXPECT_LE(std::abs(segment.curvature_inv_m), max_curvature + 1e-12)
+      EXPECT_TRUE(std::isfinite(segment.curvature_per_m));
+      EXPECT_LE(std::abs(segment.curvature_per_m), max_curvature + 1e-12)
           << "segment exceeds the minimum turn radius bound";
       cursor = rs::integrate_segment(cursor, segment, segment.length_m);
       total_length += segment.length_m;
@@ -99,12 +99,12 @@ TEST(ReedsShepp, ReverseSegmentIntegrationMatchesSharedArcKernel) {
   const common::Pose2d start{2.0, 3.0, 0.7};
   rs::RsSegment segment;
   segment.length_m = 2.0;
-  segment.curvature_inv_m = 1e-12;
+  segment.curvature_per_m = 1e-12;
   segment.direction = common::Direction::kReverse;
 
   const auto full = rs::integrate_segment(start, segment, segment.length_m);
   const auto expected_full =
-      math::integrate_arc(start, -segment.length_m, segment.curvature_inv_m);
+      math::integrate_arc(start, -segment.length_m, segment.curvature_per_m);
   EXPECT_LT(std::hypot(full.x_m - expected_full.x_m,
                        full.y_m - expected_full.y_m),
             1e-12);
@@ -115,14 +115,14 @@ TEST(ReedsShepp, ReverseSegmentIntegrationMatchesSharedArcKernel) {
   const double partial_length_m = 0.75;
   const auto partial = rs::integrate_segment(start, segment, partial_length_m);
   const auto expected_partial =
-      math::integrate_arc(start, -partial_length_m, segment.curvature_inv_m);
+      math::integrate_arc(start, -partial_length_m, segment.curvature_per_m);
   EXPECT_LT(std::hypot(partial.x_m - expected_partial.x_m,
                        partial.y_m - expected_partial.y_m),
             1e-12);
 
   rs::RsSegment straight;
   straight.length_m = 2.0;
-  straight.curvature_inv_m = 0.0;
+  straight.curvature_per_m = 0.0;
   straight.direction = common::Direction::kForward;
   const auto forward = rs::integrate_segment(start, straight, 2.0);
   const auto expected_forward = math::integrate_arc(start, 2.0, 0.0);

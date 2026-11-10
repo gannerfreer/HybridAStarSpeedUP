@@ -27,7 +27,7 @@ struct ConfigLoadOptions {
  * @param[in] options 加载选项。
  * @return 成功时包含 VehicleModel，失败时包含 ConfigError。
  */
-ConfigResult<common::VehicleModel> load_vehicle_config(
+[[nodiscard]] ConfigResult<common::VehicleModel> load_vehicle_config(
     std::string_view path, const ConfigLoadOptions& options = {});
 
 /**
@@ -36,7 +36,7 @@ ConfigResult<common::VehicleModel> load_vehicle_config(
  * @param[in] options 加载选项。
  * @return 成功时包含 UserAstarConfig，失败时包含 ConfigError。
  */
-ConfigResult<common::UserAstarConfig> load_planner_config(
+[[nodiscard]] ConfigResult<common::UserAstarConfig> load_planner_config(
     std::string_view path, const ConfigLoadOptions& options = {});
 
 /**
@@ -45,7 +45,7 @@ ConfigResult<common::UserAstarConfig> load_planner_config(
  * @param[in] options 加载选项。
  * @return 成功时包含 ScenarioConfig，失败时包含 ConfigError。
  */
-ConfigResult<common::ScenarioConfig> load_scenario_config(
+[[nodiscard]] ConfigResult<common::ScenarioConfig> load_scenario_config(
     std::string_view path, const ConfigLoadOptions& options = {});
 
 }  // namespace planner::config

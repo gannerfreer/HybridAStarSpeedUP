@@ -60,7 +60,7 @@ struct GridView {
    * @return 对应的占用状态整数值。
    * @throw std::out_of_range 若索引超出栅格边界。
    */
-  int cell(int row, int col) const;
+  [[nodiscard]] int cell(int row, int col) const;
 
   /**
    * @brief 查询指定 (row, col) 处的单元格占用状态，越界时返回空值。
@@ -68,7 +68,7 @@ struct GridView {
    * @param[in] col 目标栅格列索引。
    * @return 若索引位于有效边界内则返回对应占用状态，否则返回 std::nullopt。
    */
-  std::optional<int> try_cell(int row, int col) const noexcept;
+  [[nodiscard]] std::optional<int> try_cell(int row, int col) const noexcept;
 };
 
 /**

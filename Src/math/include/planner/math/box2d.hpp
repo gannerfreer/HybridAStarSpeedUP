@@ -148,7 +148,8 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若点在盒内、边界上或容差范围内返回 true。
    */
-  bool contains(const Point2d& p, double tol = 0.0) const noexcept {
+  [[nodiscard]] bool contains(const Point2d& p,
+                              double tol = 0.0) const noexcept {
     const double dx = p.x_m - center_.x_m;
     const double dy = p.y_m - center_.y_m;
     const double local_x = cos_heading_ * dx + sin_heading_ * dy;
@@ -163,7 +164,8 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若相交或接触返回 true。
    */
-  bool intersects(const Aabb2d& box, double tol = 0.0) const noexcept;
+  [[nodiscard]] bool intersects(const Aabb2d& box,
+                                double tol = 0.0) const noexcept;
 
   /**
    * @brief 判定两个有向包围盒是否相交或接触。
@@ -171,7 +173,8 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若相交或接触返回 true。
    */
-  bool intersects(const Box2d& other, double tol = 0.0) const noexcept;
+  [[nodiscard]] bool intersects(const Box2d& other,
+                                double tol = 0.0) const noexcept;
 
   /**
    * @brief 计算点到闭包围盒的最小欧氏距离平方（点在内部或边界上时为 0）。

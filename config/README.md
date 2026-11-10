@@ -74,8 +74,8 @@ Nested TOML tables are mapped to the flat core structure.
 | `budget.default_time_budget_s` | float | `5.0` | s |
 | `budget.default_node_budget` | integer | `1_000_000` | nodes |
 
-`search.linear_preferred_distance_m2` maps to the core field
-`UserAstarConfig::linear_preferred_distance_square`. Validation is delegated to
+`search.linear_preferred_distance_m2` maps directly to the core field
+`UserAstarConfig::linear_preferred_distance_m2`. Validation is delegated to
 `common::planner_config_valid`.
 
 ```toml

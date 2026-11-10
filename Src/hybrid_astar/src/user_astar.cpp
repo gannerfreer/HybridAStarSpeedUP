@@ -48,7 +48,7 @@ bool same_vehicle(const common::VehicleModel& a, const common::VehicleModel& b) 
 }
 
 std::string collision_detail(const collision::CheckResult& check) {
-  std::string text = collision::to_string(check.reason_code);
+  std::string text(collision::to_string(check.reason_code));
   if (!check.detail.empty()) {
     text += ": " + check.detail;
   }
@@ -329,7 +329,7 @@ common::PlanResult UserAstar::plan(
         segment.start = from.pose;
         segment.length_m = to.arc_length_m;
         segment.direction = to.direction;
-        segment.curvature_inv_m = to.curvature_inv_m;
+        segment.curvature_per_m = to.curvature_per_m;
         const collision::CheckResult check =
             collision_checker.check_motion(segment);
         if (!check.is_clear()) {
@@ -388,7 +388,7 @@ common::PlanResult UserAstar::plan(
         segment.start = cursor;
         segment.length_m = rs_segment.length_m;
         segment.direction = rs_segment.direction;
-        segment.curvature_inv_m = rs_segment.curvature_inv_m;
+        segment.curvature_per_m = rs_segment.curvature_per_m;
         if (!collision_checker.check_motion(segment).is_clear()) {
           return false;
         }
@@ -465,16 +465,16 @@ common::PlanResult UserAstar::plan(
     point.s_m = s_cum;
     if (i + 1 < node_count) {
       point.direction = search.path[i + 1].direction;
-      point.curvature_inv_m = search.path[i + 1].curvature_inv_m;
+      point.curvature_per_m = search.path[i + 1].curvature_per_m;
     } else if (connector_valid && !connector.segments.empty()) {
       point.direction = connector.segments.front().direction;
-      point.curvature_inv_m = connector.segments.front().curvature_inv_m;
+      point.curvature_per_m = connector.segments.front().curvature_per_m;
     } else if (i > 0) {
       point.direction = state.direction;
-      point.curvature_inv_m = state.curvature_inv_m;
+      point.curvature_per_m = state.curvature_per_m;
     } else {
       point.direction = common::Direction::kForward;
-      point.curvature_inv_m = 0.0;
+      point.curvature_per_m = 0.0;
     }
     flat.push_back(point);
     if (i + 1 < node_count) {
@@ -507,7 +507,7 @@ common::PlanResult UserAstar::plan(
     if (path.back().points.back().direction != point.direction) {
       common::PathPoint cusp = point;
       cusp.direction = path.back().points.back().direction;
-      cusp.curvature_inv_m = path.back().points.back().curvature_inv_m;
+      cusp.curvature_per_m = path.back().points.back().curvature_per_m;
       path.back().points.push_back(cusp);
       path.emplace_back();
       path.back().points.push_back(point);
@@ -531,14 +531,14 @@ common::PlanResult UserAstar::plan(
       for (std::size_t i = 0; i < segment.points.size(); ++i) {
         const common::PathPoint& point = segment.points[i];
         if (!std::isfinite(point.s_m) ||
-            !std::isfinite(point.curvature_inv_m) ||
+            !std::isfinite(point.curvature_per_m) ||
             !finite_pose(point.pose)) {
           structural_error = true;
           structural_reason = "output path contains a non-finite value";
           break;
         }
         max_abs_curvature =
-            std::max(max_abs_curvature, std::abs(point.curvature_inv_m));
+            std::max(max_abs_curvature, std::abs(point.curvature_per_m));
         if (segment_index == 0 && i == 0) {
           const double position_error =
               std::hypot(point.pose.x_m - request.start.x_m,
@@ -579,8 +579,8 @@ common::PlanResult UserAstar::plan(
     double worst_s = 0.0;
     for (const common::PathSegment& segment : path) {
       for (const common::PathPoint& point : segment.points) {
-        if (std::abs(point.curvature_inv_m) > worst_curvature) {
-          worst_curvature = std::abs(point.curvature_inv_m);
+        if (std::abs(point.curvature_per_m) > worst_curvature) {
+          worst_curvature = std::abs(point.curvature_per_m);
           worst_s = point.s_m;
         }
       }

@@ -13,7 +13,7 @@ namespace planner::math {
 inline constexpr double kPi = 3.14159265358979323846;
 
 // 有限输入归一化到 [-pi, pi)，非有限输入返回 NaN。
-double normalize_angle_rad(double angle_rad);
+[[nodiscard]] double normalize_angle_rad(double angle_rad);
 
 /**
  * @brief 计算两角之差并归一化到 [-pi, pi) 区间。
@@ -21,7 +21,7 @@ double normalize_angle_rad(double angle_rad);
  * @param[in] b_rad 减数角（弧度）。
  * @return 归一化后的角度差（弧度）；非有限输入返回 NaN。
  */
-double angle_diff_rad(double a_rad, double b_rad) noexcept;
+[[nodiscard]] double angle_diff_rad(double a_rad, double b_rad) noexcept;
 
 /**
  * @brief 将角度由度转换为弧度。

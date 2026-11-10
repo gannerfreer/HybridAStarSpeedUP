@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 namespace {
@@ -137,8 +138,9 @@ int main() {
   const int plan_iterations = 10;
   const auto warmup = planner.plan(request, scene.grid, checker);
   if (warmup.status != common::Status::kSuccess) {
+    const std::string status(common::to_string(warmup.status));
     std::fprintf(stderr, "benchmark warmup plan failed: %s\n",
-                 common::to_string(warmup.status).c_str());
+                 status.c_str());
     return EXIT_FAILURE;
   }
 

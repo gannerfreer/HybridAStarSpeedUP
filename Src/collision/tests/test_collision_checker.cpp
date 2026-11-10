@@ -11,6 +11,7 @@
 #include <limits>
 #include <random>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -45,12 +46,12 @@ collision::Scene make_scene(int width = 40, int height = 40,
 common::PathPoint path_point(double x_m, double y_m, double s_m,
                              common::Direction direction =
                                  common::Direction::kForward,
-                             double curvature_inv_m = 0.0) {
+                             double curvature_per_m = 0.0) {
   common::PathPoint point;
   point.pose = {x_m, y_m, 0.0};
   point.s_m = s_m;
   point.direction = direction;
-  point.curvature_inv_m = curvature_inv_m;
+  point.curvature_per_m = curvature_per_m;
   return point;
 }
 
@@ -187,7 +188,7 @@ TEST(CollisionChecker, InvalidInputAndInvalidConstruction) {
   EXPECT_EQ(checker.check_motion(motion).status,
             collision::CheckStatus::kInvalidInput);
   motion.length_m = 1.0;
-  motion.curvature_inv_m = 2.0e6;
+  motion.curvature_per_m = 2.0e6;
   EXPECT_EQ(checker.check_motion(motion).status,
             collision::CheckStatus::kInvalidInput);
 
@@ -283,6 +284,29 @@ TEST(CollisionObstacle, FactoriesNormalizeAndCacheGeometry) {
                                                        1.0, 1.0);
   EXPECT_TRUE(inverted.empty());
   EXPECT_FALSE(inverted.valid());
+}
+
+TEST(CollisionObstacle, StringViewIdIsCopied) {
+  std::string source = "factory_source";
+  const auto rectangle = collision::Obstacle::rectangle(
+      std::string_view(source), 0.0, 0.0, 2.0, 2.0);
+  const auto polygon = collision::Obstacle::convex_polygon(
+      std::string_view(source),
+      {{0.0, 0.0}, {2.0, 0.0}, {2.0, 2.0}, {0.0, 2.0}});
+  source.assign("mutated");
+  EXPECT_EQ(rectangle.id, "factory_source");
+  EXPECT_EQ(polygon.id, "factory_source");
+}
+
+TEST(CollisionToString, KnownAndInvalidEnumerators) {
+  EXPECT_EQ(collision::to_string(collision::CheckStatus::kClear),
+            std::string_view("clear"));
+  EXPECT_EQ(collision::to_string(collision::CollisionReason::kObstacle),
+            std::string_view("obstacle"));
+  EXPECT_EQ(collision::to_string(static_cast<collision::CheckStatus>(99)),
+            std::string_view("unknown"));
+  EXPECT_EQ(collision::to_string(static_cast<collision::CollisionReason>(99)),
+            std::string_view("unknown"));
 }
 
 }  // namespace

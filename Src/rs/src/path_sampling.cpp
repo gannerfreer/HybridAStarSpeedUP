@@ -44,9 +44,9 @@ PathView make_view(const RsPath& path) {
       throw std::invalid_argument(
           "rs::sample: segment length_m must be finite and >= 0");
     }
-    if (!std::isfinite(segment.curvature_inv_m)) {
+    if (!std::isfinite(segment.curvature_per_m)) {
       throw std::invalid_argument(
-          "rs::sample: segment curvature_inv_m must be finite");
+          "rs::sample: segment curvature_per_m must be finite");
     }
     view.seg_start.push_back(cursor);
     cumulative += segment.length_m;
@@ -87,7 +87,7 @@ common::PathPoint point_at(const RsPath& path, const PathView& view, double s) {
   point.s_m = s;
   if (view.seg_start.empty()) {
     point.pose = path.start;
-    point.curvature_inv_m = 0.0;
+    point.curvature_per_m = 0.0;
     point.direction = common::Direction::kForward;
     return point;
   }
@@ -96,7 +96,7 @@ common::PathPoint point_at(const RsPath& path, const PathView& view, double s) {
   double local = s - view.bounds[index];
   local = std::min(std::max(local, 0.0), segment.length_m);
   point.pose = integrate_segment(view.seg_start[index], segment, local);
-  point.curvature_inv_m = segment.curvature_inv_m;
+  point.curvature_per_m = segment.curvature_per_m;
   point.direction = segment.direction;
   return point;
 }
