@@ -25,7 +25,11 @@
 #include <utility>
 #include <vector>
 
+#include "planner/math/aabb2d.hpp"
+#include "planner/math/detail/geometry_utils.hpp"
 #include "planner/math/detail/sat_cache.hpp"
+#include "planner/math/polygon2d.hpp"
+#include "planner/math/vec2d.hpp"
 #include "types.hpp"
 
 using planner::math::operator+;

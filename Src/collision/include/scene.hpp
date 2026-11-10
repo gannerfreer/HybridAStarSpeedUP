@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "planner/math/geometry.hpp"
+#include "planner/math/aabb2d.hpp"
+#include "planner/math/polygon2d.hpp"
 #include "types.hpp"
 
 namespace planner::collision {

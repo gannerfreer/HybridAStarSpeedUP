@@ -4,6 +4,7 @@
  */
 
 #include "planner/math/kinematics/arc.hpp"
+#include "planner/math/kinematics/bicycle_model.hpp"
 #include "reeds_shepp.hpp"
 
 #include <algorithm>
@@ -590,7 +591,9 @@ bool is_valid_query(const common::Pose2d& start, const common::Pose2d& goal,
       !(vehicle.max_steer_rad < 0.5 * kPi)) {
     return false;
   }
-  const double radius = vehicle.wheelbase_m / std::tan(vehicle.max_steer_rad);
+  const double radius =
+      math::kinematics::min_turn_radius_m(vehicle.wheelbase_m,
+                                          vehicle.max_steer_rad);
   return finite(radius) && radius > 0.0;
 }
 
@@ -604,7 +607,9 @@ double min_turn_radius_m(const common::VehicleModel& vehicle) {
     throw std::invalid_argument(
         "min_turn_radius_m: max_steer_rad must be finite, > 0 and < pi/2");
   }
-  const double radius = vehicle.wheelbase_m / std::tan(vehicle.max_steer_rad);
+  const double radius =
+      math::kinematics::min_turn_radius_m(vehicle.wheelbase_m,
+                                          vehicle.max_steer_rad);
   if (!finite(radius) || !(radius > 0.0)) {
     throw std::invalid_argument("min_turn_radius_m: derived radius is not positive");
   }

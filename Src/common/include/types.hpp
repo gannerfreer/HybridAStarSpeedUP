@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "planner/math/angle.hpp"
+#include "planner/math/kinematics/bicycle_model.hpp"
 #include "planner/math/pose2d.hpp"
 #include "planner/math/vec2d.hpp"
 
@@ -87,7 +88,9 @@ struct VehicleModel {
    * @brief 计算车辆后轴中心处的最小转弯半径。
    * @return 后轴中心最小转弯半径（米）：wheelbase / tan(max_steer)。
    */
-  double min_turn_radius_m() const { return wheelbase_m / std::tan(max_steer_rad); }
+  double min_turn_radius_m() const {
+    return math::kinematics::min_turn_radius_m(wheelbase_m, max_steer_rad);
+  }
 };
 
 /**

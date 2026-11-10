@@ -17,7 +17,9 @@
 #include <cstdint>
 #include <limits>
 
-#include "planner/math/geometry.hpp"
+#include "planner/math/aabb2d.hpp"
+#include "planner/math/detail/geometry_utils.hpp"
+#include "planner/math/vec2d.hpp"
 
 namespace planner::math::internal {
 
@@ -43,8 +45,9 @@ struct PolygonSatCache {
   static constexpr std::size_t kCapacity = Capacity;
 
   /// 快速未归一化平方距离域下的坐标与轴长安全上限（防止乘法浮点溢出）
-  static constexpr double kFastMaxAbsCoordinate = 1.0e75;
-  static constexpr double kFastMaxAxisLenSq = 1.0e300;
+  static constexpr double kFastMaxAbsCoordinate =
+      internal::kFastMaxAbsCoordinate;
+  static constexpr double kFastMaxAxisLenSq = internal::kFastMaxAxisLenSq;
 
   const Point2d* points{nullptr};  ///< 指向多边形外部顶点缓冲区的无所有权指针。
   std::size_t count{0};            ///< 多边形顶点总数。

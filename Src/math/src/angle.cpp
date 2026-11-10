@@ -23,4 +23,8 @@ double normalize_angle_rad(double angle_rad) {
   return result;
 }
 
+double angle_diff_rad(double a_rad, double b_rad) noexcept {
+  return normalize_angle_rad(a_rad - b_rad);
+}
+
 }  // namespace planner::math
