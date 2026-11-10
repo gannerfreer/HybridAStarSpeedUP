@@ -1,9 +1,11 @@
-#include "hybrid_astar.h"
+#include "planner/hybrid_astar/detail/search_engine.hpp"
 #include "planner/common/path.hpp"
 #include "planner/common/plan.hpp"
 #include "planner/common/status.hpp"
 #include "planner/common/vehicle.hpp"
+#include "planner/math/angle.hpp"
 #include "planner/math/kinematics/arc.hpp"
+#include "planner/math/kinematics/bicycle_model.hpp"
 #include "reeds_shepp.hpp"
 #include "user_astar.hpp"
 
@@ -14,6 +16,16 @@
 
 namespace {
 using namespace planner;
+
+common::VehicleModel regression_vehicle() {
+  common::VehicleModel vehicle;
+  vehicle.wheelbase_m = 2.5;
+  vehicle.width_m = 1.8;
+  vehicle.front_overhang_m = 0.8;
+  vehicle.rear_overhang_m = 0.8;
+  vehicle.max_steer_rad = 0.6;
+  return vehicle;
+}
 
 // 极小车体和薄障碍物放大旧采样检查的弧长缺口，确保问题不会被车体尺寸掩盖。
 TEST(SearchRegression, RejectsCollisionInArcTail) {
@@ -79,30 +91,130 @@ TEST(SearchRegression, RejectsCollisionInArcTail) {
       << "colliding RS connector must be rejected before output validation";
 }
 
-TEST(SearchRegression, HooksReverseCancellationBudgetsPiBoundaryAndRsIntegration) {
-  astar::PlannerConfig config;
-  astar::HybridAStar core(config);
-  astar::HybridSearchResult raw;
-  EXPECT_TRUE(!core.Search({0, 0, 0}, {1, 0, 0}, &raw) &&
-              raw.message.find("hook") != std::string::npos)
-      << "missing hooks must reject search";
-  core.SetPoseCollisionHook([](const astar::Pose2D&) { return false; });
-  core.SetGoalHook([](const astar::Pose2D&) { return true; });
-  EXPECT_TRUE(!core.Search({0, 0, 0}, {1, 0, 0}, &raw))
-      << "missing motion check must reject search";
-  core.SetMotionCollisionHook(
-      [](const astar::Pose2D&, const astar::Pose2D&) { return false; });
-  core.SetAbortCallback([] { return true; });
-  EXPECT_TRUE(!core.Search({0, 0, 0}, {1, 0, 0}, &raw) &&
-              raw.message == "aborted")
-      << "core cancellation";
+TEST(SearchEngineRegression, MissingHooksReturnInvalidInput) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  const auto missing_all = engine.search({0, 0, 0}, {1, 0, 0},
+                                         common::Direction::kForward, 10);
+  EXPECT_EQ(missing_all.status, common::Status::kInvalidInput);
+  EXPECT_NE(missing_all.reason.find("hook"), std::string::npos);
 
-  common::VehicleModel vehicle;
-  vehicle.wheelbase_m = 2.5;
-  vehicle.width_m = 1.8;
-  vehicle.front_overhang_m = 0.8;
-  vehicle.rear_overhang_m = 0.8;
-  vehicle.max_steer_rad = 0.6;
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return true; });
+  const auto missing_motion = engine.search({0, 0, 0}, {1, 0, 0},
+                                            common::Direction::kForward, 10);
+  EXPECT_EQ(missing_motion.status, common::Status::kInvalidInput);
+  EXPECT_NE(missing_motion.reason.find("hook"), std::string::npos);
+}
+
+TEST(SearchEngineRegression, AbortReturnsCancelled) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_abort_callback([] { return true; });
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0},
+                                    common::Direction::kForward, 100);
+  EXPECT_EQ(result.status, common::Status::kCancelled);
+  EXPECT_EQ(result.reason, "aborted");
+  EXPECT_EQ(result.iterations, 0);
+}
+
+TEST(SearchEngineRegression, NodeBudgetReturnsTimeout) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return false; });
+  const auto result = engine.search({0, 0, 0}, {100, 0, 0},
+                                    common::Direction::kForward, 2);
+  EXPECT_EQ(result.status, common::Status::kTimeout);
+  EXPECT_EQ(result.iterations, 2);
+  EXPECT_NE(result.reason.find("node budget"), std::string::npos);
+}
+
+TEST(SearchEngineRegression, ReconstructsStartAtNegativePi) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return true; });
+  const math::Pose2d boundary{0.0, 0.0, -math::kPi};
+  const auto result = engine.search(boundary, boundary,
+                                    common::Direction::kForward, 10);
+  ASSERT_EQ(result.status, common::Status::kSuccess);
+  ASSERT_FALSE(result.path.empty());
+  EXPECT_NEAR(result.path.front().pose.x_m, 0.0, 1e-12);
+  EXPECT_NEAR(result.path.front().pose.y_m, 0.0, 1e-12);
+  EXPECT_NEAR(
+      std::abs(math::normalize_angle_rad(result.path.front().pose.yaw_rad +
+                                        math::kPi)),
+      0.0, 1e-12);
+}
+
+TEST(SearchEngineRegression, MotionHookReceivesSiPrimitive) {
+  common::VehicleModel vehicle = regression_vehicle();
+  common::UserAstarConfig config;
+  config.motion_step_m = 0.75;
+  config.steering_samples = 3;
+  config.allow_reverse = true;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return false; });
+  hybrid_astar::detail::SearchState first_from;
+  hybrid_astar::detail::SearchState first_to;
+  int calls = 0;
+  engine.set_motion_collision_hook(
+      [&](const hybrid_astar::detail::SearchState& from,
+          const hybrid_astar::detail::SearchState& to) {
+        if (calls++ == 0) {
+          first_from = from;
+          first_to = to;
+        }
+        return true;
+      });
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0},
+                                    common::Direction::kForward, 1);
+  EXPECT_EQ(result.status, common::Status::kTimeout);
+  ASSERT_GT(calls, 0);
+  const double expected_curvature = math::kinematics::curvature_from_steer(
+      -vehicle.max_steer_rad, vehicle.wheelbase_m);
+  EXPECT_NEAR(first_from.curvature_inv_m, 0.0, 1e-12);
+  EXPECT_NEAR(first_from.arc_length_m, 0.0, 1e-12);
+  EXPECT_EQ(first_to.direction, common::Direction::kForward);
+  EXPECT_NEAR(first_to.arc_length_m, config.motion_step_m, 1e-12);
+  EXPECT_NEAR(first_to.curvature_inv_m, expected_curvature, 1e-12);
+  const math::Pose2d expected =
+      math::integrate_arc({0, 0, 0}, config.motion_step_m, expected_curvature);
+  EXPECT_NEAR(first_to.pose.x_m, expected.x_m, 1e-12);
+  EXPECT_NEAR(first_to.pose.y_m, expected.y_m, 1e-12);
+  EXPECT_NEAR(first_to.pose.yaw_rad, expected.yaw_rad, 1e-12);
+}
+
+TEST(UserAstarRegression,
+     HooksReverseCancellationBudgetsPiBoundaryAndRsIntegration) {
+  const common::VehicleModel vehicle = regression_vehicle();
   collision::Scene scene;
   auto& grid = scene.grid;
   grid.map_id = "regression";

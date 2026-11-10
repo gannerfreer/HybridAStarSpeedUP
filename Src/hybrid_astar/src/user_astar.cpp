@@ -3,7 +3,7 @@
  * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件。
  */
 
-#include "planner/math/kinematics/arc.hpp"
+#include "planner/math/angle.hpp"
 #include "user_astar.hpp"
 
 #include <algorithm>
@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "hybrid_astar.h"
+#include "planner/hybrid_astar/detail/search_engine.hpp"
 
 #include "grid_potential.hpp"
 #include "scene.hpp"
@@ -28,7 +28,6 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-using math::kPi;
 constexpr double kStartPoseToleranceM = 1e-6;
 constexpr double kStartYawToleranceRad = 1e-6;
 constexpr double kEndpointPositionToleranceM = 0.05;  ///< 终点位置容差阈值（米，m）。
@@ -46,20 +45,6 @@ bool same_vehicle(const common::VehicleModel& a, const common::VehicleModel& b) 
          a.rear_overhang_m == b.rear_overhang_m &&
          a.max_steer_rad == b.max_steer_rad &&
          a.safety_margin_m == b.safety_margin_m;
-}
-
-common::Pose2d to_common(const astar::Pose2D& pose) {
-  common::Pose2d out;
-  out.x_m = pose.x;
-  out.y_m = pose.y;
-  out.yaw_rad = math::normalize_angle_rad(pose.yaw);
-  return out;
-}
-
-common::Direction to_common(astar::MotionDirection direction) {
-  return direction == astar::MotionDirection::Backward
-             ? common::Direction::kReverse
-             : common::Direction::kForward;
 }
 
 std::string collision_detail(const collision::CheckResult& check) {
@@ -99,25 +84,13 @@ rs::RsPlan clean_connector(rs::RsPlan plan) {
   return cleaned;
 }
 
-/// 根据相邻节点的位姿推导恒定基元曲率：曲率 = delta_yaw / signed_arc。
-/// 底层 Propagate 对前进和倒车运动均将圆弧长度严格固定为 delta_dist，
-/// 因此必须使用弧长而非弦长进行推导（使用弦长会引入 beta^2/24 的几何畸变）。
-double primitive_curvature(const astar::Pose2D& from,
-                           const astar::Pose2D& to, double arc_length_m) {
-  if (arc_length_m <= 1e-12) {
-    return 0.0;
-  }
-  const double dyaw = math::normalize_angle_rad(to.yaw - from.yaw);
-  const double signed_arc = to.direction == astar::MotionDirection::Forward
-                                ? arc_length_m
-                                : -arc_length_m;
-  return dyaw / signed_arc;
-}
-
 }  // namespace
 
 struct UserAstar::Impl {
-  UserAstarConfig config;
+  Impl() : engine(common::VehicleModel{}, config) {}
+
+  common::UserAstarConfig config;
+  detail::SearchEngine engine;
   std::function<bool()> cancel_callback;
   std::int64_t expanded_nodes{0};
   bool potential_valid{false};
@@ -125,12 +98,15 @@ struct UserAstar::Impl {
   internal::GridPotential potential;
 };
 
-UserAstar::UserAstar(const UserAstarConfig& config) : impl_(std::make_unique<Impl>()) {
+UserAstar::UserAstar(const common::UserAstarConfig& config)
+    : impl_(std::make_unique<Impl>()) {
   configure(config);
 }
 UserAstar::~UserAstar() = default;
-const UserAstarConfig& UserAstar::config() const { return impl_->config; }
-void UserAstar::configure(const UserAstarConfig& config) {
+const common::UserAstarConfig& UserAstar::config() const {
+  return impl_->config;
+}
+void UserAstar::configure(const common::UserAstarConfig& config) {
   std::string reason;
   if (!common::planner_config_valid(config, &reason)) {
     throw std::invalid_argument(reason);
@@ -149,6 +125,8 @@ void UserAstar::reset_cache() {
   impl_->potential_key = 0;
   impl_->potential = internal::GridPotential{};
   impl_->expanded_nodes = 0;
+  // 清空引擎搜索状态，但保留其容器已分配的容量以便跨规划复用。
+  impl_->engine.reset_state();
 }
 
 common::PlanResult UserAstar::plan(
@@ -216,31 +194,9 @@ common::PlanResult UserAstar::plan(
   };
 
   // ------------------------------------------------------------------
-  // 底层配置参数映射与转换
+  // 配置内部 SI 单位搜索引擎
   // ------------------------------------------------------------------
-  astar::PlannerConfig config;
-  config.vehicle.wheel_base = request.vehicle.wheelbase_m;
-  const double steer_limit_deg =
-      request.vehicle.max_steer_rad * 180.0 / kPi;
-  config.hybrid_astar.min_steering = -steer_limit_deg;
-  config.hybrid_astar.max_steering = steer_limit_deg;
-  config.hybrid_astar.angle_discrete_num =
-      static_cast<double>(impl_->config.steering_samples);
-  config.hybrid_astar.delta_dist = impl_->config.motion_step_m;
-  config.hybrid_astar.grid_dist = impl_->config.xy_resolution_m;
-  config.hybrid_astar.grid_angle =
-      360.0 / static_cast<double>(impl_->config.heading_bins);
-  config.hybrid_astar.max_iterations_astar =
-      static_cast<double>(node_budget);
-  config.hybrid_astar.forward_penalty = impl_->config.forward_cost;
-  config.hybrid_astar.backward_penalty = impl_->config.reverse_cost;
-  config.hybrid_astar.turnning_penalty = impl_->config.turn_penalty;
-  config.hybrid_astar.switch_penalty = impl_->config.switch_cost;
-  config.hybrid_astar.backward_search_range =
-      impl_->config.backward_search_range_m;
-  config.hybrid_astar.linear_preferred_distance_square =
-      impl_->config.linear_preferred_distance_square;
-  config.hybrid_astar.allow_reverse = impl_->config.allow_reverse;
+  impl_->engine.configure(request.vehicle, impl_->config);
 
   // ------------------------------------------------------------------
   // 目标势场连通性检验与不可达状态预剪枝。
@@ -340,28 +296,25 @@ common::PlanResult UserAstar::plan(
     }
   }
 
-  astar::HybridAStar planner(config);
-
   // Reeds-Shepp 目标连接路径缓存（由目标达成钩子计算并填充）。
   bool connector_valid = false;
   rs::RsPath connector;
   std::int64_t goal_hook_calls = 0;
 
   // 车辆多边形轮廓位姿与运动线段碰撞检测钩子。
-  planner.SetPoseCollisionHook([&](const astar::Pose2D& pose) {
-    const collision::CheckResult check =
-        collision_checker.check_pose(to_common(pose));
+  impl_->engine.set_pose_collision_hook([&](const math::Pose2d& pose) {
+    const collision::CheckResult check = collision_checker.check_pose(pose);
     return !check.is_clear();
   });
-  planner.SetMotionCollisionHook(
-      [&](const astar::Pose2D& from, const astar::Pose2D& to) {
+  impl_->engine.set_motion_collision_hook(
+      [&](const detail::SearchState& from, const detail::SearchState& to) {
         // 基于连通性松弛的预剪枝（当目标势场可用时）：
         // 在空闲栅格松弛图上均不可达的后继节点不可能构成任何无碰撞可行路径，
         // 应当立即予以剪枝剔除（详见 grid_potential.hpp）。
         if (potential_usable) {
           int row = 0;
           int col = 0;
-          if (!cell_of_pose(to_common(to), &row, &col) ||
+          if (!cell_of_pose(to.pose, &row, &col) ||
               !std::isfinite(potential->distance_m[
                   static_cast<std::size_t>(row) *
                       static_cast<std::size_t>(grid.width) +
@@ -369,13 +322,11 @@ common::PlanResult UserAstar::plan(
             return true;
           }
         }
-        const double arc_length = impl_->config.motion_step_m;
         collision::MotionSegment segment;
-        segment.start = to_common(from);
-        segment.length_m = arc_length;
-        segment.direction = to_common(to.direction);
-        segment.curvature_inv_m =
-            primitive_curvature(from, to, arc_length);
+        segment.start = from.pose;
+        segment.length_m = to.arc_length_m;
+        segment.direction = to.direction;
+        segment.curvature_inv_m = to.curvature_inv_m;
         const collision::CheckResult check =
             collision_checker.check_motion(segment);
         if (!check.is_clear()) {
@@ -383,9 +334,10 @@ common::PlanResult UserAstar::plan(
         }
         return false;
       });
-  planner.SetGoalHook([&](const astar::Pose2D& pose) {
+  impl_->engine.set_goal_hook([&](const detail::SearchState& state) {
+    const math::Pose2d& pose = state.pose;
     const double distance =
-        std::hypot(pose.x - request.goal.x_m, pose.y - request.goal.y_m);
+        std::hypot(pose.x_m - request.goal.x_m, pose.y_m - request.goal.y_m);
     if (distance > impl_->config.goal_capture_radius_m) {
       return false;
     }
@@ -399,7 +351,7 @@ common::PlanResult UserAstar::plan(
         distance > impl_->config.analytic_shot_distance_m) {
       return false;
     }
-    rs::RsPlan solved = rs::plan(to_common(pose), request.goal, request.vehicle);
+    rs::RsPlan solved = rs::plan(pose, request.goal, request.vehicle);
     if (solved.status != common::Status::kSuccess) {
       return false;
     }
@@ -449,7 +401,7 @@ common::PlanResult UserAstar::plan(
 
   bool aborted = false;
   bool timed_out = false;
-  planner.SetAbortCallback([&]() {
+  impl_->engine.set_abort_callback([&]() {
     if (request.cancelled ||
         (impl_->cancel_callback && impl_->cancel_callback())) {
       aborted = true;
@@ -465,43 +417,35 @@ common::PlanResult UserAstar::plan(
   // ------------------------------------------------------------------
   // 执行 Hybrid A* 搜索
   // ------------------------------------------------------------------
-  astar::Pose2D start_pose;
-  start_pose.x = request.start.x_m;
-  start_pose.y = request.start.y_m;
-  start_pose.yaw = request.start.yaw_rad;
-  start_pose.direction = astar::MotionDirection::Forward;
-  astar::Pose2D goal_pose;
-  goal_pose.x = request.goal.x_m;
-  goal_pose.y = request.goal.y_m;
-  goal_pose.yaw = request.goal.yaw_rad;
-  goal_pose.direction = astar::MotionDirection::Forward;
-
-  astar::HybridSearchResult search;
-  const bool found = planner.Search(start_pose, goal_pose, &search);
+  const detail::SearchResult search = impl_->engine.search(
+      request.start, request.goal, common::Direction::kForward, node_budget);
 
   impl_->expanded_nodes = search.iterations;
 
-  if (!found) {
-    if (aborted) {
-      return fail(common::Status::kCancelled, "request was cancelled");
+  if (search.status != common::Status::kSuccess) {
+    if (search.status == common::Status::kCancelled) {
+      if (timed_out) {
+        return fail(common::Status::kTimeout,
+                    "time budget of " + std::to_string(time_budget_s) +
+                        " s exhausted");
+      }
+      return fail(common::Status::kCancelled,
+                  aborted ? "request was cancelled" : search.reason);
     }
-    if (timed_out) {
-      return fail(common::Status::kTimeout,
-                  "time budget of " + std::to_string(time_budget_s) +
-                      " s exhausted");
+    if (search.status == common::Status::kTimeout) {
+      return fail(common::Status::kTimeout, search.reason);
     }
-    if (impl_->expanded_nodes >= node_budget) {
-      return fail(common::Status::kTimeout,
-                  "node budget of " + std::to_string(node_budget) +
-                      " exhausted");
+    if (search.status == common::Status::kInvalidInput) {
+      return fail(common::Status::kInvalidInput, search.reason);
     }
-    if (search.message == "start or goal in collision") {
-      return fail(common::Status::kInvalidInput,
-                  "start or goal pose is in collision");
+    if (search.status == common::Status::kNoPath) {
+      return fail(common::Status::kNoPath,
+                  search.reason.empty() ? "no feasible path" : search.reason);
     }
-    return fail(common::Status::kNoPath, search.message.empty()
-                                             ? "no feasible path"
-                                             : search.message);
+    if (search.status == common::Status::kValidationFailed) {
+      return fail(common::Status::kValidationFailed, search.reason);
+    }
+    return fail(search.status, search.reason);
   }
 
   // ------------------------------------------------------------------
@@ -512,28 +456,27 @@ common::PlanResult UserAstar::plan(
   const std::size_t node_count = search.path.size();
   double s_cum = 0.0;
   for (std::size_t i = 0; i < node_count; ++i) {
+    const detail::SearchState& state = search.path[i];
     common::PathPoint point;
-    point.pose = to_common(search.path[i]);
+    point.pose = state.pose;
     point.s_m = s_cum;
     if (i + 1 < node_count) {
-      point.direction = to_common(search.path[i + 1].direction);
-      point.curvature_inv_m = primitive_curvature(
-          search.path[i], search.path[i + 1], impl_->config.motion_step_m);
+      point.direction = search.path[i + 1].direction;
+      point.curvature_inv_m = search.path[i + 1].curvature_inv_m;
     } else if (connector_valid && !connector.segments.empty()) {
       point.direction = connector.segments.front().direction;
       point.curvature_inv_m = connector.segments.front().curvature_inv_m;
     } else if (i > 0) {
-      point.direction = to_common(search.path[i].direction);
-      point.curvature_inv_m = primitive_curvature(
-          search.path[i - 1], search.path[i], impl_->config.motion_step_m);
+      point.direction = state.direction;
+      point.curvature_inv_m = state.curvature_inv_m;
     } else {
       point.direction = common::Direction::kForward;
       point.curvature_inv_m = 0.0;
     }
     flat.push_back(point);
     if (i + 1 < node_count) {
-      // 底层运动基元的圆弧长度对前进和倒车均固定为 delta_dist。
-      s_cum += impl_->config.motion_step_m;
+      // 底层运动基元的圆弧长度对前进和倒车均固定为 motion_step_m。
+      s_cum += search.path[i + 1].arc_length_m;
     }
   }
   if (connector_valid && connector.length_m > 0.0) {

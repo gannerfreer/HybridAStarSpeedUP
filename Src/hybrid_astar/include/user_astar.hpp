@@ -15,8 +15,6 @@
 
 namespace planner::hybrid_astar {
 
-using common::UserAstarConfig;
-
 /**
  * @brief 线程兼容的 Hybrid A* 路径规划器类。
  * @note 单个规划器实例非线程安全，禁止在多线程间并发调用。
@@ -28,7 +26,7 @@ class UserAstar {
    * @brief 使用指定的初始配置构造 UserAstar 规划器实例。
    * @param[in] config 规划器配置参数。
    */
-  explicit UserAstar(const UserAstarConfig& config = {});
+  explicit UserAstar(const common::UserAstarConfig& config = {});
 
   /**
    * @brief 析构函数。
@@ -43,13 +41,13 @@ class UserAstar {
    * @param[in] config 待应用的新配置参数。
    * @throw std::invalid_argument 若配置参数校验非法则抛出异常（同时安全保留原配置不变）。
    */
-  void configure(const UserAstarConfig& config);
+  void configure(const common::UserAstarConfig& config);
 
   /**
    * @brief 获取当前生效的规划器配置参数。
    * @return 当前配置参数的常量引用。
    */
-  const UserAstarConfig& config() const;
+  const common::UserAstarConfig& config() const;
 
   /**
    * @brief 规划从起点到目标位姿的无碰撞动力学可行路径。
