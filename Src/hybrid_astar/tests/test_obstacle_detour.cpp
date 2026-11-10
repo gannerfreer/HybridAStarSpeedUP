@@ -1,3 +1,4 @@
+#include "motion.hpp"
 #include "user_astar.hpp"
 
 #include <cmath>
@@ -79,10 +80,10 @@ void plans_collision_free_detour() {
   const auto& start = result.path.front().points.front().pose;
   const auto& end = result.path.back().points.back();
   require(std::hypot(start.x_m - request.start.x_m, start.y_m - request.start.y_m) < 1e-6 &&
-              std::abs(common::normalize_angle_rad(start.yaw_rad - request.start.yaw_rad)) < 1e-6,
+              std::abs(math::normalize_angle_rad(start.yaw_rad - request.start.yaw_rad)) < 1e-6,
           "path must begin at the requested start");
   require(std::hypot(end.pose.x_m - request.goal.x_m, end.pose.y_m - request.goal.y_m) <= 0.05 &&
-              std::abs(common::normalize_angle_rad(end.pose.yaw_rad - request.goal.yaw_rad)) <= 0.02,
+              std::abs(math::normalize_angle_rad(end.pose.yaw_rad - request.goal.yaw_rad)) <= 0.02,
           "path must reach the requested goal pose");
   require(end.s_m > direct.length_m, "path must detour around the obstacle");
   require(checker.check_path(result.path).is_clear(),

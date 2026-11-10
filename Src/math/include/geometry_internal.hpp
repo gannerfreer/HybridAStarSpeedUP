@@ -19,7 +19,7 @@
 
 #include "geometry.hpp"
 
-namespace planner::collision::internal {
+namespace planner::math::internal {
 
 /**
  * @brief 针对极端大坐标或大顶点数多边形的回退归一化 SAT 相交判定例程。
@@ -184,4 +184,4 @@ struct PolygonSatCache {
 
 using PolygonSatCache8 = PolygonSatCache<8>;
 
-}  // namespace planner::collision::internal
+}  // namespace planner::math::internal

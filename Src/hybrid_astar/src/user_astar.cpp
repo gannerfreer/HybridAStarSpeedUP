@@ -3,6 +3,7 @@
  * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件。
  */
 
+#include "motion.hpp"
 #include "user_astar.hpp"
 
 #include <algorithm>
@@ -51,7 +52,7 @@ common::Pose2d to_common(const astar::Pose2D& pose) {
   common::Pose2d out;
   out.x_m = pose.x;
   out.y_m = pose.y;
-  out.yaw_rad = common::normalize_angle_rad(pose.yaw);
+  out.yaw_rad = math::normalize_angle_rad(pose.yaw);
   return out;
 }
 
@@ -106,7 +107,7 @@ double primitive_curvature(const astar::Pose2D& from,
   if (arc_length_m <= 1e-12) {
     return 0.0;
   }
-  const double dyaw = common::normalize_angle_rad(to.yaw - from.yaw);
+  const double dyaw = math::normalize_angle_rad(to.yaw - from.yaw);
   const double signed_arc = to.direction == astar::MotionDirection::Forward
                                 ? arc_length_m
                                 : -arc_length_m;
@@ -134,8 +135,6 @@ void UserAstar::configure(const UserAstarConfig& config) {
     throw std::invalid_argument("invalid xy_resolution_m");
   if (!std::isfinite(config.motion_step_m) || !(config.motion_step_m > 0.0))
     throw std::invalid_argument("invalid motion_step_m");
-  if (!std::isfinite(config.goal_yaw_tolerance_deg) || !(config.goal_yaw_tolerance_deg > 0.0))
-    throw std::invalid_argument("invalid goal_yaw_tolerance_deg");
   if (!std::isfinite(config.goal_capture_radius_m) || !(config.goal_capture_radius_m > 0.0))
     throw std::invalid_argument("invalid goal_capture_radius_m");
   if (!std::isfinite(config.default_time_budget_s) || !(config.default_time_budget_s > 0.0) || config.default_time_budget_s > 1e9)
@@ -245,13 +244,7 @@ common::PlanResult UserAstar::plan(
   // 底层配置参数映射与转换
   // ------------------------------------------------------------------
   astar::PlannerConfig config;
-  config.vehicle.center2front =
-      request.vehicle.wheelbase_m + request.vehicle.front_overhang_m;
-  config.vehicle.center2rear = request.vehicle.rear_overhang_m;
-  config.vehicle.center2side = 0.5 * request.vehicle.width_m;
-  config.vehicle.safe_margin = request.vehicle.safety_margin_m;
   config.vehicle.wheel_base = request.vehicle.wheelbase_m;
-  config.vehicle.boundary_inflation_meter = -1.0;
   const double steer_limit_deg =
       request.vehicle.max_steer_rad * 180.0 / kPi;
   config.hybrid_astar.min_steering = -steer_limit_deg;
@@ -264,8 +257,6 @@ common::PlanResult UserAstar::plan(
       360.0 / static_cast<double>(impl_->config.heading_bins);
   config.hybrid_astar.max_iterations_astar =
       static_cast<double>(node_budget);
-  config.hybrid_astar.goal_yaw_tolerance_deg =
-      impl_->config.goal_yaw_tolerance_deg;
   config.hybrid_astar.forward_penalty = impl_->config.forward_cost;
   config.hybrid_astar.backward_penalty = impl_->config.reverse_cost;
   config.hybrid_astar.turnning_penalty = impl_->config.turn_penalty;
@@ -275,7 +266,6 @@ common::PlanResult UserAstar::plan(
   config.hybrid_astar.linear_preferred_distance_square =
       impl_->config.linear_preferred_distance_square;
   config.hybrid_astar.allow_reverse = impl_->config.allow_reverse;
-  config.hybrid_astar.standard_reverse_kinematics = true;
 
   // ------------------------------------------------------------------
   // 目标势场连通性检验与不可达状态预剪枝。
@@ -640,7 +630,7 @@ common::PlanResult UserAstar::plan(
           const double position_error =
               std::hypot(point.pose.x_m - request.start.x_m,
                          point.pose.y_m - request.start.y_m);
-          const double yaw_error = std::abs(common::normalize_angle_rad(
+          const double yaw_error = std::abs(math::normalize_angle_rad(
               point.pose.yaw_rad - request.start.yaw_rad));
           if (position_error > kStartPoseToleranceM ||
               yaw_error > kStartYawToleranceRad) {
@@ -663,7 +653,7 @@ common::PlanResult UserAstar::plan(
   const double endpoint_position_error =
       std::hypot(endpoint.x_m - request.goal.x_m,
                  endpoint.y_m - request.goal.y_m);
-  const double endpoint_yaw_error = std::abs(common::normalize_angle_rad(
+  const double endpoint_yaw_error = std::abs(math::normalize_angle_rad(
       endpoint.yaw_rad - request.goal.yaw_rad));
 
   if (structural_error) {

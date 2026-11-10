@@ -31,14 +31,6 @@ inline constexpr int kCellUnknown = 2;   ///< 未知栅格（碰撞检测与规�
 /// @}
 
 /**
- * @brief 将弧度角归一化至半开区间 [-pi, pi)。
- * @param[in] angle_rad 输入弧度值，必须为有限数值。
- * @return 归一化至 [-pi, pi) 范围内的角度值（弧度）。
- * @note 调用方需保证输入值有效且有限（std::isfinite）。
- */
-double normalize_angle_rad(double angle_rad);
-
-/**
  * @brief 路径点或运动轨迹分段的行驶方向（前进/倒车）。
  */
 enum class Direction {

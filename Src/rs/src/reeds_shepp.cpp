@@ -3,6 +3,7 @@
  * @brief 原生 48 类解析 Reeds-Shepp 最短路径求解器的具体实现。
  */
 
+#include "motion.hpp"
 #include "reeds_shepp.hpp"
 
 #include <algorithm>
@@ -13,12 +14,12 @@
 #include <utility>
 
 // ---------------------------------------------------------------------------
-// 原生解析 Reeds-Shepp 最短路径求解器。
+// Reeds-Shepp 求解器
 //
-// 48 类曲线枚举严格遵循以下经典论文推导的解析公式集：
+// 曲线枚举类遵循以下论文推导的解析公式集：
 //   J.A. Reeds and L.A. Shepp, "Optimal paths for a car that goes both
 //   forwards and backwards", Pacific Journal of Mathematics, 145(2):367-393, 1990.
-// （架构设计与 OMPL ReedsSheppStateSpace 的 BSD-3 工业实现保持一致）。
+// （架构设计参考 OMPL ReedsSheppStateSpace ）
 // ---------------------------------------------------------------------------
 
 namespace planner::rs {
@@ -505,7 +506,7 @@ RawPath reedsSheppUnit(double x, double y, double phi) {
 
 common::Pose2d normalize_pose(const common::Pose2d& pose) {
   common::Pose2d out = pose;
-  out.yaw_rad = common::normalize_angle_rad(pose.yaw_rad);
+  out.yaw_rad = math::normalize_angle_rad(pose.yaw_rad);
   return out;
 }
 
@@ -532,16 +533,9 @@ double curvature_for_turn(Turn turn, double radius_m) {
 // （正余弦具备天然周期性，对外暴露接口前统一归一化一次即可）。
 common::Pose2d advance_unchecked(const common::Pose2d& pose,
                                  const RsSegment& segment, double ds_m) {
-  const double gear = (segment.direction == common::Direction::kForward) ? 1.0 : -1.0;
-  const double kappa = segment.curvature_inv_m;
-  if (std::fabs(kappa) <= 1e-12) {
-    return {pose.x_m + gear * ds_m * std::cos(pose.yaw_rad),
-            pose.y_m + gear * ds_m * std::sin(pose.yaw_rad), pose.yaw_rad};
-  }
-  const double yaw_end = pose.yaw_rad + gear * kappa * ds_m;
-  return {pose.x_m + (std::sin(yaw_end) - std::sin(pose.yaw_rad)) / kappa,
-          pose.y_m - (std::cos(yaw_end) - std::cos(pose.yaw_rad)) / kappa,
-          yaw_end};
+  const double gear = segment.direction == common::Direction::kForward ? 1.0 : -1.0;
+  return math::internal::advance_arc_trig_unchecked(pose, gear * ds_m, segment.curvature_inv_m,
+                                                   std::cos(pose.yaw_rad), std::sin(pose.yaw_rad));
 }
 
 // 将无量纲单位半径路径还原并缩放为具有实际物理尺度的分段路径。
@@ -646,7 +640,7 @@ RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
   const double dy = goal_norm.y_m - start_norm.y_m;
   const double x = (c * dx + s * dy) / radius;
   const double y = (-s * dx + c * dy) / radius;
-  const double phi = common::normalize_angle_rad(goal_norm.yaw_rad - start_norm.yaw_rad);
+  const double phi = math::normalize_angle_rad(goal_norm.yaw_rad - start_norm.yaw_rad);
 
   const RawPath raw = reedsSheppUnit(x, y, phi);
   RsPath result = build_path(start_norm, goal_norm, radius, raw);
@@ -656,11 +650,11 @@ RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
   for (const RsSegment& segment : result.segments) {
     cursor = advance_unchecked(cursor, segment, segment.length_m);
   }
-  cursor.yaw_rad = common::normalize_angle_rad(cursor.yaw_rad);
+  cursor.yaw_rad = math::normalize_angle_rad(cursor.yaw_rad);
   const double position_error =
       std::hypot(cursor.x_m - goal_norm.x_m, cursor.y_m - goal_norm.y_m);
   const double yaw_error = std::fabs(
-      common::normalize_angle_rad(cursor.yaw_rad - goal_norm.yaw_rad));
+      math::normalize_angle_rad(cursor.yaw_rad - goal_norm.yaw_rad));
   if (!(position_error <= kEndpointPositionToleranceM) ||
       !(yaw_error <= kEndpointYawToleranceRad)) {
     return {common::Status::kOptimizationFailed,
@@ -716,7 +710,7 @@ common::Pose2d integrate_segment(const common::Pose2d& start,
   }
   const double ds = std::min(ds_m, segment.length_m);
   common::Pose2d out = advance_unchecked(start, segment, ds);
-  out.yaw_rad = common::normalize_angle_rad(out.yaw_rad);
+  out.yaw_rad = math::normalize_angle_rad(out.yaw_rad);
   return out;
 }
 

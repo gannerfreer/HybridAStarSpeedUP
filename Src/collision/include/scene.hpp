@@ -16,6 +16,9 @@
 #include "geometry.hpp"
 
 namespace planner::collision {
+using common::Point2d;
+using common::Pose2d;
+using common::Direction;
 
 using planner::common::GridView;
 using planner::common::VehicleModel;
@@ -57,9 +60,9 @@ struct Obstacle {
 
   /**
    * @brief 计算包围该障碍物的紧密轴对齐包围盒。
-   * @return 对应的 Aabb2d。
+   * @return 对应的 math::Aabb2d。
    */
-  Aabb2d aabb() const noexcept;
+  math::Aabb2d aabb() const noexcept;
 };
 
 /**

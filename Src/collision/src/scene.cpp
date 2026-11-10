@@ -10,6 +10,10 @@
 
 #include "types.hpp"
 
+using planner::math::operator+;
+using planner::math::operator-;
+using planner::math::operator*;
+
 namespace planner::collision {
 
 namespace {
@@ -33,7 +37,7 @@ Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
   Obstacle obstacle;
   obstacle.id = id;
   std::string reason;
-  obstacle.vertices = rectangle_polygon(x_min_m, y_min_m, x_max_m, y_max_m,
+  obstacle.vertices = math::rectangle_polygon(x_min_m, y_min_m, x_max_m, y_max_m,
                                         &reason);
   return obstacle;  // 输入非法时返回空顶点多边形
 }
@@ -42,18 +46,18 @@ Obstacle Obstacle::convex_polygon(const std::string& id,
                                   std::vector<Point2d> vertices) {
   Obstacle obstacle;
   obstacle.id = id;
-  if (convex_polygon_valid(vertices)) {
-    normalize_counter_clockwise(vertices);
+  if (math::convex_polygon_valid(vertices)) {
+    math::normalize_counter_clockwise(vertices);
     obstacle.vertices = std::move(vertices);
   }
   return obstacle;
 }
 
 bool Obstacle::valid(std::string* reason) const {
-  return convex_polygon_valid(vertices, reason);
+  return math::convex_polygon_valid(vertices, reason);
 }
 
-Aabb2d Obstacle::aabb() const noexcept { return aabb_of(vertices); }
+math::Aabb2d Obstacle::aabb() const noexcept { return math::aabb_of(vertices); }
 
 // ---------------------------------------------------------------------------
 // 场景环境 Scene

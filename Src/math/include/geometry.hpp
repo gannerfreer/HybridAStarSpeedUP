@@ -9,12 +9,14 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #include "types.hpp"
 
-namespace planner::collision {
+namespace planner::math {
 
 using planner::common::Direction;
 using planner::common::Point2d;
@@ -360,4 +362,8 @@ double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
                                 const Aabb2d& box) noexcept;
 /// @}
 
-}  // namespace planner::collision
+// 零动态分配的固定容量几何入口；n 必须不大于 8。
+Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept;
+std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
+                              std::array<Point2d, 8>& out) noexcept;
+}  // namespace planner::math

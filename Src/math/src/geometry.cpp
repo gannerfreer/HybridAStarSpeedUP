@@ -13,8 +13,69 @@
 
 #include "geometry_internal.hpp"
 
-namespace planner::collision {
+namespace planner::math {
 
+Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
+  Aabb2d box;
+  if (n == 0) {
+    return box;
+  }
+  box.min_x = box.max_x = points[0].x_m;
+  box.min_y = box.max_y = points[0].y_m;
+  for (std::size_t i = 1; i < n; ++i) {
+    box.merge_point(points[i]);
+  }
+  return box;
+}
+namespace {
+std::size_t convex_hull_impl(Point2d* points, std::size_t n, Point2d* chain, Point2d* out) noexcept {
+  if (n <= 2) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = points[i];
+    return n;
+  }
+  std::sort(points, points + n,
+            [](const Point2d& a, const Point2d& b) {
+              if (a.x_m != b.x_m) return a.x_m < b.x_m;
+              return a.y_m < b.y_m;
+            });
+  // 剔除重复顶点
+  std::size_t m = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (m > 0 && points[i].x_m == points[m - 1].x_m &&
+        points[i].y_m == points[m - 1].y_m) {
+      continue;
+    }
+    points[m++] = points[i];
+  }
+  if (m <= 2) {
+    for (std::size_t i = 0; i < m; ++i) out[i] = points[i];
+    return m;
+  }
+  std::size_t k = 0;
+  for (std::size_t i = 0; i < m; ++i) {
+    while (k >= 2 && cross(chain[k - 1] - chain[k - 2], points[i] - chain[k - 1]) <= 0.0) {
+      --k;
+    }
+    chain[k++] = points[i];
+  }
+  const std::size_t lower = k;
+  for (std::size_t i = m - 1; i-- > 0;) {
+    while (k > lower && cross(chain[k - 1] - chain[k - 2], points[i] - chain[k - 1]) <= 0.0) {
+      --k;
+    }
+    chain[k++] = points[i];
+  }
+  // chain 中包含闭合凸包，丢弃重复的闭合点
+  --k;
+  for (std::size_t i = 0; i < k; ++i) out[i] = chain[i];
+  return k;
+}
+}
+std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
+                              std::array<Point2d, 8>& out) noexcept {
+  std::array<Point2d, 16> chain{};
+  return convex_hull_impl(points.data(), n, chain.data(), out.data());
+}
 namespace {
 
 constexpr double kEpsScale = 1e-12;
@@ -439,16 +500,7 @@ double Aabb2d::max_abs_coordinate() const noexcept {
 }
 
 Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept {
-  Aabb2d box;
-  if (points.empty()) {
-    return box;
-  }
-  box.min_x = box.max_x = points.front().x_m;
-  box.min_y = box.max_y = points.front().y_m;
-  for (const Point2d& p : points) {
-    box.merge_point(p);
-  }
-  return box;
+  return aabb_of_raw(points.data(), points.size());
 }
 
 double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept {
@@ -588,45 +640,11 @@ std::vector<Point2d> rectangle_polygon(double x_min, double y_min,
 }
 
 std::vector<Point2d> convex_hull(std::vector<Point2d> points) {
-  if (points.size() <= 2) {
-    return points;
-  }
-  std::sort(points.begin(), points.end(), [](const Point2d& a, const Point2d& b) {
-    if (a.x_m != b.x_m) return a.x_m < b.x_m;
-    return a.y_m < b.y_m;
-  });
-  points.erase(std::unique(points.begin(), points.end(),
-                           [](const Point2d& a, const Point2d& b) {
-                             return a.x_m == b.x_m && a.y_m == b.y_m;
-                           }),
-               points.end());
-  if (points.size() <= 2) {
-    return points;
-  }
-  std::vector<Point2d> hull;
-  hull.reserve(points.size() + 1);
-  const auto cross3 = [](const Point2d& o, const Point2d& a,
-                         const Point2d& b) {
-    return (a.x_m - o.x_m) * (b.y_m - o.y_m) -
-           (a.y_m - o.y_m) * (b.x_m - o.x_m);
-  };
-  for (const Point2d& p : points) {
-    while (hull.size() >= 2 &&
-            cross3(hull[hull.size() - 2], hull.back(), p) <= 0.0) {
-      hull.pop_back();
-    }
-    hull.push_back(p);
-  }
-  const std::size_t lower = hull.size();
-  for (std::size_t i = points.size() - 1; i-- > 0;) {
-    while (hull.size() > lower &&
-            cross3(hull[hull.size() - 2], hull.back(), points[i]) <= 0.0) {
-      hull.pop_back();
-    }
-    hull.push_back(points[i]);
-  }
-  hull.pop_back();  // 移除重复的首个起点
-  return hull;      // 逆时针凸包
+  std::vector<Point2d> chain(2 * points.size());
+  std::vector<Point2d> hull(points.size());
+  const auto count = convex_hull_impl(points.data(), points.size(), chain.data(), hull.data());
+  hull.resize(count);
+  return hull;
 }
 
 bool convex_polygons_intersect(const std::vector<Point2d>& a,
@@ -928,4 +946,4 @@ double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
   return best;
 }
 
-}  // namespace planner::collision
+}  // namespace planner::math

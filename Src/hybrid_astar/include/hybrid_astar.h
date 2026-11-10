@@ -11,7 +11,6 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "planner_config.h"
@@ -70,27 +69,8 @@ class HybridAStar {
    */
   const PlannerConfig& GetConfig() const;
 
-  /**
-   * @brief 清除当前已加载的所有障碍物边界点。
-   */
-  void ClearBoundaries();
-
-  /**
-   * @brief 从 CSV 文件加载障碍物多段线边界点。
-   * @param[in] csv_path CSV 文件的系统绝对或相对路径。
-   * @param[in] close_loop 是否将最后一个顶点与第一个顶点相连以形成闭合环路。
-   * @return 解析成功并完成加载返回 true，否则返回 false。
-   */
-  bool LoadBoundaryFromCsv(const std::string& csv_path, bool close_loop);
-
-  /**
-   * @brief 获取当前内部存储的光栅化边界障碍物像元总数。
-   * @return 被占用的边界栅格像元数量。
-   */
-  std::size_t BoundaryCount() const;
-
-  /** @name 搜索钩子与边界注入接口
-   *  可选回调函数与可编程边界导入接口。若未设置，则默认采用内部栅格碰撞检测以及欧氏/航向容差判定。
+  /** @name 搜索钩子接口
+   *  位姿碰撞、运动碰撞与目标钩子必须设置，否则搜索拒绝运行。
    *  @{
    */
 
@@ -101,30 +81,23 @@ class HybridAStar {
   void SetAbortCallback(std::function<bool()> callback);
 
   /**
-   * @brief 覆盖默认的栅格位姿碰撞检测逻辑，使用自定义位姿碰撞检测钩子。
+   * @brief 注册必需的位姿碰撞检测钩子。
    * @param[in] hook 判定给定车辆位姿是否发生碰撞的回调函数（返回 true 表示碰撞）。
    */
   void SetPoseCollisionHook(std::function<bool(const Pose2D&)> hook);
 
   /**
-   * @brief 覆盖默认的节点外扩运动线段碰撞检测逻辑。
+   * @brief 注册必需的连续运动碰撞检测钩子。
    * @param[in] hook 判定两个位姿间的运动轨迹是否发生碰撞的回调函数（返回 true 表示碰撞）。
    */
   void SetMotionCollisionHook(
       std::function<bool(const Pose2D&, const Pose2D&)> hook);
 
   /**
-   * @brief 覆盖默认的距离与航向角目标达成判定准则。
+   * @brief 注册必需的目标达成判定钩子。
    * @param[in] hook 判定当前位姿是否满足目标条件的回调函数（返回 true 表示达成目标）。
    */
   void SetGoalHook(std::function<bool(const Pose2D&)> hook);
-
-  /**
-   * @brief 以编程方式将世界坐标系下的障碍物点光栅化导入内部边界栅格。
-   * @param[in] x 世界坐标系 X 坐标（米，m）。
-   * @param[in] y 世界坐标系 Y 坐标（米，m）。
-   */
-  void AddBoundaryWorldPoint(double x, double y);
 
   /** @} */
 
@@ -173,26 +146,10 @@ class HybridAStar {
     }
   };
 
-  /**
-   * @brief 二维离散整数栅格索引。
-   */
-  struct GridPoint {
-    int32_t x = 0;  ///< 栅格列索引。
-    int32_t y = 0;  ///< 栅格行索引。
-  };
-
-  bool ParseCsvPoint(const std::string& line, double* x, double* y) const;
-  void RasterizeLine(const GridPoint& start, const GridPoint& end);
-  void AddBoundaryPoint(const GridPoint& p);
-
-  bool IsBoundGrid(const GridPoint& p) const;
   bool IsCollision(const Vertex3D& node) const;
   bool IsGoal(const Vertex3D& node, const Pose2D& goal) const;
 
-  uint64_t CoordinateHash(const GridPoint& p) const;
   uint64_t VertexHash(const Vertex3D& node) const;
-  static double NormalizeAngle(double angle);
-  static std::string Trim(const std::string& text);
 
   void ExpandNode(const Vertex3D& current, const Pose2D& start, const Pose2D& goal);
   Vertex3D Propagate(const Vertex3D& start, MotionDirection direction, double steering_rad) const;
@@ -203,15 +160,9 @@ class HybridAStar {
   PlannerConfig config_;
   double grid_dist_ = 1.0;
   double grid_angle_rad_ = 0.017453292519943295;
-  double collision_front_meter_ = 1.0;
-  double collision_rear_meter_ = 1.0;
-  double collision_half_width_meter_ = 0.5;
-  double collision_safe_margin_meter_ = 0.0;
-  int32_t inflation_cells_ = 0;
+
   int32_t angle_bin_count_ = 360;
   Pose2D search_start_pose_;
-
-  std::unordered_set<uint64_t> boundaries_;
 
   std::unordered_map<uint64_t, Vertex3D> open_set_;
   std::unordered_map<uint64_t, Vertex3D> closed_set_;
