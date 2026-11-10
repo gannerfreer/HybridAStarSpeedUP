@@ -100,20 +100,20 @@ double contact_tolerance(double scale_m) noexcept;
  * @brief 二维轴对齐矩形包围盒。
  */
 struct Aabb2d {
-  double min_x{0.0};  ///< X 轴坐标下界（米）。
-  double min_y{0.0};  ///< Y 轴坐标下界（米）。
-  double max_x{0.0};  ///< X 轴坐标上界（米）。
-  double max_y{0.0};  ///< Y 轴坐标上界（米）。
+  double min_x{0.0};  ///< X 轴坐标下界（米）
+  double min_y{0.0};  ///< Y 轴坐标下界（米）
+  double max_x{0.0};  ///< X 轴坐标上界（米）
+  double max_y{0.0};  ///< Y 轴坐标上界（米）
 
   /**
-   * @brief 判定点 p 是否位于闭 AABB 内部或其边界上。
-   * @param[in] p 待测点。
-   * @return 若点在盒内或边上返回 true。
+   * @brief 判定点 p 是否位于闭 AABB 内部或其边界上
+   * @param[in] p 待测点
+   * @return 若点在盒内或边上返回 true
    */
   bool contains(const Point2d& p) const noexcept;
 
   /**
-   * @brief 判定两个闭 AABB 是否相交或接触（边界相碰判定为相交）。
+   * @brief 判定两个闭 AABB 是否相交或接触（边界相碰判定为相交）
    * @param[in] other 另一个 AABB。
    * @return 若相交或接触返回 true。
    */
@@ -121,35 +121,35 @@ struct Aabb2d {
 
   /**
    * @brief 四周对称向外扩展包围盒边界。
-   * @param[in] margin 向外扩充的外扩距离（米）。
+   * @param[in] margin 向外扩充的外扩距离（米）
    */
   void expand(double margin) noexcept;
 
   /**
-   * @brief 扩展本包围盒以紧密包络新增的点 p。
-   * @param[in] p 待合并的点。
+   * @brief 扩展本包围盒以紧密包络新增的点 p
+   * @param[in] p 待合并的点
    */
   void merge_point(const Point2d& p) noexcept;
 
   /**
-   * @brief 计算包围盒各角点坐标的最大绝对值尺度。
-   * @return 最大绝对值坐标（米）。
+   * @brief 计算包围盒各角点坐标的最大绝对值尺度
+   * @return 最大绝对值坐标（米）
    */
   double max_abs_coordinate() const noexcept;
 };
 
 /**
- * @brief 计算包含点集的紧凑二维轴对齐包围盒。
- * @param[in] points 点集数组。
- * @return 最小外包 Aabb2d。
+ * @brief 计算包含点集的紧凑二维轴对齐包围盒
+ * @param[in] points 点集数组
+ * @return 最小外包 Aabb2d
  */
 Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept;
 
 /**
- * @brief 计算两个闭 AABB 之间的最小欧氏距离（重叠或接触时返回 0）。
- * @param[in] a 第一个 AABB。
- * @param[in] b 第二个 AABB。
- * @return 最小欧氏距离（米）。
+ * @brief 计算两个闭 AABB 之间的最小欧氏距离（重叠或接触时返回 0）
+ * @param[in] a 第一个 AABB
+ * @param[in] b 第二个 AABB
+ * @return 最小欧氏距离（米）
  */
 double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept;
 
@@ -193,7 +193,7 @@ double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept;
 double signed_area_twice(const std::vector<Point2d>& polygon) noexcept;
 
 /**
- * @brief 校验多边形是否为非退化的严格凸多边形。
+ * @brief 校验多边形是否为严格凸多边形。
  * @param[in] polygon 顶点序列。
  * @param[out] reason 校验失败时的可选原因说明文本。
  * @return 若顶点数 >= 3、坐标有限、非共线退化且具备凸性则返回 true。

@@ -1,8 +1,7 @@
 /**
  * @file geometry.cpp
- * @brief 二维计算几何基元、投影分离轴判定与精确欧氏距离函数的具体实现。
- * @details 采用标准双精度浮点运算。所有几何闭集的边界接触在碰撞检测中均保守归类为相交，
- *          确保浮点截断或舍入误差绝不漏判接触碰撞。
+ * @brief 二维计算几何基元、投影分离轴与欧氏距离实现
+ * @note 按照双精度浮点设计！！！
  */
 
 #include "geometry.hpp"
@@ -20,23 +19,19 @@ namespace {
 
 constexpr double kEpsScale = 1e-12;
 
-// 快速两点欧氏距离 / 范数计算实现：
-// - 常规取值区间 |dx|, |dy| 处于 [1e-150, 1e150) 时，dx^2 + dy^2 绝无溢出或下溢风险，
-//   直接调用 std::sqrt 可获得符合 IEEE 754 规范的高性能严格舍入结果。
-// - 若超出该安全区间（如极大数/无穷/NaN），平滑回退至标准库 std::hypot。
-// - 针对 (0, 0) 输入（相交接触或重合时的极高频输入）提供优先短路分支。
-constexpr double kHypotFastMax = 1.0e150;   // (1e150)^2 = 1e300
-constexpr double kHypotFastMin = 1.0e-150;  // (1e-150)^2 = 1e-300
-
+// 快速两点欧氏距离
+// - 常规取值区间 |dx|, |dy| 处于 [0.0, 1e150) 时，dx^2 + dy^2 无上溢风险，
+// - 允许 2.225e-308 下溢到 0.0，
+//   范围内直接调用 std::sqrt 否则使用 std::hypot。
 double hypot_fast(double dx, double dy) noexcept {
+  constexpr double kHypotFastMax = 1.0e150;   // (1e150)^2 = 1e300
   const double ax = std::abs(dx);
   const double ay = std::abs(dy);
   // (0, 0) 是碰撞检测热点路径中最常见的退化输入（两点重叠或间距为零）
   if (ax == 0.0 && ay == 0.0) {
     return 0.0;
   }
-  if (ax >= kHypotFastMax || ay >= kHypotFastMax ||
-      (ax < kHypotFastMin && ay < kHypotFastMin)) {
+  if (ax >= kHypotFastMax || ay >= kHypotFastMax) {
     return std::hypot(dx, dy);
   }
   return std::sqrt(dx * dx + dy * dy);
@@ -101,7 +96,7 @@ bool polygon_axes_in_fast_domain(
   return true;
 }
 
-// 计算点 p 在指定投影轴上的标量投影值
+// 计算点 p 在指定投影轴 axis 上的标量投影值
 double project(const Point2d& p, const Point2d& axis) noexcept {
   return p.x_m * axis.x_m + p.y_m * axis.y_m;
 }
@@ -243,11 +238,11 @@ bool convex_polygon_intersects_aabb_unnormalized(
   return true;
 }
 
-// 判定点 p 是否严格位于逆时针凸多边形内部或其边界上。
-// 面积容差 (8 * epsilon * scale^2) 用于吸收浮点投影噪声。
+// 多边形内点判断
 bool point_in_ccw_polygon(const Point2d& p,
-                          const std::vector<Point2d>& polygon) noexcept {
-  const double area_scale = abs_coordinate_scale(polygon) + 1.0;
+  const std::vector<Point2d>& polygon) noexcept {
+    const double area_scale = abs_coordinate_scale(polygon) + 1.0;
+  // 面积容差 (8 * epsilon * scale^2) 
   const double tol =
       8.0 * std::numeric_limits<double>::epsilon() * area_scale * area_scale;
   for (std::size_t i = 0; i < polygon.size(); ++i) {
@@ -551,7 +546,7 @@ bool convex_polygon_valid(const std::vector<Point2d>& polygon,
     if (reason) *reason = "polygon is degenerate (zero area)";
     return false;
   }
-  // 凸性检验：转向叉积符号不允许发生翻转（允许共线顶点）
+  // 凸性检验
   int sign = 0;
   const std::size_t n = clean.size();
   for (std::size_t i = 0; i < n; ++i) {
