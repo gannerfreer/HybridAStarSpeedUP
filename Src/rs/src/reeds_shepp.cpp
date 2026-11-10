@@ -26,23 +26,11 @@ namespace planner::rs {
 namespace {
 
 constexpr double kPi = common::kPi;
-constexpr double kTwoPi = 2.0 * common::kPi;
 constexpr double kZero = 10.0 * std::numeric_limits<double>::epsilon();
 
 // ---------------------------------------------------------------------------
 // Reeds-Shepp 曲线专用数学辅助函数
 // ---------------------------------------------------------------------------
-
-// 将任意角度约束折叠至 (-pi, pi] 范围。
-double mod2pi(double x) {
-  double v = std::fmod(x, kTwoPi);
-  if (v < -kPi) {
-    v += kTwoPi;
-  } else if (v > kPi) {
-    v -= kTwoPi;
-  }
-  return v;
-}
 
 void polar(double x, double y, double& r, double& theta) {
   r = std::sqrt(x * x + y * y);
@@ -51,13 +39,14 @@ void polar(double x, double y, double& r, double& theta) {
 
 void tauOmega(double u, double v, double xi, double eta, double phi, double& tau,
               double& omega) {
-  const double delta = mod2pi(u - v);
+  const double delta = math::normalize_angle_rad(u - v);
   const double a = std::sin(u) - std::sin(delta);
   const double b = std::cos(u) - std::cos(delta) - 1.0;
   const double t1 = std::atan2(eta * a - xi * b, xi * a + eta * b);
   const double t2 = 2.0 * (std::cos(delta) - std::cos(v) - std::cos(u)) + 3.0;
-  tau = (t2 < 0.0) ? mod2pi(t1 + kPi) : mod2pi(t1);
-  omega = mod2pi(tau - u + v - phi);
+  tau = (t2 < 0.0) ? math::normalize_angle_rad(t1 + kPi)
+                   : math::normalize_angle_rad(t1);
+  omega = math::normalize_angle_rad(tau - u + v - phi);
 }
 
 // ---------------------------------------------------------------------------
@@ -128,7 +117,7 @@ RawPath makeRawPath(int type_index, double a, double b = 0.0, double c = 0.0,
 bool LpSpLp(double x, double y, double phi, double& t, double& u, double& v) {
   polar(x - std::sin(phi), y - 1.0 + std::cos(phi), u, t);
   if (t >= -kZero) {
-    v = mod2pi(phi - t);
+    v = math::normalize_angle_rad(phi - t);
     if (v >= -kZero) {
       return true;
     }
@@ -144,8 +133,8 @@ bool LpSpRp(double x, double y, double phi, double& t, double& u, double& v) {
   if (u1 >= 4.0) {
     u = std::sqrt(u1 - 4.0);
     const double theta = std::atan2(2.0, u);
-    t = mod2pi(t1 + theta);
-    v = mod2pi(t - phi);
+    t = math::normalize_angle_rad(t1 + theta);
+    v = math::normalize_angle_rad(t - phi);
     return t >= -kZero && v >= -kZero;
   }
   return false;
@@ -201,8 +190,8 @@ bool LpRmL(double x, double y, double phi, double& t, double& u, double& v) {
   polar(xi, eta, u1, theta);
   if (u1 <= 4.0) {
     u = -2.0 * std::asin(0.25 * u1);
-    t = mod2pi(theta + 0.5 * u + kPi);
-    v = mod2pi(phi - t + u);
+    t = math::normalize_angle_rad(theta + 0.5 * u + kPi);
+    v = math::normalize_angle_rad(phi - t + u);
     return t >= -kZero && u <= kZero;
   }
   return false;
@@ -336,8 +325,8 @@ bool LpRmSmLm(double x, double y, double phi, double& t, double& u, double& v) {
   if (rho >= 2.0) {
     const double r = std::sqrt(rho * rho - 4.0);
     u = 2.0 - r;
-    t = mod2pi(theta + std::atan2(r, -2.0));
-    v = mod2pi(phi - 0.5 * kPi - t);
+    t = math::normalize_angle_rad(theta + std::atan2(r, -2.0));
+    v = math::normalize_angle_rad(phi - 0.5 * kPi - t);
     return t >= -kZero && u <= kZero && v <= kZero;
   }
   return false;
@@ -351,7 +340,7 @@ bool LpRmSmRm(double x, double y, double phi, double& t, double& u, double& v) {
   if (rho >= 2.0) {
     t = theta;
     u = 2.0 - rho;
-    v = mod2pi(t + 0.5 * kPi - phi);
+    v = math::normalize_angle_rad(t + 0.5 * kPi - phi);
     return t >= -kZero && u <= kZero && v <= kZero;
   }
   return false;
@@ -456,8 +445,9 @@ bool LpRmSLmRp(double x, double y, double phi, double& t, double& u, double& v) 
   if (rho >= 2.0) {
     u = 4.0 - std::sqrt(rho * rho - 4.0);
     if (u <= kZero) {
-      t = mod2pi(std::atan2((4.0 - u) * xi - 2.0 * eta, -2.0 * xi + (u - 4.0) * eta));
-      v = mod2pi(t - phi);
+      t = math::normalize_angle_rad(
+          std::atan2((4.0 - u) * xi - 2.0 * eta, -2.0 * xi + (u - 4.0) * eta));
+      v = math::normalize_angle_rad(t - phi);
       return t >= -kZero && v >= -kZero;
     }
   }

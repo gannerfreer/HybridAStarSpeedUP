@@ -9,6 +9,64 @@
 namespace {
 using namespace planner;
 void require(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// 极小车体和薄障碍物放大旧采样检查的弧长缺口，确保问题不会被车体尺寸掩盖。
+void rejects_collision_in_arc_tail() {
+  common::VehicleModel vehicle;
+  vehicle.wheelbase_m = 0.0001;
+  vehicle.width_m = 0.0001;
+  vehicle.front_overhang_m = 0.00005;
+  vehicle.rear_overhang_m = 0.00005;
+  vehicle.max_steer_rad = std::atan(vehicle.wheelbase_m);  // R = 1 m
+  collision::Scene scene;
+  auto& grid = scene.grid;
+  grid.map_id = "arc_tail";
+  grid.map_version = "1";
+  grid.width = grid.height = 20;
+  grid.resolution_m = 0.5;
+  grid.cells.assign(400, common::kCellFree);
+  const common::Pose2d start{5, 5, 0};
+  const common::Pose2d goal = math::integrate_arc(start, common::kPi / 2, 1);
+  const auto hit = math::integrate_arc(start, 0.498, 1);
+  scene.obstacles.push_back(collision::Obstacle::rectangle(
+      "thin_obstacle", hit.x_m - 0.00002, hit.y_m - 0.00002,
+      hit.x_m + 0.00002, hit.y_m + 0.00002));
+  collision::CheckOptions options;
+  options.sweep_precision_m = 1e-6;
+  collision::CollisionChecker checker(vehicle, scene, options);
+  require(checker.valid(), "arc tail scene must be valid");
+  require(checker.check_pose(start).is_clear() && checker.check_pose(goal).is_clear(),
+          "arc tail endpoints must be clear");
+  const auto solved = rs::plan(start, goal, vehicle);
+  require(solved.status == common::Status::kSuccess, "arc RS solution");
+  const auto samples = rs::sample(solved.path, 0.5);
+  bool arc_length_detected_collision = false;
+  for (std::size_t i = 0; i + 1 < samples.size(); ++i) {
+    collision::MotionSegment segment;
+    segment.start = samples[i].pose;
+    segment.direction = samples[i].direction;
+    segment.curvature_inv_m = samples[i].curvature_inv_m;
+    segment.length_m = std::hypot(samples[i + 1].pose.x_m - samples[i].pose.x_m,
+                                 samples[i + 1].pose.y_m - samples[i].pose.y_m);
+    require(checker.check_motion(segment).is_clear(),
+            "regression setup must reproduce the old chord-length miss");
+    segment.length_m = samples[i + 1].s_m - samples[i].s_m;
+    arc_length_detected_collision |= checker.check_motion(segment).collided();
+  }
+  require(arc_length_detected_collision, "full arc must hit the thin obstacle");
+  common::PlanRequest request;
+  request.map_id = grid.map_id;
+  request.map_version = grid.map_version;
+  request.vehicle = vehicle;
+  request.start = start;
+  request.goal = goal;
+  request.node_budget = 1;
+  hybrid_astar::UserAstar planner;
+  const auto result = planner.plan(request, grid, checker);
+  // 连接必须在目标钩子中被拒绝，让搜索耗尽节点预算；旧代码误接受后返回 validation_failed。
+  require(result.status == common::Status::kTimeout && result.path.empty(),
+          "colliding RS connector must be rejected before output validation");
+}
+
 void run() {
  astar::PlannerConfig config;astar::HybridAStar core(config);astar::HybridSearchResult raw;
  require(!core.Search({0,0,0},{1,0,0},&raw) && raw.message.find("hook")!=std::string::npos,"missing hooks must reject search");
@@ -43,4 +101,4 @@ void run() {
  require(std::hypot(sampled.x_m-expected.x_m,sampled.y_m-expected.y_m)<1e-12,"RS integration must share math");
 }
 }
-int main(){try{run();std::cout<<"PASS: search hooks, reverse, cancellation, budgets, pi boundary and RS integration\n";return EXIT_SUCCESS;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return EXIT_FAILURE;}}
+int main(){try{rejects_collision_in_arc_tail();run();std::cout<<"PASS: search hooks, reverse, cancellation, budgets, pi boundary and RS integration\n";return EXIT_SUCCESS;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return EXIT_FAILURE;}}

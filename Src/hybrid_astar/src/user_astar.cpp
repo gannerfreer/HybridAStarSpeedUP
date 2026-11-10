@@ -450,30 +450,22 @@ common::PlanResult UserAstar::plan(
         }
       }
     }
-    std::vector<common::PathPoint> samples;
-    const double sample_step =
-        std::max(0.2, 0.5 * impl_->config.motion_step_m);
+    // 直接检查 RS 原始常曲率段，length_m 是完整弧长，不能用采样点间弦长代替。
+    common::Pose2d cursor = solved.path.start;
     try {
-      samples = rs::sample(solved.path, sample_step);
+      for (const rs::RsSegment& rs_segment : solved.path.segments) {
+        collision::MotionSegment segment;
+        segment.start = cursor;
+        segment.length_m = rs_segment.length_m;
+        segment.direction = rs_segment.direction;
+        segment.curvature_inv_m = rs_segment.curvature_inv_m;
+        if (!collision_checker.check_motion(segment).is_clear()) {
+          return false;
+        }
+        cursor = rs::integrate_segment(cursor, rs_segment, rs_segment.length_m);
+      }
     } catch (const std::exception&) {
       return false;
-    }
-    for (std::size_t k = 0; k + 1 < samples.size(); ++k) {
-      const double step = std::hypot(samples[k + 1].pose.x_m - samples[k].pose.x_m,
-                                     samples[k + 1].pose.y_m - samples[k].pose.y_m);
-      if (step <= 1e-12) {
-        continue;
-      }
-      collision::MotionSegment segment;
-      segment.start = samples[k].pose;
-      segment.length_m = step;
-      segment.direction = samples[k].direction;
-      segment.curvature_inv_m = samples[k].curvature_inv_m;
-      const collision::CheckResult check =
-          collision_checker.check_motion(segment);
-      if (!check.is_clear()) {
-        return false;
-      }
     }
     connector_valid = true;
     connector = solved.path;
