@@ -33,7 +33,8 @@ if (!vehicle) {
 | `safety_margin_m` | float | no | `0.0` | m |
 
 Validation is delegated to `common::vehicle_valid`: positive wheelbase and
-width, non-negative overhangs/margin, and a finite maximum steering angle.
+width, non-negative overhangs/margin, and a maximum steering angle satisfying
+`0 < max_steer_rad < pi/2`.
 
 ```toml
 schema_version = 1

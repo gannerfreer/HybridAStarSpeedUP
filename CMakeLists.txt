@@ -49,7 +49,7 @@ if(PLANNER_ENABLE_CLANG_TIDY)
 endif()
 
 if(PLANNER_WITH_CONFIG)
-  find_package(tomlplusplus CONFIG QUIET)
+  find_package(tomlplusplus 3.4 CONFIG QUIET)
   if(NOT TARGET tomlplusplus::tomlplusplus)
     if(PLANNER_FETCH_DEPS)
       include(FetchContent)
@@ -91,6 +91,11 @@ if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
   endif()
   find_package(GTest QUIET)
   if(NOT GTest_FOUND)
+    if(NOT PLANNER_FETCH_DEPS)
+      message(FATAL_ERROR
+        "PLANNER_BUILD_TESTS=ON, but GTest was not found and "
+        "PLANNER_FETCH_DEPS is OFF")
+    endif()
     include(FetchContent)
     FetchContent_Declare(
       googletest

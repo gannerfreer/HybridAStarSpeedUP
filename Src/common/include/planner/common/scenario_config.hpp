@@ -34,4 +34,13 @@ struct ScenarioConfig {
   std::vector<ObstacleConfig> obstacles;  ///< 场景障碍物列表。
 };
 
+/**
+ * @brief 校验场景配置的栅格尺寸、分辨率、位姿有限性与障碍物凸多边形合法性。
+ * @param[in] scenario 待校验的场景配置。
+ * @param[out] reason 失败时的诊断说明文本指针，可为 nullptr。
+ * @return 若场景配置全部合法则返回 true。
+ */
+bool scenario_config_valid(const ScenarioConfig& scenario,
+                           std::string* reason = nullptr);
+
 }  // namespace planner::common

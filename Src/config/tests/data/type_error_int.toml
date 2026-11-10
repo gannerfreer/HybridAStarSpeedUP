@@ -1,0 +1,4 @@
+schema_version = 1
+
+[search]
+heading_bins = 72.0

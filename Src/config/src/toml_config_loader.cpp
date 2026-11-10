@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "planner/config/config_loader.hpp"
-#include "planner/math/polygon2d.hpp"
 
 namespace planner::config {
 
@@ -29,7 +28,7 @@ constexpr std::int64_t kSchemaVersion = 1;
 constexpr const char* kSchemaVersionKey = "schema_version";
 
 struct FieldRef {
-  const char* token;  ///< 校验失败原因中用于定位字段的关键词。
+  std::string token;  ///< 校验失败原因中用于定位字段的关键词。
   std::string key_path;    ///< 对应的点分键路径。
   const toml::node* node;  ///< 对应 TOML 节点（用于行列定位）。
 };
@@ -90,8 +89,6 @@ class Loader {
   Loader(std::string file, const ConfigLoadOptions& options)
       : file_(std::move(file)), options_(options) {}
 
-  bool failed() const noexcept { return failed_; }
-
   template <typename T>
   ConfigResult<T> error_result() const {
     return make_error_result<T>(error_);
@@ -132,19 +129,20 @@ class Loader {
 
   bool read_schema_version(const toml::table& root) {
     const toml::node* node = root.get(kSchemaVersionKey);
+    const std::string key_path(kSchemaVersionKey);
     if (node == nullptr) {
-      return fail_missing(root, kSchemaVersionKeyKeyPath());
+      return fail_missing(root, key_path);
     }
     if (!node->is_integer()) {
-      return fail_type(*node, kSchemaVersionKeyKeyPath(), "an integer");
+      return fail_type(*node, key_path, "an integer");
     }
     const std::optional<std::int64_t> value = node->value_exact<std::int64_t>();
     if (!value) {
-      return fail_type(*node, kSchemaVersionKeyKeyPath(), "an integer");
+      return fail_type(*node, key_path, "an integer");
     }
     if (*value != kSchemaVersion) {
       return fail_value(
-          *node, kSchemaVersionKeyKeyPath(),
+          *node, key_path,
           "schema_version must be 1 (got " + std::to_string(*value) + ")");
     }
     return true;
@@ -190,24 +188,28 @@ class Loader {
     if (node == nullptr) {
       return required ? fail_missing(parent, key_path) : true;
     }
+    double value = 0.0;
     if (node->is_floating_point()) {
-      const std::optional<double> value = node->value_exact<double>();
-      if (!value) {
+      const std::optional<double> parsed = node->value_exact<double>();
+      if (!parsed) {
         return fail_type(*node, key_path, "a float or integer");
       }
-      *out = *value;
-      return true;
-    }
-    if (node->is_integer()) {
-      const std::optional<std::int64_t> value =
+      value = *parsed;
+    } else if (node->is_integer()) {
+      const std::optional<std::int64_t> parsed =
           node->value_exact<std::int64_t>();
-      if (!value) {
+      if (!parsed) {
         return fail_type(*node, key_path, "a float or integer");
       }
-      *out = static_cast<double>(*value);
-      return true;
+      value = static_cast<double>(*parsed);
+    } else {
+      return fail_type(*node, key_path, "a float or integer");
     }
-    return fail_type(*node, key_path, "a float or integer");
+    if (!std::isfinite(value)) {
+      return fail_value(*node, key_path, "value must be finite");
+    }
+    *out = value;
+    return true;
   }
 
   bool read_int(const toml::table& parent, const char* key,
@@ -297,10 +299,6 @@ class Loader {
   }
 
  private:
-  static std::string kSchemaVersionKeyKeyPath() {
-    return std::string(kSchemaVersionKey);
-  }
-
   bool fail_missing(const toml::node& parent, const std::string& key_path) {
     const toml::source_position begin = parent.source().begin;
     return fail(Status::kInvalidInput, key_path, &parent, nullptr,
@@ -641,22 +639,15 @@ ConfigResult<common::ScenarioConfig> load_scenario_config(
                             &scenario.resolution_m)) {
       return loader.error_result<common::ScenarioConfig>();
     }
-    if (scenario.width <= 0) {
-      loader.fail_value(*map->get("width"), "map.width",
-                        "map.width must be > 0");
-      return loader.error_result<common::ScenarioConfig>();
-    }
-    if (scenario.height <= 0) {
-      loader.fail_value(*map->get("height"), "map.height",
-                        "map.height must be > 0");
-      return loader.error_result<common::ScenarioConfig>();
-    }
-    if (!std::isfinite(scenario.resolution_m) ||
-        !(scenario.resolution_m > 0.0)) {
-      loader.fail_value(*map->get("resolution_m"), "map.resolution_m",
-                        "map.resolution_m must be finite and > 0");
-      return loader.error_result<common::ScenarioConfig>();
-    }
+    std::vector<FieldRef> validation_fields = {
+        {"width", "map.width", map->get("width")},
+        {"height", "map.height", map->get("height")},
+        {"resolution", "map.resolution_m", map->get("resolution_m")},
+        {"origin", "map.origin",
+         map->get("origin") != nullptr ? map->get("origin") : map},
+        {"start", "start", root.get("start")},
+        {"goal", "goal", root.get("goal")},
+    };
 
     if (map->get("origin") != nullptr) {
       const toml::table* origin =
@@ -696,25 +687,6 @@ ConfigResult<common::ScenarioConfig> load_scenario_config(
       return loader.error_result<common::ScenarioConfig>();
     }
 
-    const auto finite_pose = [](const math::Pose2d& pose) {
-      return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
-             std::isfinite(pose.yaw_rad);
-    };
-    if (!finite_pose(scenario.origin)) {
-      loader.fail_value(*root.get("map"), "map.origin",
-                        "map origin must be finite");
-      return loader.error_result<common::ScenarioConfig>();
-    }
-    if (!finite_pose(scenario.start)) {
-      loader.fail_value(*root.get("start"), "start",
-                        "start pose must be finite");
-      return loader.error_result<common::ScenarioConfig>();
-    }
-    if (!finite_pose(scenario.goal)) {
-      loader.fail_value(*root.get("goal"), "goal", "goal pose must be finite");
-      return loader.error_result<common::ScenarioConfig>();
-    }
-
     const toml::node* obstacles_node = root.get("obstacles");
     if (obstacles_node != nullptr) {
       const toml::array* obstacles =
@@ -746,6 +718,12 @@ ConfigResult<common::ScenarioConfig> load_scenario_config(
         if (vertices == nullptr) {
           return loader.error_result<common::ScenarioConfig>();
         }
+        validation_fields.push_back({"obstacle " + std::to_string(i) + " id",
+                                     item_path + ".id",
+                                     obstacle_table.get("id")});
+        validation_fields.push_back(
+            {"obstacle " + std::to_string(i) + " vertices",
+             item_path + ".vertices", vertices_node});
         obstacle.vertices.reserve(vertices->size());
         for (std::size_t j = 0; j < vertices->size(); ++j) {
           const std::string vertex_path =
@@ -770,17 +748,15 @@ ConfigResult<common::ScenarioConfig> load_scenario_config(
           }
           obstacle.vertices.push_back(vertex);
         }
-
-        std::string reason;
-        if (!math::convex_polygon_valid(obstacle.vertices, &reason)) {
-          loader.fail_value(*vertices_node, item_path + ".vertices",
-                            "invalid convex polygon: " + reason);
-          return loader.error_result<common::ScenarioConfig>();
-        }
         scenario.obstacles.push_back(std::move(obstacle));
       }
     }
 
+    std::string reason;
+    if (!common::scenario_config_valid(scenario, &reason)) {
+      loader.fail_validation(root, "", reason, validation_fields);
+      return loader.error_result<common::ScenarioConfig>();
+    }
     return make_value_result(std::move(scenario));
   } catch (const std::exception& exception) {
     return make_error_result<common::ScenarioConfig>(

@@ -3,14 +3,12 @@
  * @brief 由纯数据场景配置构建碰撞检测场景的具体实现。
  */
 
-#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "planner/math/polygon2d.hpp"
 #include "scene.hpp"
 
 namespace planner::collision {
@@ -27,22 +25,11 @@ Scene invalid_scene() {
   return scene;
 }
 
-bool finite_pose(const common::Pose2d& pose) {
-  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
-         std::isfinite(pose.yaw_rad);
-}
-
 }  // namespace
 
 Scene make_scene(const common::ScenarioConfig& scenario) {
-  if (scenario.width <= 0 || scenario.height <= 0) {
-    return invalid_scene();
-  }
-  if (!std::isfinite(scenario.resolution_m) || !(scenario.resolution_m > 0.0)) {
-    return invalid_scene();
-  }
-  if (!finite_pose(scenario.origin) || !finite_pose(scenario.start) ||
-      !finite_pose(scenario.goal)) {
+  std::string reason;
+  if (!common::scenario_config_valid(scenario, &reason)) {
     return invalid_scene();
   }
   const std::size_t width = static_cast<std::size_t>(scenario.width);
@@ -62,15 +49,8 @@ Scene make_scene(const common::ScenarioConfig& scenario) {
 
   scene.obstacles.reserve(scenario.obstacles.size());
   for (const common::ObstacleConfig& config : scenario.obstacles) {
-    std::string reason;
-    if (!math::convex_polygon_valid(config.vertices, &reason)) {
-      return invalid_scene();
-    }
-    Obstacle obstacle = Obstacle::convex_polygon(config.id, config.vertices);
-    if (!obstacle.valid(&reason)) {
-      return invalid_scene();
-    }
-    scene.obstacles.push_back(std::move(obstacle));
+    scene.obstacles.push_back(
+        Obstacle::convex_polygon(config.id, config.vertices));
   }
   return scene;
 }

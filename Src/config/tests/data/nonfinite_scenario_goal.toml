@@ -1,0 +1,15 @@
+schema_version = 1
+
+[map]
+width = 40
+height = 40
+resolution_m = 0.5
+
+[start]
+x_m = 1.0
+y_m = 1.0
+
+[goal]
+x_m = 20.0
+y_m = 20.0
+yaw_rad = nan

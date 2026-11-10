@@ -1,0 +1,24 @@
+schema_version = 1
+
+[map]
+width = 40
+height = 40
+resolution_m = 0.5
+
+[start]
+x_m = 1.0
+y_m = 1.0
+
+[goal]
+x_m = 20.0
+y_m = 20.0
+
+[[obstacles]]
+id = "box"
+bogus = 1
+vertices = [
+  { x_m = 2.0, y_m = 2.0 },
+  { x_m = 3.0, y_m = 2.0 },
+  { x_m = 3.0, y_m = 3.0 },
+  { x_m = 2.0, y_m = 3.0 },
+]

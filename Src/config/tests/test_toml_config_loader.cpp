@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -187,6 +188,32 @@ TEST(ConfigErrors, MissingRequiredAndTypeErrors) {
             std::string::npos);
 }
 
+TEST(ConfigErrors, StrictBooleanStringAndIntegerTypes) {
+  const auto bool_error =
+      config::load_vehicle_config(data_path("type_error_bool.toml"));
+  ASSERT_FALSE(bool_error);
+  EXPECT_EQ(bool_error.error.key_path, "width_m");
+  EXPECT_EQ(bool_error.error.line, 4);
+  EXPECT_NE(bool_error.error.message.find("expected a float or integer"),
+            std::string::npos);
+
+  const auto int_error =
+      config::load_planner_config(data_path("type_error_int.toml"));
+  ASSERT_FALSE(int_error);
+  EXPECT_EQ(int_error.error.key_path, "search.heading_bins");
+  EXPECT_EQ(int_error.error.line, 4);
+  EXPECT_NE(int_error.error.message.find("expected an integer"),
+            std::string::npos);
+
+  const auto string_error =
+      config::load_vehicle_config(data_path("type_error_string.toml"));
+  ASSERT_FALSE(string_error);
+  EXPECT_EQ(string_error.error.key_path, "id");
+  EXPECT_EQ(string_error.error.line, 2);
+  EXPECT_NE(string_error.error.message.find("expected a string"),
+            std::string::npos);
+}
+
 TEST(ConfigErrors, DuplicateKeysAreRejectedByParser) {
   const auto result =
       config::load_vehicle_config(data_path("duplicate_key.toml"));
@@ -233,6 +260,59 @@ TEST(ConfigErrors, RangeAndFiniteValidation) {
   EXPECT_NE(inf.error.message.find("finite"), std::string::npos);
 }
 
+TEST(ConfigErrors, NonFiniteScenarioValuesPointToMemberNodes) {
+  struct Case {
+    const char* file;
+    const char* key_path;
+    int line;
+    int column;
+  };
+  const Case cases[] = {
+      {"nonfinite_scenario_origin.toml", "map.origin.x_m", 9, 7},
+      {"nonfinite_scenario_start.toml", "start.y_m", 10, 7},
+      {"nonfinite_scenario_goal.toml", "goal.yaw_rad", 15, 11},
+      {"nonfinite_scenario_vertex.toml", "obstacles[0].vertices[2].x_m", 21,
+       11},
+  };
+  for (const Case& test_case : cases) {
+    SCOPED_TRACE(test_case.file);
+    const auto result = config::load_scenario_config(data_path(test_case.file));
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error.key_path, test_case.key_path);
+    EXPECT_EQ(result.error.line, test_case.line);
+    EXPECT_EQ(result.error.column, test_case.column);
+    EXPECT_NE(result.error.message.find("finite"), std::string::npos);
+  }
+}
+
+TEST(ConfigOptions, AllowUnknownKeysSkipsNestedScenarioEntries) {
+  const auto strict_obstacle = config::load_scenario_config(
+      data_path("unknown_nested_scenario_obstacle.toml"));
+  ASSERT_FALSE(strict_obstacle);
+  EXPECT_EQ(strict_obstacle.error.key_path, "obstacles[0].bogus");
+  EXPECT_EQ(strict_obstacle.error.line, 18);
+
+  const auto strict_vertex = config::load_scenario_config(
+      data_path("unknown_nested_scenario_vertex.toml"));
+  ASSERT_FALSE(strict_vertex);
+  EXPECT_EQ(strict_vertex.error.key_path, "obstacles[0].vertices[0].z_m");
+  EXPECT_EQ(strict_vertex.error.line, 19);
+
+  config::ConfigLoadOptions options;
+  options.allow_unknown_keys = true;
+  const auto obstacle = config::load_scenario_config(
+      data_path("unknown_nested_scenario_obstacle.toml"), options);
+  ASSERT_TRUE(obstacle) << obstacle.error.message;
+  ASSERT_EQ(obstacle.value->obstacles.size(), 1u);
+  EXPECT_EQ(obstacle.value->obstacles[0].id, "box");
+
+  const auto vertex = config::load_scenario_config(
+      data_path("unknown_nested_scenario_vertex.toml"), options);
+  ASSERT_TRUE(vertex) << vertex.error.message;
+  ASSERT_EQ(vertex.value->obstacles.size(), 1u);
+  EXPECT_EQ(vertex.value->obstacles[0].vertices.size(), 4u);
+}
+
 TEST(ConfigErrors, ScenarioDimensionsAndObstaclesAreValidated) {
   const auto dimensions = config::load_scenario_config(
       data_path("invalid_scenario_dimensions.toml"));
@@ -248,6 +328,50 @@ TEST(ConfigErrors, ScenarioDimensionsAndObstaclesAreValidated) {
   EXPECT_GT(obstacle.error.line, 0);
   EXPECT_NE(obstacle.error.message.find("invalid convex polygon"),
             std::string::npos);
+}
+
+TEST(ScenarioConfigValidation, CentralizesRangePoseAndObstacleChecks) {
+  common::ScenarioConfig scenario;
+  scenario.width = 10;
+  scenario.height = 10;
+  scenario.resolution_m = 0.5;
+  scenario.start = math::Pose2d{1.0, 1.0, 0.0};
+  scenario.goal = math::Pose2d{5.0, 5.0, 0.0};
+  common::ObstacleConfig obstacle;
+  obstacle.id = "box";
+  obstacle.vertices = {math::Point2d{2.0, 2.0}, math::Point2d{3.0, 2.0},
+                       math::Point2d{3.0, 3.0}, math::Point2d{2.0, 3.0}};
+  scenario.obstacles.push_back(obstacle);
+  EXPECT_TRUE(common::scenario_config_valid(scenario));
+
+  scenario.width = 0;
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.width = 10;
+  scenario.height = 0;
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.height = 10;
+  scenario.resolution_m = 0.0;
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.resolution_m = 0.5;
+  scenario.origin.x_m = std::nan("");
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.origin = math::Pose2d{};
+  scenario.start.y_m = std::numeric_limits<double>::infinity();
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.start = math::Pose2d{1.0, 1.0, 0.0};
+  scenario.goal.yaw_rad = std::nan("");
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.goal = math::Pose2d{5.0, 5.0, 0.0};
+
+  scenario.obstacles[0].id.clear();
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.obstacles[0].id = "box";
+  scenario.obstacles[0].vertices.clear();
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
+  scenario.obstacles[0].vertices = {math::Point2d{0.0, 0.0},
+                                    math::Point2d{1.0, 1.0},
+                                    math::Point2d{2.0, 2.0}};
+  EXPECT_FALSE(common::scenario_config_valid(scenario));
 }
 
 TEST(SceneConfig, MakeSceneBuildsGridAndObstacles) {
