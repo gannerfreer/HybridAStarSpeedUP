@@ -3,6 +3,7 @@ add_library(planner_math
   src/pose2d.cpp
   src/segment2d.cpp
   src/aabb2d.cpp
+  src/box2d.cpp
   src/polygon2d.cpp
   src/angle.cpp
   src/kinematics/bicycle_model.cpp)

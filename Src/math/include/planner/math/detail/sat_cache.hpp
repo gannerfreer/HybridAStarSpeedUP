@@ -173,16 +173,6 @@ struct PolygonSatCache {
     }
     return true;
   }
-
- private:
-  static bool box_in_fast_domain(const Aabb2d& box) noexcept {
-    return std::isfinite(box.min_x) && std::isfinite(box.max_x) &&
-           std::isfinite(box.min_y) && std::isfinite(box.max_y) &&
-           std::abs(box.min_x) <= kFastMaxAbsCoordinate &&
-           std::abs(box.max_x) <= kFastMaxAbsCoordinate &&
-           std::abs(box.min_y) <= kFastMaxAbsCoordinate &&
-           std::abs(box.max_y) <= kFastMaxAbsCoordinate;
-  }
 };
 
 using PolygonSatCache8 = PolygonSatCache<8>;

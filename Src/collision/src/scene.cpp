@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "types.hpp"
 
@@ -37,8 +38,11 @@ Obstacle Obstacle::rectangle(const std::string& id, double x_min_m,
   Obstacle obstacle;
   obstacle.id = id;
   std::string reason;
-  obstacle.vertices = math::rectangle_polygon(x_min_m, y_min_m, x_max_m, y_max_m,
-                                        &reason);
+  std::vector<Point2d> vertices = math::rectangle_polygon(
+      x_min_m, y_min_m, x_max_m, y_max_m, &reason);
+  if (auto polygon = math::Polygon2d::convex(std::move(vertices))) {
+    obstacle.polygon = std::move(*polygon);
+  }
   return obstacle;  // 输入非法时返回空顶点多边形
 }
 
@@ -46,18 +50,15 @@ Obstacle Obstacle::convex_polygon(const std::string& id,
                                   std::vector<Point2d> vertices) {
   Obstacle obstacle;
   obstacle.id = id;
-  if (math::convex_polygon_valid(vertices)) {
-    math::normalize_counter_clockwise(vertices);
-    obstacle.vertices = std::move(vertices);
+  if (auto polygon = math::Polygon2d::convex(std::move(vertices))) {
+    obstacle.polygon = std::move(*polygon);
   }
   return obstacle;
 }
 
 bool Obstacle::valid(std::string* reason) const {
-  return math::convex_polygon_valid(vertices, reason);
+  return polygon.valid(reason);
 }
-
-math::Aabb2d Obstacle::aabb() const noexcept { return math::aabb_of(vertices); }
 
 // ---------------------------------------------------------------------------
 // 场景环境 Scene
@@ -112,25 +113,6 @@ bool Scene::valid(std::string* reason) const {
 // ---------------------------------------------------------------------------
 // 车辆足迹 Footprint
 // ---------------------------------------------------------------------------
-
-std::array<Point2d, 4> Footprint::body_corners() const noexcept {
-  return {Point2d{x_min_m, y_min_m}, Point2d{x_max_m, y_min_m},
-          Point2d{x_max_m, y_max_m}, Point2d{x_min_m, y_max_m}};
-}
-
-std::array<Point2d, 4> Footprint::world_corners(
-    const Pose2d& pose) const noexcept {
-  // 单次求正余弦并批量变换 4 个角点，数值上与分别调用 transform_point 逐位一致
-  const double c = std::cos(pose.yaw_rad);
-  const double s = std::sin(pose.yaw_rad);
-  const std::array<Point2d, 4> body = body_corners();
-  std::array<Point2d, 4> out;
-  for (std::size_t i = 0; i < 4; ++i) {
-    out[i] = Point2d{pose.x_m + c * body[i].x_m - s * body[i].y_m,
-                     pose.y_m + s * body[i].x_m + c * body[i].y_m};
-  }
-  return out;
-}
 
 bool vehicle_footprint_valid(const VehicleModel& vehicle,
                              std::string* reason) {

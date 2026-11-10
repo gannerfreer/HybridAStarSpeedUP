@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <limits>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -217,6 +218,67 @@ TEST(CollisionChecker, InvalidInputAndInvalidConstruction) {
   collision::CollisionChecker bad_options_checker(vehicle, scene,
                                                   invalid_options);
   EXPECT_FALSE(bad_options_checker.valid());
+}
+
+TEST(CollisionFootprint, BoxGeometryPreservesLegacyCornerValues) {
+  const auto vehicle = test_vehicle();
+  const auto footprint = collision::make_footprint(vehicle);
+  EXPECT_EQ(footprint.body_box().corners(), footprint.body_corners());
+  std::mt19937 engine(9);
+  std::uniform_real_distribution<double> coordinate(-20.0, 20.0);
+  std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
+  for (int i = 0; i < 200; ++i) {
+    SCOPED_TRACE(i);
+    const common::Pose2d pose{coordinate(engine), coordinate(engine),
+                              angle(engine)};
+    const auto expected_body = footprint.body_corners();
+    const auto expected = footprint.world_corners(pose);
+    const auto box_corners = footprint.world_box(pose).corners();
+    for (std::size_t k = 0; k < 4; ++k) {
+      EXPECT_EQ(expected[k],
+                math::transform_point(pose, expected_body[k]));
+      EXPECT_EQ(box_corners[k], expected[k]);
+    }
+    const auto aabb = footprint.world_box(pose).aabb();
+    for (const auto& p : box_corners) {
+      EXPECT_TRUE(aabb.contains(p));
+    }
+  }
+}
+
+TEST(CollisionObstacle, FactoriesNormalizeAndCacheGeometry) {
+  const auto rectangle =
+      collision::Obstacle::rectangle("rect", -1.0, -2.0, 3.0, 4.0);
+  ASSERT_TRUE(rectangle.valid());
+  EXPECT_EQ(rectangle.id, "rect");
+  EXPECT_EQ(rectangle.size(), 4u);
+  EXPECT_FALSE(rectangle.empty());
+  EXPECT_EQ(rectangle.data(), rectangle.vertices().data());
+  EXPECT_TRUE(math::is_counter_clockwise(rectangle.vertices()));
+  EXPECT_EQ(rectangle.vertices().front(), (common::Point2d{-1.0, -2.0}));
+  EXPECT_DOUBLE_EQ(rectangle.aabb().min_x, -1.0);
+  EXPECT_DOUBLE_EQ(rectangle.aabb().min_y, -2.0);
+  EXPECT_DOUBLE_EQ(rectangle.aabb().max_x, 3.0);
+  EXPECT_DOUBLE_EQ(rectangle.aabb().max_y, 4.0);
+
+  const auto clockwise = collision::Obstacle::convex_polygon(
+      "cw", {{0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}});
+  ASSERT_TRUE(clockwise.valid());
+  EXPECT_TRUE(math::is_counter_clockwise(clockwise.vertices()));
+  EXPECT_DOUBLE_EQ(clockwise.aabb().max_x, 2.0);
+  EXPECT_DOUBLE_EQ(clockwise.aabb().max_y, 2.0);
+
+  const auto invalid = collision::Obstacle::convex_polygon(
+      "bad", {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}});
+  EXPECT_TRUE(invalid.empty());
+  EXPECT_FALSE(invalid.valid());
+  EXPECT_DOUBLE_EQ(invalid.aabb().min_x, 0.0);
+  EXPECT_DOUBLE_EQ(invalid.aabb().max_x, 0.0);
+
+  const auto inverted = collision::Obstacle::rectangle("inverted", 2.0, 0.0,
+                                                       1.0, 1.0);
+  EXPECT_TRUE(inverted.empty());
+  EXPECT_FALSE(inverted.valid());
 }
 
 }  // namespace

@@ -81,6 +81,8 @@ if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
   endfunction()
 
   planner_add_gtest(math_test Src/math/tests/test_math.cpp planner::math unit 20)
+  planner_add_gtest(geometry2d_test Src/math/tests/test_box_polygon.cpp
+    planner::math unit 20)
   planner_add_gtest(collision_checker_test
     Src/collision/tests/test_collision_checker.cpp planner::collision unit 20)
   planner_add_gtest(reeds_shepp_test

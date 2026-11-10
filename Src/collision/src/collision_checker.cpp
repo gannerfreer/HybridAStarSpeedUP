@@ -286,11 +286,10 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const math::Aabb2d& 
 
 PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
   PoseHit result;
-  const std::array<Point2d, 4> world = st.footprint.world_corners(pose);
+  const std::array<Point2d, 4> world = st.footprint.world_box(pose).corners();
   // 复用世界坐标系顶点：直接变换至栅格坐标系，避免重复调用昂贵的三角函数。
   const std::array<Point2d, 4> grid = grid_corners_from_world(st, world);
   const math::Aabb2d world_box = math::aabb_of_raw(world.data(), world.size());
-  const std::vector<Point2d> footprint_world(world.begin(), world.end());
 
   // 1) 地图边界外判定：车辆轮廓中若有任何点落在闭合地图矩形外部，则直接判定为碰撞。
   if (st.scene.has_grid()) {
@@ -320,11 +319,13 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
                                      obstacle.aabb().max_abs_coordinate()));
       // O(1) 粗筛：若分离轴投影间隙大于容差 tol，则两多边形最小欧氏距离 d >= gap > tol，
       // 两者绝无接触可能，可安全跳过精确距离计算。
-      if (!math::convex_polygons_intersect(footprint_world, obstacle.vertices,
-                                     tol)) {
+      if (!math::convex_polygons_intersect(world.data(), world.size(),
+                                           obstacle.data(), obstacle.size(),
+                                           tol)) {
         return;
       }
-      if (math::convex_polygon_distance_sq(footprint_world, obstacle.vertices) <=
+      if (math::convex_polygon_distance_sq(world.data(), world.size(),
+                                           obstacle.data(), obstacle.size()) <=
           tol * tol) {
         obstacle_hit.hit = true;
         obstacle_hit.reason = CollisionReason::kObstacle;
@@ -369,7 +370,6 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     // 故包围盒与边法向量仅计算一次，在各个候选单元间复用。
     math::internal::PolygonSatCache8 cell_sat;
     cell_sat.build(grid.data(), grid.size());
-    const std::vector<Point2d> footprint_grid_polygon(grid.begin(), grid.end());
     const double cell_tol_sq = tol * tol;
 
     PoseHit cell_hit;
@@ -389,7 +389,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         return;
       }
       // 在平方距离域执行精确欧氏距离检验。
-      if (math::polygon_aabb_distance_sq(footprint_grid_polygon, cell_box) >
+      if (math::polygon_aabb_distance_sq(grid.data(), grid.size(), cell_box) >
           cell_tol_sq) {
         return;
       }
@@ -451,8 +451,9 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
 // ---------------------------------------------------------------------------
 
 struct Envelope {
-  std::vector<Point2d> hull;  ///< 世界坐标系下的外包凸包顶点。
-  double sagitta_m{0.0};      ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差。
+  std::array<Point2d, 8> hull{};  ///< 世界坐标系下的外包凸包顶点（固定容量栈存储）。
+  std::size_t hull_size{0};       ///< 凸包有效顶点数量。
+  double sagitta_m{0.0};          ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差。
 };
 
 /// 构建区间内车辆扫掠轮廓的保守外包络（Envelope）：
@@ -484,18 +485,18 @@ Envelope build_envelope(const CollisionCheckerImpl& st, const Pose2d& p0, const 
   std::size_t n = 0;
   for (const Point2d& p : c0) points[n++] = p;
   for (const Point2d& p : c1) points[n++] = p;
-  std::array<Point2d, 8> hull{};
-  const std::size_t hull_n = math::convex_hull_small(points, n, hull);
-  envelope.hull.assign(hull.begin(), hull.begin() + hull_n);
+  envelope.hull_size =
+      math::convex_hull_small(points, n, envelope.hull);
   return envelope;
 }
 
 /// 判定扫掠包络是否严格与所有障碍物及阻挡栅格单元无干涉，且完全位于地图矩形边界之内。
 bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& envelope) {
-  if (envelope.hull.empty()) {
+  if (envelope.hull_size == 0) {
     return false;
   }
-  const math::Aabb2d hull_box = math::aabb_of(envelope.hull);
+  const math::Aabb2d hull_box =
+      math::aabb_of_raw(envelope.hull.data(), envelope.hull_size);
   const double scale = hull_box.max_abs_coordinate() + 1.0;
   const double tol = math::contact_tolerance(scale);
   const double reach = envelope.sagitta_m + tol;
@@ -506,15 +507,16 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
 
   // 栅格检测：地图边界包含性与阻挡像元相交性
   if (st.scene.has_grid()) {
-    std::vector<Point2d> grid_hull;
-    grid_hull.reserve(envelope.hull.size());
-    for (const Point2d& p : envelope.hull) {
-      grid_hull.push_back(st.frame.to_grid_frame(p));
+    std::array<Point2d, 8> grid_hull{};
+    std::size_t grid_hull_size = 0;
+    for (std::size_t i = 0; i < envelope.hull_size; ++i) {
+      grid_hull[grid_hull_size++] = st.frame.to_grid_frame(envelope.hull[i]);
     }
-    const math::Aabb2d hull_grid_box = math::aabb_of(grid_hull);
-    for (const Point2d& p : grid_hull) {
+    const math::Aabb2d hull_grid_box =
+        math::aabb_of_raw(grid_hull.data(), grid_hull_size);
+    for (std::size_t i = 0; i < grid_hull_size; ++i) {
       // distance_to_boundary <= reach 同时涵盖了靠近地图边界与出界两种情形
-      if (st.frame.distance_to_boundary(p) <= reach) {
+      if (st.frame.distance_to_boundary(grid_hull[i]) <= reach) {
         return false;
       }
     }
@@ -537,7 +539,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     bool clear = true;
     // 预先为外包凸包构建 SAT 分离轴缓存
     math::internal::PolygonSatCache8 hull_sat;
-    hull_sat.build(grid_hull.data(), grid_hull.size());
+    hull_sat.build(grid_hull.data(), grid_hull_size);
     const auto test_cell = [&](int row, int col) {
       const int value =
           grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
@@ -553,7 +555,8 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       if (!hull_sat.maybe_intersects(cell_box, reach)) {
         return;
       }
-      if (math::polygon_aabb_distance_sq(grid_hull, cell_box) <= reach * reach) {
+      if (math::polygon_aabb_distance_sq(grid_hull.data(), grid_hull_size,
+                                         cell_box) <= reach * reach) {
         clear = false;
       }
     };
@@ -608,12 +611,14 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     }
     const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
     // O(1) SAT 粗筛：当分离轴间隙大于 obstacle_reach 时跳过精确多边形距离计算
-    if (!math::convex_polygons_intersect(envelope.hull, obstacle.vertices,
-                                   obstacle_reach)) {
+    if (!math::convex_polygons_intersect(envelope.hull.data(), envelope.hull_size,
+                                         obstacle.data(), obstacle.size(),
+                                         obstacle_reach)) {
       return;
     }
-    const double d_sq =
-        math::convex_polygon_distance_sq(envelope.hull, obstacle.vertices);
+    const double d_sq = math::convex_polygon_distance_sq(
+        envelope.hull.data(), envelope.hull_size, obstacle.data(),
+        obstacle.size());
     if (d_sq <= obstacle_reach * obstacle_reach) {
       clear = false;
     }
@@ -944,9 +949,6 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
   }
 
   if (state->valid) {
-    for (Obstacle& obstacle : state->scene.obstacles) {
-      math::normalize_counter_clockwise(obstacle.vertices);
-    }
     state->obstacle_boxes.reserve(state->scene.obstacles.size());
     for (const Obstacle& obstacle : state->scene.obstacles) {
       state->obstacle_boxes.push_back(obstacle.aabb());

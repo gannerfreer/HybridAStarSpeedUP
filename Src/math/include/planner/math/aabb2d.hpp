@@ -126,6 +126,24 @@ struct Aabb2d {
   }
 };
 
+namespace internal {
+
+/**
+ * @brief 判定 AABB 的全部边界坐标是否均位于未归一化快速 SAT 的无溢出安全域内。
+ * @param[in] box 待检查的轴对齐包围盒。
+ * @return 若所有坐标有限且绝对值不超过安全上限则返回 true。
+ */
+inline bool box_in_fast_domain(const Aabb2d& box) noexcept {
+  return std::isfinite(box.min_x) && std::isfinite(box.max_x) &&
+         std::isfinite(box.min_y) && std::isfinite(box.max_y) &&
+         std::abs(box.min_x) <= kFastMaxAbsCoordinate &&
+         std::abs(box.max_x) <= kFastMaxAbsCoordinate &&
+         std::abs(box.min_y) <= kFastMaxAbsCoordinate &&
+         std::abs(box.max_y) <= kFastMaxAbsCoordinate;
+}
+
+}  // namespace internal
+
 /**
  * @brief 计算包含点集的紧凑二维轴对齐包围盒
  * @param[in] points 点集数组

@@ -10,10 +10,12 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
 #include "planner/math/aabb2d.hpp"
+#include "planner/math/box2d.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "types.hpp"
 
@@ -29,8 +31,8 @@ using planner::common::VehicleModel;
  * @brief 局部世界坐标系下的凸多边形静态障碍物。
  */
 struct Obstacle {
-  std::string id;                 ///< 障碍物唯一标识符。
-  std::vector<Point2d> vertices;  ///< 按逆时针 (CCW) 排列的闭合凸多边形顶点序列（顶点数 >= 3）。
+  std::string id;          ///< 障碍物唯一标识符。
+  math::Polygon2d polygon; ///< 按逆时针 (CCW) 排列的闭合凸多边形（顶点数 >= 3）。
 
   /**
    * @brief 创建轴对齐矩形凸障碍物的工厂方法。
@@ -61,10 +63,36 @@ struct Obstacle {
   bool valid(std::string* reason = nullptr) const;
 
   /**
-   * @brief 计算包围该障碍物的紧密轴对齐包围盒。
+   * @brief 获取逆时针顶点序列。
+   * @return 顶点序列只读引用。
+   */
+  const std::vector<Point2d>& vertices() const noexcept {
+    return polygon.vertices();
+  }
+
+  /**
+   * @brief 获取顶点连续存储首地址。
+   * @return 顶点数组指针。
+   */
+  const Point2d* data() const noexcept { return polygon.data(); }
+
+  /**
+   * @brief 获取顶点数量。
+   * @return 顶点数量。
+   */
+  std::size_t size() const noexcept { return polygon.size(); }
+
+  /**
+   * @brief 判定障碍物多边形是否为空。
+   * @return 若无顶点返回 true。
+   */
+  bool empty() const noexcept { return polygon.empty(); }
+
+  /**
+   * @brief 获取构造时缓存的紧密轴对齐包围盒。
    * @return 对应的 math::Aabb2d。
    */
-  math::Aabb2d aabb() const noexcept;
+  const math::Aabb2d& aabb() const noexcept { return polygon.aabb(); }
 };
 
 /**
@@ -106,14 +134,45 @@ struct Footprint {
    * @brief 计算车体系下的 4 个角点坐标，从 (x_min, y_min) 起沿逆时针排列。
    * @return 包含 4 个车体系角点的定长数组。
    */
-  std::array<Point2d, 4> body_corners() const noexcept;
+  std::array<Point2d, 4> body_corners() const noexcept {
+    return {Point2d{x_min_m, y_min_m}, Point2d{x_max_m, y_min_m},
+            Point2d{x_max_m, y_max_m}, Point2d{x_min_m, y_max_m}};
+  }
+
+  /**
+   * @brief 构造车体系下的足迹有向包围盒。
+   * @return 中心位于足迹几何中心、航向角为 0 的 Box2d。
+   */
+  math::Box2d body_box() const noexcept {
+    return math::Box2d{math::Vec2d{center_x_m, 0.0}, x_max_m - x_min_m,
+                       y_max_m - y_min_m, 0.0, 1.0, 0.0,
+                       math::Vec2d{0.0, 0.0}, body_corners()};
+  }
+
+  /**
+   * @brief 构造车辆在指定世界位姿下的足迹有向包围盒。
+   * @param[in] pose 车辆后轴中心在世界系下的位姿。
+   * @return 世界坐标系下的 Box2d。
+   */
+  math::Box2d world_box(const Pose2d& pose) const noexcept {
+    // 单次求正余弦并变换足迹中心；Box2d 复用缓存的正余弦与车体角点批量生成世界系角点。
+    const double c = std::cos(pose.yaw_rad);
+    const double s = std::sin(pose.yaw_rad);
+    const math::Vec2d center{pose.x_m + c * center_x_m,
+                             pose.y_m + s * center_x_m};
+    return math::Box2d{center, x_max_m - x_min_m, y_max_m - y_min_m,
+                       pose.yaw_rad, c, s, math::Vec2d{pose.x_m, pose.y_m},
+                       body_corners()};
+  }
 
   /**
    * @brief 计算车辆在指定世界位姿下的 4 个世界系角点坐标。
    * @param[in] pose 车辆后轴中心在世界系下的位姿。
    * @return 包含 4 个世界系角点的定长数组。
    */
-  std::array<Point2d, 4> world_corners(const Pose2d& pose) const noexcept;
+  std::array<Point2d, 4> world_corners(const Pose2d& pose) const noexcept {
+    return world_box(pose).corners();
+  }
 };
 
 /**
