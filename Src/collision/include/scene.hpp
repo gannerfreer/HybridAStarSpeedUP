@@ -155,7 +155,8 @@ struct Footprint {
    * @return 世界坐标系下的 Box2d。
    */
   math::Box2d world_box(const Pose2d& pose) const noexcept {
-    // 单次求正余弦并变换足迹中心；Box2d 复用缓存的正余弦与车体角点批量生成世界系角点。
+    // 单次求正余弦并批量变换 4 个角点，数值上与分别调用 transform_point 逐位一致
+    // Box2d 复用缓存的正余弦与车体角点批量生成世界系角点。
     const double c = std::cos(pose.yaw_rad);
     const double s = std::sin(pose.yaw_rad);
     const math::Vec2d center{pose.x_m + c * center_x_m,

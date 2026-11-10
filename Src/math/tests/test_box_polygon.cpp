@@ -175,7 +175,6 @@ TEST(MathPolygon2d, FactoryRejectsInvalidInputs) {
   const math::Polygon2d empty;
   EXPECT_TRUE(empty.empty());
   EXPECT_EQ(empty.size(), 0u);
-  EXPECT_EQ(empty.data(), nullptr);
   EXPECT_FALSE(empty.valid());
 }
 
@@ -208,6 +207,52 @@ TEST(MathPolygon2d, RawOverloadsMatchVectorWrappersAndHandleClockwise) {
                    math::polygon_aabb_distance(ccw, box));
   EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(cw.data(), cw.size(), box),
                    math::polygon_aabb_distance_sq(ccw, box));
+}
+
+TEST(MathPolygon2d, RawOverloadsHandleEmptyAndDegenerateInputs) {
+  const std::vector<math::Point2d> empty;
+  const std::vector<math::Point2d> point{{1.0, 1.0}};
+  const std::vector<math::Point2d> far_point{{2.0, 3.0}};
+  const std::vector<math::Point2d> horizontal{{0.0, 2.0}, {2.0, 2.0}};
+  const std::vector<math::Point2d> vertical{{1.0, 1.5}, {1.0, 2.5}};
+  const math::Aabb2d box{0.0, 0.0, 1.0, 1.0};
+
+  EXPECT_FALSE(math::convex_polygons_intersect(
+      empty.data(), empty.size(), point.data(), point.size(), 0.0));
+  EXPECT_EQ(math::convex_polygons_intersect(
+                empty.data(), empty.size(), point.data(), point.size(), 0.0),
+            math::convex_polygons_intersect(empty, point, 0.0));
+  EXPECT_TRUE(math::convex_polygons_intersect(
+      point.data(), point.size(), point.data(), point.size(), 0.0))
+      << "touching degenerate points count as intersection";
+  EXPECT_TRUE(math::convex_polygons_intersect(
+      horizontal.data(), horizontal.size(), vertical.data(), vertical.size(),
+      0.0));
+  EXPECT_FALSE(math::convex_polygons_intersect(
+      horizontal.data(), horizontal.size(), far_point.data(),
+      far_point.size(), 0.0));
+
+  EXPECT_TRUE(std::isinf(math::convex_polygon_distance_sq(
+      empty.data(), empty.size(), point.data(), point.size())));
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
+                       point.data(), point.size(), point.data(), point.size()),
+                   0.0);
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
+                       point.data(), point.size(), far_point.data(),
+                       far_point.size()),
+                   5.0);
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
+                       horizontal.data(), horizontal.size(), far_point.data(),
+                       far_point.size()),
+                   1.0);
+
+  EXPECT_TRUE(std::isinf(
+      math::polygon_aabb_distance_sq(empty.data(), empty.size(), box)));
+  EXPECT_DOUBLE_EQ(
+      math::polygon_aabb_distance_sq(point.data(), point.size(), box), 0.0);
+  EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(horizontal.data(),
+                                                  horizontal.size(), box),
+                   1.0);
 }
 
 TEST(MathPolygon2d, RandomDifferentialAgainstVectorWrappers) {

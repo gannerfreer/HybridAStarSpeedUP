@@ -49,7 +49,7 @@ class Polygon2d {
 
   /**
    * @brief 获取顶点连续存储首地址。
-   * @return 顶点数组指针；空多边形返回 nullptr。
+   * @return 顶点数组指针；空多边形 size() 为 0，此时 data() 不得解引用。
    */
   const Point2d* data() const noexcept { return vertices_.data(); }
 
