@@ -41,12 +41,10 @@ bool planner_config_valid(const UserAstarConfig& config, std::string* reason) {
   if (!finite_positive(config.motion_step_m, "motion_step_m", reason)) {
     return false;
   }
-  if (!finite_positive(config.goal_capture_radius_m, "goal_capture_radius_m",
-                       reason)) {
+  if (!finite_positive(config.goal_capture_radius_m, "goal_capture_radius_m", reason)) {
     return false;
   }
-  if (!std::isfinite(config.default_time_budget_s) ||
-      !(config.default_time_budget_s > 0.0) ||
+  if (!std::isfinite(config.default_time_budget_s) || !(config.default_time_budget_s > 0.0) ||
       config.default_time_budget_s > 1e9) {
     if (reason) {
       *reason = "planner config default_time_budget_s must be finite and in (0, 1e9]";
@@ -65,24 +63,21 @@ bool planner_config_valid(const UserAstarConfig& config, std::string* reason) {
   if (!finite_nonnegative(config.switch_cost, "switch_cost", reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.backward_search_range_m,
-                          "backward_search_range_m", reason)) {
+  if (!finite_nonnegative(config.backward_search_range_m, "backward_search_range_m", reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.linear_preferred_distance_m2,
-                          "linear_preferred_distance_m2", reason)) {
+  if (!finite_nonnegative(config.linear_preferred_distance_m2, "linear_preferred_distance_m2",
+                          reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.analytic_shot_distance_m,
-                          "analytic_shot_distance_m", reason)) {
+  if (!finite_nonnegative(config.analytic_shot_distance_m, "analytic_shot_distance_m", reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.analytic_expansion_max_length_m,
-                          "analytic_expansion_max_length_m", reason)) {
+  if (!finite_nonnegative(config.analytic_expansion_max_length_m, "analytic_expansion_max_length_m",
+                          reason)) {
     return false;
   }
-  if (!finite_nonnegative(config.min_connector_segment_m,
-                          "min_connector_segment_m", reason)) {
+  if (!finite_nonnegative(config.min_connector_segment_m, "min_connector_segment_m", reason)) {
     return false;
   }
   if (config.heading_bins < 8) {

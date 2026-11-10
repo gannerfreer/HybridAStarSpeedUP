@@ -37,8 +37,7 @@ void hash_double(std::uint64_t* hash, double value) {
 
 }  // namespace
 
-std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row,
-                             int goal_col) {
+std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row, int goal_col) {
   std::uint64_t hash = 14695981039346656037ull;  // FNV-1a 初始偏移基数
   hash_byte_block(&hash, grid.map_id.data(), grid.map_id.size());
   hash_byte_block(&hash, grid.map_version.data(), grid.map_version.size());
@@ -57,9 +56,8 @@ std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row,
   return hash;
 }
 
-GridPotential compute_grid_potential(
-    const common::GridView& grid, int goal_row, int goal_col,
-    const std::function<bool()>& deadline_exceeded) {
+GridPotential compute_grid_potential(const common::GridView& grid, int goal_row, int goal_col,
+                                     const std::function<bool()>& deadline_exceeded) {
   GridPotential potential;
   potential.width = grid.width;
   potential.height = grid.height;
@@ -75,8 +73,7 @@ GridPotential compute_grid_potential(
     return potential;
   }
 
-  potential.distance_m.assign(static_cast<std::size_t>(cell_count),
-                              kPotentialInfinity);
+  potential.distance_m.assign(static_cast<std::size_t>(cell_count), kPotentialInfinity);
 
   const float step_m = static_cast<float>(grid.resolution_m);
   const float diagonal_step_m = step_m * static_cast<float>(std::sqrt(2.0));
@@ -100,15 +97,13 @@ GridPotential compute_grid_potential(
 
   std::uint64_t processed = 0;
   while (!queue.empty()) {
-    if (deadline_exceeded != nullptr && ((++processed & 8191u) == 0u) &&
-        deadline_exceeded()) {
+    if (deadline_exceeded != nullptr && ((++processed & 8191u) == 0u) && deadline_exceeded()) {
       potential.aborted = true;
       return potential;
     }
     const QueueItem top = queue.top();
     queue.pop();
-    if (top.distance >
-        potential.distance_m[static_cast<std::size_t>(top.index)]) {
+    if (top.distance > potential.distance_m[static_cast<std::size_t>(top.index)]) {
       continue;  // 堆中过期条目，直接跳过
     }
     const int row = top.index / grid.width;
@@ -123,13 +118,10 @@ GridPotential compute_grid_potential(
       if (grid.cells[static_cast<std::size_t>(next_index)] != common::kCellFree) {
         continue;
       }
-      const float edge =
-          (kRowDelta[k] != 0 && kColDelta[k] != 0) ? diagonal_step_m : step_m;
+      const float edge = (kRowDelta[k] != 0 && kColDelta[k] != 0) ? diagonal_step_m : step_m;
       const float next_distance = top.distance + edge;
-      if (next_distance <
-          potential.distance_m[static_cast<std::size_t>(next_index)]) {
-        potential.distance_m[static_cast<std::size_t>(next_index)] =
-            next_distance;
+      if (next_distance < potential.distance_m[static_cast<std::size_t>(next_index)]) {
+        potential.distance_m[static_cast<std::size_t>(next_index)] = next_distance;
         queue.push(QueueItem{next_distance, next_index});
       }
     }

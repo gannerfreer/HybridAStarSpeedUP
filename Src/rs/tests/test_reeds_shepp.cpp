@@ -1,15 +1,15 @@
-#include "planner/common/path.hpp"
-#include "planner/common/status.hpp"
-#include "planner/common/vehicle.hpp"
-#include "planner/math/kinematics/arc.hpp"
-#include "reeds_shepp.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
+#include "planner/common/path.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
+#include "planner/math/kinematics/arc.hpp"
+#include "reeds_shepp.hpp"
 
 namespace {
 using namespace planner;
@@ -37,8 +37,7 @@ TEST(ReedsShepp, PlansKnownQueriesAndClosesEndpoint) {
   const common::VehicleModel vehicle = test_vehicle();
   const auto& queries = known_queries();
   const double max_curvature = 1.0 / rs::min_turn_radius_m(vehicle);
-  for (std::size_t query_index = 0; query_index < queries.size();
-       ++query_index) {
+  for (std::size_t query_index = 0; query_index < queries.size(); ++query_index) {
     SCOPED_TRACE(query_index);
     const auto& start = queries[query_index].first;
     const auto& goal = queries[query_index].second;
@@ -69,11 +68,9 @@ TEST(ReedsShepp, SampleIsMonotonicAndEndsAtGoal) {
   const double ds_m = 0.25;
   const common::VehicleModel vehicle = test_vehicle();
   const auto& queries = known_queries();
-  for (std::size_t query_index = 0; query_index < queries.size();
-       ++query_index) {
+  for (std::size_t query_index = 0; query_index < queries.size(); ++query_index) {
     SCOPED_TRACE(query_index);
-    const auto solved = rs::plan(queries[query_index].first,
-                                 queries[query_index].second, vehicle);
+    const auto solved = rs::plan(queries[query_index].first, queries[query_index].second, vehicle);
     ASSERT_EQ(solved.status, common::Status::kSuccess) << solved.reason;
     const auto samples = rs::sample(solved.path, ds_m);
     ASSERT_GE(samples.size(), 2u);
@@ -103,21 +100,15 @@ TEST(ReedsShepp, ReverseSegmentIntegrationMatchesSharedArcKernel) {
   segment.direction = common::Direction::kReverse;
 
   const auto full = rs::integrate_segment(start, segment, segment.length_m);
-  const auto expected_full =
-      math::integrate_arc(start, -segment.length_m, segment.curvature_per_m);
-  EXPECT_LT(std::hypot(full.x_m - expected_full.x_m,
-                       full.y_m - expected_full.y_m),
-            1e-12);
-  EXPECT_LT(std::abs(math::normalize_angle_rad(full.yaw_rad -
-                                               expected_full.yaw_rad)),
-            1e-12);
+  const auto expected_full = math::integrate_arc(start, -segment.length_m, segment.curvature_per_m);
+  EXPECT_LT(std::hypot(full.x_m - expected_full.x_m, full.y_m - expected_full.y_m), 1e-12);
+  EXPECT_LT(std::abs(math::normalize_angle_rad(full.yaw_rad - expected_full.yaw_rad)), 1e-12);
 
   const double partial_length_m = 0.75;
   const auto partial = rs::integrate_segment(start, segment, partial_length_m);
   const auto expected_partial =
       math::integrate_arc(start, -partial_length_m, segment.curvature_per_m);
-  EXPECT_LT(std::hypot(partial.x_m - expected_partial.x_m,
-                       partial.y_m - expected_partial.y_m),
+  EXPECT_LT(std::hypot(partial.x_m - expected_partial.x_m, partial.y_m - expected_partial.y_m),
             1e-12);
 
   rs::RsSegment straight;
@@ -126,11 +117,9 @@ TEST(ReedsShepp, ReverseSegmentIntegrationMatchesSharedArcKernel) {
   straight.direction = common::Direction::kForward;
   const auto forward = rs::integrate_segment(start, straight, 2.0);
   const auto expected_forward = math::integrate_arc(start, 2.0, 0.0);
-  EXPECT_LT(std::hypot(forward.x_m - expected_forward.x_m,
-                       forward.y_m - expected_forward.y_m),
+  EXPECT_LT(std::hypot(forward.x_m - expected_forward.x_m, forward.y_m - expected_forward.y_m),
             1e-15);
-  EXPECT_THROW(rs::integrate_segment(start, segment, 2.5),
-               std::invalid_argument);
+  EXPECT_THROW(rs::integrate_segment(start, segment, 2.5), std::invalid_argument);
 }
 
 }  // namespace

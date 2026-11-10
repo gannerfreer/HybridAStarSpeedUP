@@ -1,14 +1,14 @@
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <string>
+
 #include "planner/common/grid_view.hpp"
 #include "planner/common/plan.hpp"
 #include "planner/common/status.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "user_astar.hpp"
-
-#include <gtest/gtest.h>
-
-#include <cmath>
-#include <string>
 
 namespace {
 using namespace planner;
@@ -53,49 +53,38 @@ TEST(ObstacleDetour, PlansCollisionFreeDetour) {
   collision::MotionSegment direct;
   direct.start = request.start;
   direct.length_m = 20.0;
-  EXPECT_TRUE(checker.check_motion(direct).collided())
-      << "test setup must block the direct route";
+  EXPECT_TRUE(checker.check_motion(direct).collided()) << "test setup must block the direct route";
 
   hybrid_astar::UserAstar planner;
   const auto result = planner.plan(request, grid, checker);
   ASSERT_EQ(result.status, common::Status::kSuccess)
-      << "planning failed: " << common::to_string(result.status) << " "
-      << result.reason;
+      << "planning failed: " << common::to_string(result.status) << " " << result.reason;
   ASSERT_FALSE(result.path.empty()) << "successful path must not be empty";
-  ASSERT_FALSE(result.path.front().points.empty())
-      << "path segment must not be empty";
-  ASSERT_FALSE(result.path.back().points.empty())
-      << "path segment must not be empty";
-  for (std::size_t segment_index = 0; segment_index < result.path.size();
-       ++segment_index) {
+  ASSERT_FALSE(result.path.front().points.empty()) << "path segment must not be empty";
+  ASSERT_FALSE(result.path.back().points.empty()) << "path segment must not be empty";
+  for (std::size_t segment_index = 0; segment_index < result.path.size(); ++segment_index) {
     SCOPED_TRACE(segment_index);
     const auto& segment = result.path[segment_index];
     ASSERT_FALSE(segment.points.empty()) << "path segment must not be empty";
-    for (std::size_t point_index = 0; point_index < segment.points.size();
-         ++point_index) {
+    for (std::size_t point_index = 0; point_index < segment.points.size(); ++point_index) {
       SCOPED_TRACE(point_index);
       const auto& point = segment.points[point_index];
       EXPECT_TRUE(std::isfinite(point.s_m) && std::isfinite(point.pose.x_m) &&
-                  std::isfinite(point.pose.y_m) &&
-                  std::isfinite(point.pose.yaw_rad) &&
+                  std::isfinite(point.pose.y_m) && std::isfinite(point.pose.yaw_rad) &&
                   std::isfinite(point.curvature_per_m))
           << "path contains nonfinite values";
-      EXPECT_LE(std::abs(point.curvature_per_m),
-                1.0 / vehicle.min_turn_radius_m() + 1e-9)
+      EXPECT_LE(std::abs(point.curvature_per_m), 1.0 / vehicle.min_turn_radius_m() + 1e-9)
           << "path exceeds the vehicle curvature limit";
     }
   }
   const auto& start = result.path.front().points.front().pose;
   const auto& end = result.path.back().points.back();
-  EXPECT_TRUE(std::hypot(start.x_m - request.start.x_m,
-                         start.y_m - request.start.y_m) < 1e-6 &&
-              std::abs(math::normalize_angle_rad(
-                           start.yaw_rad - request.start.yaw_rad)) < 1e-6)
+  EXPECT_TRUE(std::hypot(start.x_m - request.start.x_m, start.y_m - request.start.y_m) < 1e-6 &&
+              std::abs(math::normalize_angle_rad(start.yaw_rad - request.start.yaw_rad)) < 1e-6)
       << "path must begin at the requested start";
-  EXPECT_TRUE(std::hypot(end.pose.x_m - request.goal.x_m,
-                         end.pose.y_m - request.goal.y_m) <= 0.05 &&
-              std::abs(math::normalize_angle_rad(
-                           end.pose.yaw_rad - request.goal.yaw_rad)) <= 0.02)
+  EXPECT_TRUE(std::hypot(end.pose.x_m - request.goal.x_m, end.pose.y_m - request.goal.y_m) <=
+                  0.05 &&
+              std::abs(math::normalize_angle_rad(end.pose.yaw_rad - request.goal.yaw_rad)) <= 0.02)
       << "path must reach the requested goal pose";
   EXPECT_GT(end.s_m, direct.length_m) << "path must detour around the obstacle";
   EXPECT_TRUE(checker.check_path(result.path).is_clear())

@@ -1,7 +1,3 @@
-#include "planner/math/box2d.hpp"
-#include "planner/math/angle.hpp"
-#include "planner/math/polygon2d.hpp"
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -12,6 +8,10 @@
 #include <random>
 #include <string>
 #include <vector>
+
+#include "planner/math/angle.hpp"
+#include "planner/math/box2d.hpp"
+#include "planner/math/polygon2d.hpp"
 
 namespace {
 using namespace planner;
@@ -73,8 +73,7 @@ TEST(MathBox2d, IntersectsAabbTouchOverlapAndSeparation) {
   EXPECT_TRUE(box.intersects({1.0, -1.0, 2.0, 1.0})) << "edge touch";
   EXPECT_TRUE(box.intersects({1.0, 1.0, 2.0, 2.0})) << "corner touch";
   EXPECT_FALSE(box.intersects({1.0001, -1.0, 2.0, 1.0}));
-  EXPECT_TRUE(box.intersects({1.0001, -1.0, 2.0, 1.0}, 0.001))
-      << "tolerance closes the gap";
+  EXPECT_TRUE(box.intersects({1.0001, -1.0, 2.0, 1.0}, 0.001)) << "tolerance closes the gap";
 
   const math::Box2d rotated{{0.0, 0.0}, 2.0, 2.0, math::kPi * 0.25};
   EXPECT_TRUE(rotated.intersects({-0.1, -0.1, 0.1, 0.1}));
@@ -101,10 +100,10 @@ TEST(MathBox2d, RandomDifferentialAgainstPolygonFunctions) {
   std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
   for (int i = 0; i < 400; ++i) {
     SCOPED_TRACE(i);
-    const math::Box2d a{{center(engine), center(engine)}, size(engine),
-                        size(engine), angle(engine)};
-    const math::Box2d b{{center(engine), center(engine)}, size(engine),
-                        size(engine), angle(engine)};
+    const math::Box2d a{
+        {center(engine), center(engine)}, size(engine), size(engine), angle(engine)};
+    const math::Box2d b{
+        {center(engine), center(engine)}, size(engine), size(engine), angle(engine)};
     const double x = center(engine);
     const double y = center(engine);
     const math::Aabb2d box{x, y, x + size(engine), y + size(engine)};
@@ -112,20 +111,16 @@ TEST(MathBox2d, RandomDifferentialAgainstPolygonFunctions) {
     const std::vector<math::Point2d> vb = corner_vector(b);
     for (double tol : {0.0, 1e-12, 1e-4, 0.05}) {
       SCOPED_TRACE(tol);
-      EXPECT_EQ(a.intersects(b, tol),
-                math::convex_polygons_intersect(va, vb, tol));
-      EXPECT_EQ(a.intersects(box, tol),
-                math::convex_polygon_intersects_aabb(va, box, tol));
+      EXPECT_EQ(a.intersects(b, tol), math::convex_polygons_intersect(va, vb, tol));
+      EXPECT_EQ(a.intersects(box, tol), math::convex_polygon_intersects_aabb(va, box, tol));
     }
     const math::Point2d p{x, y};
-    EXPECT_EQ(a.distance_sq_to(p),
-              math::point_polygon_distance_sq(p, va));
+    EXPECT_EQ(a.distance_sq_to(p), math::point_polygon_distance_sq(p, va));
   }
 }
 
 TEST(MathPolygon2d, FactoryValidatesNormalizesAndCachesAabb) {
-  const std::vector<math::Point2d> clockwise{
-      {0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}};
+  const std::vector<math::Point2d> clockwise{{0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}};
   std::string reason;
   const auto polygon = math::Polygon2d::convex(clockwise, &reason);
   ASSERT_TRUE(polygon.has_value()) << reason;
@@ -139,37 +134,29 @@ TEST(MathPolygon2d, FactoryValidatesNormalizesAndCachesAabb) {
   EXPECT_DOUBLE_EQ(polygon->aabb().min_y, 0.0);
   EXPECT_DOUBLE_EQ(polygon->aabb().max_x, 2.0);
   EXPECT_DOUBLE_EQ(polygon->aabb().max_y, 2.0);
-  EXPECT_EQ(std::accumulate(polygon->vertices().begin(), polygon->vertices().end(),
-                            math::Point2d{},
-                            [](const math::Point2d& acc,
-                               const math::Point2d& p) {
-                              return math::Point2d{acc.x_m + p.x_m,
-                                                   acc.y_m + p.y_m};
+  EXPECT_EQ(std::accumulate(polygon->vertices().begin(), polygon->vertices().end(), math::Point2d{},
+                            [](const math::Point2d& acc, const math::Point2d& p) {
+                              return math::Point2d{acc.x_m + p.x_m, acc.y_m + p.y_m};
                             }),
             (math::Point2d{4.0, 4.0}));
 }
 
 TEST(MathPolygon2d, FactoryRejectsInvalidInputs) {
   std::string reason;
-  EXPECT_FALSE(math::Polygon2d::convex({{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}},
-                                       &reason)
-                   .has_value());
+  EXPECT_FALSE(math::Polygon2d::convex({{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}}, &reason).has_value());
   EXPECT_FALSE(reason.empty());
 
   reason.clear();
-  EXPECT_FALSE(math::Polygon2d::convex(
-                   {{0.0, 0.0}, {2.0, 0.0}, {1.0, 0.2}, {2.0, 2.0}, {0.0, 2.0}},
-                   &reason)
-                   .has_value());
+  EXPECT_FALSE(
+      math::Polygon2d::convex({{0.0, 0.0}, {2.0, 0.0}, {1.0, 0.2}, {2.0, 2.0}, {0.0, 2.0}}, &reason)
+          .has_value());
   EXPECT_FALSE(reason.empty());
 
   reason.clear();
-  EXPECT_FALSE(math::Polygon2d::convex(
-                   {{0.0, 0.0},
-                    {std::numeric_limits<double>::infinity(), 0.0},
-                    {1.0, 1.0}},
-                   &reason)
-                   .has_value());
+  EXPECT_FALSE(
+      math::Polygon2d::convex(
+          {{0.0, 0.0}, {std::numeric_limits<double>::infinity(), 0.0}, {1.0, 1.0}}, &reason)
+          .has_value());
   EXPECT_FALSE(reason.empty());
 
   const math::Polygon2d empty;
@@ -179,17 +166,14 @@ TEST(MathPolygon2d, FactoryRejectsInvalidInputs) {
 }
 
 TEST(MathPolygon2d, RawOverloadsMatchVectorWrappersAndHandleClockwise) {
-  const std::vector<math::Point2d> ccw{
-      {0.0, 0.0}, {2.0, 0.0}, {2.0, 1.0}, {1.0, 2.0}, {0.0, 1.0}};
+  const std::vector<math::Point2d> ccw{{0.0, 0.0}, {2.0, 0.0}, {2.0, 1.0}, {1.0, 2.0}, {0.0, 1.0}};
   std::vector<math::Point2d> cw = ccw;
   std::reverse(cw.begin(), cw.end());
-  const std::vector<math::Point2d> other{
-      {3.0, 0.5}, {4.0, 0.5}, {4.0, 1.5}, {3.0, 1.5}};
+  const std::vector<math::Point2d> other{{3.0, 0.5}, {4.0, 0.5}, {4.0, 1.5}, {3.0, 1.5}};
   const math::Aabb2d box{2.5, 0.0, 3.5, 1.0};
   const math::Point2d p{3.0, 2.0};
 
-  EXPECT_EQ(math::convex_polygons_intersect(cw.data(), cw.size(),
-                                            other.data(), other.size(), 0.0),
+  EXPECT_EQ(math::convex_polygons_intersect(cw.data(), cw.size(), other.data(), other.size(), 0.0),
             math::convex_polygons_intersect(cw, other, 0.0));
   EXPECT_EQ(math::convex_polygon_intersects_aabb(cw.data(), cw.size(), box, 0.0),
             math::convex_polygon_intersects_aabb(cw, box, 0.0));
@@ -197,12 +181,11 @@ TEST(MathPolygon2d, RawOverloadsMatchVectorWrappersAndHandleClockwise) {
                    math::point_polygon_distance(p, ccw));
   EXPECT_DOUBLE_EQ(math::point_polygon_distance_sq(p, cw.data(), cw.size()),
                    math::point_polygon_distance_sq(p, ccw));
-  EXPECT_DOUBLE_EQ(math::convex_polygon_distance(cw.data(), cw.size(),
-                                                 other.data(), other.size()),
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance(cw.data(), cw.size(), other.data(), other.size()),
                    math::convex_polygon_distance(ccw, other));
-  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(cw.data(), cw.size(),
-                                                    other.data(), other.size()),
-                   math::convex_polygon_distance_sq(ccw, other));
+  EXPECT_DOUBLE_EQ(
+      math::convex_polygon_distance_sq(cw.data(), cw.size(), other.data(), other.size()),
+      math::convex_polygon_distance_sq(ccw, other));
   EXPECT_DOUBLE_EQ(math::polygon_aabb_distance(cw.data(), cw.size(), box),
                    math::polygon_aabb_distance(ccw, box));
   EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(cw.data(), cw.size(), box),
@@ -217,42 +200,34 @@ TEST(MathPolygon2d, RawOverloadsHandleEmptyAndDegenerateInputs) {
   const std::vector<math::Point2d> vertical{{1.0, 1.5}, {1.0, 2.5}};
   const math::Aabb2d box{0.0, 0.0, 1.0, 1.0};
 
-  EXPECT_FALSE(math::convex_polygons_intersect(
-      empty.data(), empty.size(), point.data(), point.size(), 0.0));
-  EXPECT_EQ(math::convex_polygons_intersect(
-                empty.data(), empty.size(), point.data(), point.size(), 0.0),
-            math::convex_polygons_intersect(empty, point, 0.0));
-  EXPECT_TRUE(math::convex_polygons_intersect(
-      point.data(), point.size(), point.data(), point.size(), 0.0))
+  EXPECT_FALSE(
+      math::convex_polygons_intersect(empty.data(), empty.size(), point.data(), point.size(), 0.0));
+  EXPECT_EQ(
+      math::convex_polygons_intersect(empty.data(), empty.size(), point.data(), point.size(), 0.0),
+      math::convex_polygons_intersect(empty, point, 0.0));
+  EXPECT_TRUE(
+      math::convex_polygons_intersect(point.data(), point.size(), point.data(), point.size(), 0.0))
       << "touching degenerate points count as intersection";
-  EXPECT_TRUE(math::convex_polygons_intersect(
-      horizontal.data(), horizontal.size(), vertical.data(), vertical.size(),
-      0.0));
-  EXPECT_FALSE(math::convex_polygons_intersect(
-      horizontal.data(), horizontal.size(), far_point.data(),
-      far_point.size(), 0.0));
-
-  EXPECT_TRUE(std::isinf(math::convex_polygon_distance_sq(
-      empty.data(), empty.size(), point.data(), point.size())));
-  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
-                       point.data(), point.size(), point.data(), point.size()),
-                   0.0);
-  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
-                       point.data(), point.size(), far_point.data(),
-                       far_point.size()),
-                   5.0);
-  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(
-                       horizontal.data(), horizontal.size(), far_point.data(),
-                       far_point.size()),
-                   1.0);
+  EXPECT_TRUE(math::convex_polygons_intersect(horizontal.data(), horizontal.size(), vertical.data(),
+                                              vertical.size(), 0.0));
+  EXPECT_FALSE(math::convex_polygons_intersect(horizontal.data(), horizontal.size(),
+                                               far_point.data(), far_point.size(), 0.0));
 
   EXPECT_TRUE(std::isinf(
-      math::polygon_aabb_distance_sq(empty.data(), empty.size(), box)));
+      math::convex_polygon_distance_sq(empty.data(), empty.size(), point.data(), point.size())));
   EXPECT_DOUBLE_EQ(
-      math::polygon_aabb_distance_sq(point.data(), point.size(), box), 0.0);
-  EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(horizontal.data(),
-                                                  horizontal.size(), box),
+      math::convex_polygon_distance_sq(point.data(), point.size(), point.data(), point.size()),
+      0.0);
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(point.data(), point.size(), far_point.data(),
+                                                    far_point.size()),
+                   5.0);
+  EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(horizontal.data(), horizontal.size(),
+                                                    far_point.data(), far_point.size()),
                    1.0);
+
+  EXPECT_TRUE(std::isinf(math::polygon_aabb_distance_sq(empty.data(), empty.size(), box)));
+  EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(point.data(), point.size(), box), 0.0);
+  EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(horizontal.data(), horizontal.size(), box), 1.0);
 }
 
 TEST(MathPolygon2d, RandomDifferentialAgainstVectorWrappers) {
@@ -263,26 +238,23 @@ TEST(MathPolygon2d, RandomDifferentialAgainstVectorWrappers) {
     SCOPED_TRACE(i);
     const math::Box2d a{{coordinate(engine), coordinate(engine)},
                         std::abs(coordinate(engine)) + 0.1,
-                        std::abs(coordinate(engine)) + 0.1, angle(engine)};
+                        std::abs(coordinate(engine)) + 0.1,
+                        angle(engine)};
     const math::Box2d b{{coordinate(engine), coordinate(engine)},
                         std::abs(coordinate(engine)) + 0.1,
-                        std::abs(coordinate(engine)) + 0.1, angle(engine)};
+                        std::abs(coordinate(engine)) + 0.1,
+                        angle(engine)};
     const std::vector<math::Point2d> va = corner_vector(a);
     const std::vector<math::Point2d> vb = corner_vector(b);
-    const math::Aabb2d box{coordinate(engine), coordinate(engine),
-                           coordinate(engine), coordinate(engine)};
-    const math::Aabb2d ordered{std::min(box.min_x, box.max_x),
-                               std::min(box.min_y, box.max_y),
-                               std::max(box.min_x, box.max_x),
-                               std::max(box.min_y, box.max_y)};
-    EXPECT_EQ(math::convex_polygons_intersect(va.data(), va.size(), vb.data(),
-                                              vb.size(), 0.0),
+    const math::Aabb2d box{coordinate(engine), coordinate(engine), coordinate(engine),
+                           coordinate(engine)};
+    const math::Aabb2d ordered{std::min(box.min_x, box.max_x), std::min(box.min_y, box.max_y),
+                               std::max(box.min_x, box.max_x), std::max(box.min_y, box.max_y)};
+    EXPECT_EQ(math::convex_polygons_intersect(va.data(), va.size(), vb.data(), vb.size(), 0.0),
               math::convex_polygons_intersect(va, vb, 0.0));
-    EXPECT_EQ(math::convex_polygon_intersects_aabb(va.data(), va.size(), ordered,
-                                                   0.0),
+    EXPECT_EQ(math::convex_polygon_intersects_aabb(va.data(), va.size(), ordered, 0.0),
               math::convex_polygon_intersects_aabb(va, ordered, 0.0));
-    EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(va.data(), va.size(),
-                                                      vb.data(), vb.size()),
+    EXPECT_DOUBLE_EQ(math::convex_polygon_distance_sq(va.data(), va.size(), vb.data(), vb.size()),
                      math::convex_polygon_distance_sq(va, vb));
     EXPECT_DOUBLE_EQ(math::polygon_aabb_distance_sq(va.data(), va.size(), ordered),
                      math::polygon_aabb_distance_sq(va, ordered));

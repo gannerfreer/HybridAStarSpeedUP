@@ -32,8 +32,7 @@ class Box2d {
    * @param[in] width_m 沿局部 Y 轴的完整宽度（米）。
    * @param[in] heading_rad 局部 X 轴相对世界 X 轴的航向角（弧度）。
    */
-  Box2d(const Vec2d& center, double length_m, double width_m,
-        double heading_rad) noexcept;
+  Box2d(const Vec2d& center, double length_m, double width_m, double heading_rad) noexcept;
 
   /**
    * @brief 由几何参数与已预计算的正余弦构造包围盒，避免重复三角函数计算。
@@ -44,9 +43,8 @@ class Box2d {
    * @param[in] cos_heading 航向角余弦缓存。
    * @param[in] sin_heading 航向角正弦缓存。
    */
-  Box2d(const Vec2d& center, double length_m, double width_m,
-        double heading_rad, double cos_heading,
-        double sin_heading) noexcept
+  Box2d(const Vec2d& center, double length_m, double width_m, double heading_rad,
+        double cos_heading, double sin_heading) noexcept
       : center_(center),
         length_m_(length_m),
         width_m_(width_m),
@@ -75,9 +73,8 @@ class Box2d {
    * @param[in] corner_origin 局部角点坐标系原点在世界系下的位置。
    * @param[in] local_corners 相对 corner_origin 的逆时针局部角点。
    */
-  Box2d(const Vec2d& center, double length_m, double width_m,
-        double heading_rad, double cos_heading, double sin_heading,
-        const Vec2d& corner_origin,
+  Box2d(const Vec2d& center, double length_m, double width_m, double heading_rad,
+        double cos_heading, double sin_heading, const Vec2d& corner_origin,
         const std::array<Point2d, 4>& local_corners) noexcept
       : center_(center),
         length_m_(length_m),
@@ -124,11 +121,8 @@ class Box2d {
     const double s = sin_heading_;
     std::array<Point2d, 4> out;
     for (std::size_t i = 0; i < 4; ++i) {
-      out[i] = Point2d{
-          corner_origin_.x_m + c * local_corners_[i].x_m -
-              s * local_corners_[i].y_m,
-          corner_origin_.y_m + s * local_corners_[i].x_m +
-              c * local_corners_[i].y_m};
+      out[i] = Point2d{corner_origin_.x_m + c * local_corners_[i].x_m - s * local_corners_[i].y_m,
+                       corner_origin_.y_m + s * local_corners_[i].x_m + c * local_corners_[i].y_m};
     }
     return out;
   }
@@ -148,14 +142,12 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若点在盒内、边界上或容差范围内返回 true。
    */
-  [[nodiscard]] bool contains(const Point2d& p,
-                              double tol = 0.0) const noexcept {
+  [[nodiscard]] bool contains(const Point2d& p, double tol = 0.0) const noexcept {
     const double dx = p.x_m - center_.x_m;
     const double dy = p.y_m - center_.y_m;
     const double local_x = cos_heading_ * dx + sin_heading_ * dy;
     const double local_y = -sin_heading_ * dx + cos_heading_ * dy;
-    return std::abs(local_x) <= half_length_m_ + tol &&
-           std::abs(local_y) <= half_width_m_ + tol;
+    return std::abs(local_x) <= half_length_m_ + tol && std::abs(local_y) <= half_width_m_ + tol;
   }
 
   /**
@@ -164,8 +156,7 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若相交或接触返回 true。
    */
-  [[nodiscard]] bool intersects(const Aabb2d& box,
-                                double tol = 0.0) const noexcept;
+  [[nodiscard]] bool intersects(const Aabb2d& box, double tol = 0.0) const noexcept;
 
   /**
    * @brief 判定两个有向包围盒是否相交或接触。
@@ -173,8 +164,7 @@ class Box2d {
    * @param[in] tol 接触判定距离容差（米）。
    * @return 若相交或接触返回 true。
    */
-  [[nodiscard]] bool intersects(const Box2d& other,
-                                double tol = 0.0) const noexcept;
+  [[nodiscard]] bool intersects(const Box2d& other, double tol = 0.0) const noexcept;
 
   /**
    * @brief 计算点到闭包围盒的最小欧氏距离平方（点在内部或边界上时为 0）。
@@ -184,19 +174,17 @@ class Box2d {
   double distance_sq_to(const Point2d& p) const noexcept;
 
  private:
-  Vec2d center_{};              ///< 包围盒几何中心。
-  double length_m_{0.0};        ///< 沿局部 X 轴的完整长度（米）。
-  double width_m_{0.0};         ///< 沿局部 Y 轴的完整宽度（米）。
-  double heading_rad_{0.0};     ///< 航向角（弧度）。
-  double cos_heading_{1.0};     ///< 航向角余弦缓存。
-  double sin_heading_{0.0};     ///< 航向角正弦缓存。
-  double half_length_m_{0.0};   ///< 半长缓存（米）。
-  double half_width_m_{0.0};    ///< 半宽缓存（米）。
-  Vec2d corner_origin_{};       ///< 局部角点坐标系原点。
-  std::array<Point2d, 4> local_corners_{{{0.0, 0.0},
-                                         {0.0, 0.0},
-                                         {0.0, 0.0},
-                                         {0.0, 0.0}}};  ///< 逆时针局部角点。
+  Vec2d center_{};             ///< 包围盒几何中心。
+  double length_m_{0.0};       ///< 沿局部 X 轴的完整长度（米）。
+  double width_m_{0.0};        ///< 沿局部 Y 轴的完整宽度（米）。
+  double heading_rad_{0.0};    ///< 航向角（弧度）。
+  double cos_heading_{1.0};    ///< 航向角余弦缓存。
+  double sin_heading_{0.0};    ///< 航向角正弦缓存。
+  double half_length_m_{0.0};  ///< 半长缓存（米）。
+  double half_width_m_{0.0};   ///< 半宽缓存（米）。
+  Vec2d corner_origin_{};      ///< 局部角点坐标系原点。
+  std::array<Point2d, 4> local_corners_{
+      {{0.0, 0.0}, {0.0, 0.0}, {0.0, 0.0}, {0.0, 0.0}}};  ///< 逆时针局部角点。
 };
 
 }  // namespace planner::math

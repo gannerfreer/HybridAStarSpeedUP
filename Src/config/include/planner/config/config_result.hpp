@@ -17,7 +17,7 @@ namespace planner::config {
  */
 struct ConfigError {
   common::Status status{common::Status::kInvalidInput};  ///< 对应核心状态码。
-  std::string message;  ///< 含文件、键路径与行列位置的完整诊断文本。
+  std::string message;   ///< 含文件、键路径与行列位置的完整诊断文本。
   std::string file;      ///< 配置文件的原始路径。
   std::string key_path;  ///< 出错的点分键路径（解析错误时为空）。
   int line{0};           ///< 出错位置行号（1 起，未知时为 0）。

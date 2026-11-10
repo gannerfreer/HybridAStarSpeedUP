@@ -56,8 +56,7 @@ class UserAstar {
    * @param[in] collision_checker 用于评估连续车辆扫掠轮廓的碰撞检测器。
    * @return 包含规划状态、生成的轨迹路径以及统计指标的规划结果对象。
    */
-  common::PlanResult plan(const common::PlanRequest& request,
-                          const common::GridView& grid,
+  common::PlanResult plan(const common::PlanRequest& request, const common::GridView& grid,
                           const collision::CollisionChecker& collision_checker);
 
   /**

@@ -15,14 +15,12 @@ namespace planner::common {
 namespace {
 
 bool finite_pose(const math::Pose2d& pose) {
-  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
-         std::isfinite(pose.yaw_rad);
+  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) && std::isfinite(pose.yaw_rad);
 }
 
 }  // namespace
 
-bool scenario_config_valid(const ScenarioConfig& scenario,
-                           std::string* reason) {
+bool scenario_config_valid(const ScenarioConfig& scenario, std::string* reason) {
   if (scenario.width <= 0) {
     if (reason) *reason = "scenario width must be > 0";
     return false;
@@ -62,8 +60,7 @@ bool scenario_config_valid(const ScenarioConfig& scenario,
     std::string polygon_reason;
     if (!math::convex_polygon_valid(obstacle.vertices, &polygon_reason)) {
       if (reason) {
-        *reason = prefix +
-                  " vertices form an invalid convex polygon: " + polygon_reason;
+        *reason = prefix + " vertices form an invalid convex polygon: " + polygon_reason;
       }
       return false;
     }

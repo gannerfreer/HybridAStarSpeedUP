@@ -1,7 +1,3 @@
-#include "planner/common/grid_view.hpp"
-#include "planner/math/angle.hpp"
-#include "scene.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -9,6 +5,10 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "planner/common/grid_view.hpp"
+#include "planner/math/angle.hpp"
+#include "scene.hpp"
 
 namespace {
 using namespace planner;
@@ -99,9 +99,8 @@ TEST(GridView, EmptyAndMismatchedCellsBehavior) {
   valid_scene.grid.width = 2;
   valid_scene.grid.height = 3;
   valid_scene.grid.resolution_m = 0.5;
-  valid_scene.grid.cells = {common::kCellFree,   common::kCellOccupied,
-                            common::kCellUnknown, common::kCellFree,
-                            common::kCellFree,   common::kCellFree};
+  valid_scene.grid.cells = {common::kCellFree, common::kCellOccupied, common::kCellUnknown,
+                            common::kCellFree, common::kCellFree,     common::kCellFree};
   reason.clear();
   EXPECT_TRUE(valid_scene.valid(&reason)) << reason;
 }

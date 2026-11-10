@@ -60,8 +60,7 @@ bool parse_arguments(int argc, char** argv, Arguments* arguments) {
 }
 
 template <typename T>
-bool print_config_error(const planner::config::ConfigResult<T>& result,
-                        const char* label) {
+bool print_config_error(const planner::config::ConfigResult<T>& result, const char* label) {
   if (result) {
     return false;
   }
@@ -75,8 +74,8 @@ double path_length_m(const std::vector<planner::common::PathSegment>& path) {
   for (const planner::common::PathSegment& segment : path) {
     for (const planner::common::PathPoint& point : segment.points) {
       if (previous != nullptr) {
-        length_m += std::hypot(point.pose.x_m - previous->pose.x_m,
-                               point.pose.y_m - previous->pose.y_m);
+        length_m +=
+            std::hypot(point.pose.x_m - previous->pose.x_m, point.pose.y_m - previous->pose.y_m);
       }
       previous = &point;
     }
@@ -95,18 +94,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const auto vehicle_result =
-      config::load_vehicle_config(arguments.vehicle_path);
+  const auto vehicle_result = config::load_vehicle_config(arguments.vehicle_path);
   if (print_config_error(vehicle_result, "vehicle")) {
     return 1;
   }
-  const auto planner_result =
-      config::load_planner_config(arguments.planner_path);
+  const auto planner_result = config::load_planner_config(arguments.planner_path);
   if (print_config_error(planner_result, "planner")) {
     return 1;
   }
-  const auto scenario_result =
-      config::load_scenario_config(arguments.scenario_path);
+  const auto scenario_result = config::load_scenario_config(arguments.scenario_path);
   if (print_config_error(scenario_result, "scenario")) {
     return 1;
   }
@@ -117,15 +113,13 @@ int main(int argc, char** argv) {
   collision::Scene scene = collision::make_scene(scenario);
   std::string reason;
   if (!scene.valid(&reason)) {
-    std::cerr << "scenario error: " << arguments.scenario_path << ": " << reason
-              << "\n";
+    std::cerr << "scenario error: " << arguments.scenario_path << ": " << reason << "\n";
     return 1;
   }
 
   collision::CollisionChecker checker(vehicle, scene);
   if (!checker.valid()) {
-    std::cerr << "collision checker error: " << checker.invalid_reason()
-              << "\n";
+    std::cerr << "collision checker error: " << checker.invalid_reason() << "\n";
     return 1;
   }
 
@@ -140,8 +134,7 @@ int main(int argc, char** argv) {
 
   const common::PlanResult result = planner.plan(request, scene.grid, checker);
   std::cout << "status: " << common::to_string(result.status) << "\n";
-  std::cout << "reason: " << (result.reason.empty() ? "(none)" : result.reason)
-            << "\n";
+  std::cout << "reason: " << (result.reason.empty() ? "(none)" : result.reason) << "\n";
   std::cout << "path_length_m: " << path_length_m(result.path) << "\n";
 
   return result.status == common::Status::kSuccess ? 0 : 2;

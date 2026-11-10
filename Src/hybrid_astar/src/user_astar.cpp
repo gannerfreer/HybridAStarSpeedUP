@@ -3,7 +3,6 @@
  * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件。
  */
 
-#include "planner/math/angle.hpp"
 #include "user_astar.hpp"
 
 #include <algorithm>
@@ -16,11 +15,11 @@
 #include <utility>
 #include <vector>
 
-#include "planner/hybrid_astar/detail/search_engine.hpp"
-
 #include "grid_potential.hpp"
-#include "scene.hpp"
+#include "planner/hybrid_astar/detail/search_engine.hpp"
+#include "planner/math/angle.hpp"
 #include "reeds_shepp.hpp"
+#include "scene.hpp"
 
 namespace planner::hybrid_astar {
 
@@ -31,20 +30,17 @@ using Clock = std::chrono::steady_clock;
 constexpr double kStartPoseToleranceM = 1e-6;
 constexpr double kStartYawToleranceRad = 1e-6;
 constexpr double kEndpointPositionToleranceM = 0.05;  ///< 终点位置容差阈值（米，m）。
-constexpr double kEndpointYawToleranceRad = 0.02;     ///< 终点航向角容差阈值（弧度，rad）。
+constexpr double kEndpointYawToleranceRad = 0.02;  ///< 终点航向角容差阈值（弧度，rad）。
 constexpr double kCurvatureTolerance = 1e-9;
 
 bool finite_pose(const common::Pose2d& pose) {
-  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
-         std::isfinite(pose.yaw_rad);
+  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) && std::isfinite(pose.yaw_rad);
 }
 
 bool same_vehicle(const common::VehicleModel& a, const common::VehicleModel& b) {
   return a.wheelbase_m == b.wheelbase_m && a.width_m == b.width_m &&
-         a.front_overhang_m == b.front_overhang_m &&
-         a.rear_overhang_m == b.rear_overhang_m &&
-         a.max_steer_rad == b.max_steer_rad &&
-         a.safety_margin_m == b.safety_margin_m;
+         a.front_overhang_m == b.front_overhang_m && a.rear_overhang_m == b.rear_overhang_m &&
+         a.max_steer_rad == b.max_steer_rad && a.safety_margin_m == b.safety_margin_m;
 }
 
 std::string collision_detail(const collision::CheckResult& check) {
@@ -57,9 +53,8 @@ std::string collision_detail(const collision::CheckResult& check) {
 
 /// 校验两个栅格视图是否拥有相同的快照标识、维度尺寸与单元格占据内容。
 bool grids_equal(const common::GridView& a, const common::GridView& b) {
-  return a.map_id == b.map_id && a.map_version == b.map_version &&
-         a.width == b.width && a.height == b.height &&
-         a.resolution_m == b.resolution_m && a.origin == b.origin &&
+  return a.map_id == b.map_id && a.map_version == b.map_version && a.width == b.width &&
+         a.height == b.height && a.resolution_m == b.resolution_m && a.origin == b.origin &&
          a.cells == b.cells;
 }
 
@@ -98,14 +93,11 @@ struct UserAstar::Impl {
   internal::GridPotential potential;
 };
 
-UserAstar::UserAstar(const common::UserAstarConfig& config)
-    : impl_(std::make_unique<Impl>()) {
+UserAstar::UserAstar(const common::UserAstarConfig& config) : impl_(std::make_unique<Impl>()) {
   configure(config);
 }
 UserAstar::~UserAstar() = default;
-const common::UserAstarConfig& UserAstar::config() const {
-  return impl_->config;
-}
+const common::UserAstarConfig& UserAstar::config() const { return impl_->config; }
 void UserAstar::configure(const common::UserAstarConfig& config) {
   std::string reason;
   if (!common::planner_config_valid(config, &reason)) {
@@ -129,9 +121,8 @@ void UserAstar::reset_cache() {
   impl_->engine.reset_state();
 }
 
-common::PlanResult UserAstar::plan(
-    const common::PlanRequest& request, const common::GridView& grid,
-    const collision::CollisionChecker& collision_checker) {
+common::PlanResult UserAstar::plan(const common::PlanRequest& request, const common::GridView& grid,
+                                   const collision::CollisionChecker& collision_checker) {
   common::PlanResult result;
   result.request_id = request.request_id;
 
@@ -147,8 +138,7 @@ common::PlanResult UserAstar::plan(
   if (request.cancelled) {
     return fail(common::Status::kCancelled, "request was cancelled");
   }
-  if (request.map_id != grid.map_id ||
-      request.map_version != grid.map_version) {
+  if (request.map_id != grid.map_id || request.map_version != grid.map_version) {
     return fail(common::Status::kInvalidInput,
                 "request map_id/map_version does not match the grid snapshot");
   }
@@ -158,24 +148,21 @@ common::PlanResult UserAstar::plan(
   }
   if (!collision_checker.valid()) {
     return fail(common::Status::kInvalidInput,
-                "collision checker is invalid: " +
-                    collision_checker.invalid_reason());
+                "collision checker is invalid: " + collision_checker.invalid_reason());
   }
   if (!finite_pose(request.start) || !finite_pose(request.goal)) {
     return fail(common::Status::kInvalidInput, "start/goal pose is not finite");
   }
   if (grid.cells.size() !=
-      static_cast<std::size_t>(grid.width) *
-          static_cast<std::size_t>(grid.height)) {
-    return fail(common::Status::kInvalidInput,
-                "grid cell count does not match width*height");
+      static_cast<std::size_t>(grid.width) * static_cast<std::size_t>(grid.height)) {
+    return fail(common::Status::kInvalidInput, "grid cell count does not match width*height");
   }
   if (request.vehicle.wheelbase_m <= 0.0 || request.vehicle.max_steer_rad <= 0.0) {
-    return fail(common::Status::kInvalidInput,
-                "vehicle wheelbase/max steer must be positive");
+    return fail(common::Status::kInvalidInput, "vehicle wheelbase/max steer must be positive");
   }
 
-  if ((request.time_budget_s && (!std::isfinite(*request.time_budget_s) || *request.time_budget_s <= 0.0 || *request.time_budget_s > 1e9)) ||
+  if ((request.time_budget_s && (!std::isfinite(*request.time_budget_s) ||
+                                 *request.time_budget_s <= 0.0 || *request.time_budget_s > 1e9)) ||
       (request.node_budget && *request.node_budget < 1)) {
     return fail(common::Status::kInvalidInput, "invalid time or node budget");
   }
@@ -183,13 +170,10 @@ common::PlanResult UserAstar::plan(
   impl_->expanded_nodes = 0;
 
   const Clock::time_point plan_start = Clock::now();
-  const double time_budget_s =
-      request.time_budget_s.value_or(impl_->config.default_time_budget_s);
-  const std::int64_t node_budget =
-      request.node_budget.value_or(impl_->config.default_node_budget);
-  const Clock::time_point deadline =
-      plan_start + std::chrono::duration_cast<Clock::duration>(
-                       std::chrono::duration<double>(time_budget_s));
+  const double time_budget_s = request.time_budget_s.value_or(impl_->config.default_time_budget_s);
+  const std::int64_t node_budget = request.node_budget.value_or(impl_->config.default_node_budget);
+  const Clock::time_point deadline = plan_start + std::chrono::duration_cast<Clock::duration>(
+                                                      std::chrono::duration<double>(time_budget_s));
 
   bool potential_reused = false;
   const auto early_failure = [&](common::Status status, const std::string& reason) {
@@ -222,33 +206,26 @@ common::PlanResult UserAstar::plan(
   };
 
   if (!grids_equal(collision_checker.scene().grid, grid)) {
-    return early_failure(
-        common::Status::kInvalidInput,
-        "the collision checker scene grid does not match the grid argument");
+    return early_failure(common::Status::kInvalidInput,
+                         "the collision checker scene grid does not match the grid argument");
   }
-  const collision::CheckResult start_pose_check =
-      collision_checker.check_pose(request.start);
+  const collision::CheckResult start_pose_check = collision_checker.check_pose(request.start);
   if (start_pose_check.status == collision::CheckStatus::kInvalidInput) {
     return early_failure(common::Status::kInvalidInput,
-                         "start pose was rejected: " +
-                             collision_detail(start_pose_check));
+                         "start pose was rejected: " + collision_detail(start_pose_check));
   }
   if (start_pose_check.collided()) {
     return early_failure(common::Status::kInvalidInput,
-                         "start pose is in collision (" +
-                             collision_detail(start_pose_check) + ")");
+                         "start pose is in collision (" + collision_detail(start_pose_check) + ")");
   }
-  const collision::CheckResult goal_pose_check =
-      collision_checker.check_pose(request.goal);
+  const collision::CheckResult goal_pose_check = collision_checker.check_pose(request.goal);
   if (goal_pose_check.status == collision::CheckStatus::kInvalidInput) {
     return early_failure(common::Status::kInvalidInput,
-                         "goal pose was rejected: " +
-                             collision_detail(goal_pose_check));
+                         "goal pose was rejected: " + collision_detail(goal_pose_check));
   }
   if (goal_pose_check.collided()) {
     return early_failure(common::Status::kInvalidInput,
-                         "goal pose is in collision (" +
-                             collision_detail(goal_pose_check) + ")");
+                         "goal pose is in collision (" + collision_detail(goal_pose_check) + ")");
   }
 
   int start_row = 0;
@@ -262,40 +239,33 @@ common::PlanResult UserAstar::plan(
                          "grid");
   }
 
-  potential_usable = std::isfinite(grid.resolution_m) &&
-                     grid.resolution_m > 0.0;
+  potential_usable = std::isfinite(grid.resolution_m) && grid.resolution_m > 0.0;
   if (potential_usable) {
-    const std::uint64_t potential_key =
-        internal::grid_cache_key(grid, goal_row, goal_col);
-    potential_reused =
-        impl_->potential_valid && impl_->potential_key == potential_key;
+    const std::uint64_t potential_key = internal::grid_cache_key(grid, goal_row, goal_col);
+    potential_reused = impl_->potential_valid && impl_->potential_key == potential_key;
     if (!potential_reused) {
       const auto deadline_exceeded = [&]() { return Clock::now() >= deadline; };
-      internal::GridPotential computed = internal::compute_grid_potential(
-          grid, goal_row, goal_col, deadline_exceeded);
+      internal::GridPotential computed =
+          internal::compute_grid_potential(grid, goal_row, goal_col, deadline_exceeded);
       if (computed.aborted) {
-        return early_failure(
-            common::Status::kTimeout,
-            "time budget of " + std::to_string(time_budget_s) +
-                " s exhausted while computing the goal potential");
+        return early_failure(common::Status::kTimeout,
+                             "time budget of " + std::to_string(time_budget_s) +
+                                 " s exhausted while computing the goal potential");
       }
       impl_->potential = std::move(computed);
       impl_->potential_key = potential_key;
       impl_->potential_valid = true;
     }
     potential = &impl_->potential;
-    potential_usable =
-        potential->distance_m.size() ==
-        static_cast<std::size_t>(grid.width) * static_cast<std::size_t>(grid.height);
+    potential_usable = potential->distance_m.size() ==
+                       static_cast<std::size_t>(grid.width) * static_cast<std::size_t>(grid.height);
   }
   if (potential_usable) {
     const int start_index = start_row * grid.width + start_col;
-    if (!std::isfinite(
-            potential->distance_m[static_cast<std::size_t>(start_index)])) {
-      return early_failure(
-          common::Status::kNoPath,
-          "no path: start and goal are disconnected in the free-grid "
-          "relaxation");
+    if (!std::isfinite(potential->distance_m[static_cast<std::size_t>(start_index)])) {
+      return early_failure(common::Status::kNoPath,
+                           "no path: start and goal are disconnected in the free-grid "
+                           "relaxation");
     }
   }
 
@@ -318,10 +288,9 @@ common::PlanResult UserAstar::plan(
           int row = 0;
           int col = 0;
           if (!cell_of_pose(to.pose, &row, &col) ||
-              !std::isfinite(potential->distance_m[
-                  static_cast<std::size_t>(row) *
-                      static_cast<std::size_t>(grid.width) +
-                  static_cast<std::size_t>(col)])) {
+              !std::isfinite(potential->distance_m[static_cast<std::size_t>(row) *
+                                                       static_cast<std::size_t>(grid.width) +
+                                                   static_cast<std::size_t>(col)])) {
             return true;
           }
         }
@@ -330,8 +299,7 @@ common::PlanResult UserAstar::plan(
         segment.length_m = to.arc_length_m;
         segment.direction = to.direction;
         segment.curvature_per_m = to.curvature_per_m;
-        const collision::CheckResult check =
-            collision_checker.check_motion(segment);
+        const collision::CheckResult check = collision_checker.check_motion(segment);
         if (!check.is_clear()) {
           return true;
         }
@@ -339,15 +307,13 @@ common::PlanResult UserAstar::plan(
       });
   impl_->engine.set_goal_hook([&](const detail::SearchState& state) {
     const math::Pose2d& pose = state.pose;
-    const double distance =
-        std::hypot(pose.x_m - request.goal.x_m, pose.y_m - request.goal.y_m);
+    const double distance = std::hypot(pose.x_m - request.goal.x_m, pose.y_m - request.goal.y_m);
     if (distance > impl_->config.goal_capture_radius_m) {
       return false;
     }
     ++goal_hook_calls;
     const bool immediate = distance <= 2.0 * impl_->config.motion_step_m;
-    if (!immediate &&
-        goal_hook_calls % impl_->config.analytic_expansion_ratio != 0) {
+    if (!immediate && goal_hook_calls % impl_->config.analytic_expansion_ratio != 0) {
       return false;
     }
     if (impl_->config.analytic_shot_distance_m > 0.0 &&
@@ -361,8 +327,7 @@ common::PlanResult UserAstar::plan(
     // 在对剩余段进行碰撞检测前，剔除退化的亚毫米微段。
     solved = clean_connector(std::move(solved));
     if (impl_->config.analytic_expansion_max_length_m > 0.0 &&
-        solved.path.length_m >
-            impl_->config.analytic_expansion_max_length_m) {
+        solved.path.length_m > impl_->config.analytic_expansion_max_length_m) {
       return false;
     }
     // 短于 min_connector_segment_m 的子基元微段：仅当与相邻段构成虚假换向尖点时剔除连接，
@@ -374,8 +339,7 @@ common::PlanResult UserAstar::plan(
           continue;
         }
         if (segments[i].length_m < impl_->config.min_connector_segment_m ||
-            segments[i + 1].length_m <
-                impl_->config.min_connector_segment_m) {
+            segments[i + 1].length_m < impl_->config.min_connector_segment_m) {
           return false;
         }
       }
@@ -405,8 +369,7 @@ common::PlanResult UserAstar::plan(
   bool aborted = false;
   bool timed_out = false;
   impl_->engine.set_abort_callback([&]() {
-    if (request.cancelled ||
-        (impl_->cancel_callback && impl_->cancel_callback())) {
+    if (request.cancelled || (impl_->cancel_callback && impl_->cancel_callback())) {
       aborted = true;
       return true;
     }
@@ -420,8 +383,8 @@ common::PlanResult UserAstar::plan(
   // ------------------------------------------------------------------
   // 执行 Hybrid A* 搜索
   // ------------------------------------------------------------------
-  const detail::SearchResult search = impl_->engine.search(
-      request.start, request.goal, common::Direction::kForward, node_budget);
+  const detail::SearchResult search =
+      impl_->engine.search(request.start, request.goal, common::Direction::kForward, node_budget);
 
   impl_->expanded_nodes = search.iterations;
 
@@ -429,11 +392,9 @@ common::PlanResult UserAstar::plan(
     if (search.status == common::Status::kCancelled) {
       if (timed_out) {
         return fail(common::Status::kTimeout,
-                    "time budget of " + std::to_string(time_budget_s) +
-                        " s exhausted");
+                    "time budget of " + std::to_string(time_budget_s) + " s exhausted");
       }
-      return fail(common::Status::kCancelled,
-                  aborted ? "request was cancelled" : search.reason);
+      return fail(common::Status::kCancelled, aborted ? "request was cancelled" : search.reason);
     }
     if (search.status == common::Status::kTimeout) {
       return fail(common::Status::kTimeout, search.reason);
@@ -525,31 +486,25 @@ common::PlanResult UserAstar::plan(
     structural_reason = "output path is empty";
   }
   if (!structural_error) {
-    for (std::size_t segment_index = 0; segment_index < path.size();
-         ++segment_index) {
+    for (std::size_t segment_index = 0; segment_index < path.size(); ++segment_index) {
       const common::PathSegment& segment = path[segment_index];
       for (std::size_t i = 0; i < segment.points.size(); ++i) {
         const common::PathPoint& point = segment.points[i];
-        if (!std::isfinite(point.s_m) ||
-            !std::isfinite(point.curvature_per_m) ||
+        if (!std::isfinite(point.s_m) || !std::isfinite(point.curvature_per_m) ||
             !finite_pose(point.pose)) {
           structural_error = true;
           structural_reason = "output path contains a non-finite value";
           break;
         }
-        max_abs_curvature =
-            std::max(max_abs_curvature, std::abs(point.curvature_per_m));
+        max_abs_curvature = std::max(max_abs_curvature, std::abs(point.curvature_per_m));
         if (segment_index == 0 && i == 0) {
           const double position_error =
-              std::hypot(point.pose.x_m - request.start.x_m,
-                         point.pose.y_m - request.start.y_m);
-          const double yaw_error = std::abs(math::normalize_angle_rad(
-              point.pose.yaw_rad - request.start.yaw_rad));
-          if (position_error > kStartPoseToleranceM ||
-              yaw_error > kStartYawToleranceRad) {
+              std::hypot(point.pose.x_m - request.start.x_m, point.pose.y_m - request.start.y_m);
+          const double yaw_error =
+              std::abs(math::normalize_angle_rad(point.pose.yaw_rad - request.start.yaw_rad));
+          if (position_error > kStartPoseToleranceM || yaw_error > kStartYawToleranceRad) {
             structural_error = true;
-            structural_reason =
-                "output path does not begin at the requested start pose";
+            structural_reason = "output path does not begin at the requested start pose";
             break;
           }
         }
@@ -564,10 +519,9 @@ common::PlanResult UserAstar::plan(
                                       ? common::Pose2d{}
                                       : path.back().points.back().pose;
   const double endpoint_position_error =
-      std::hypot(endpoint.x_m - request.goal.x_m,
-                 endpoint.y_m - request.goal.y_m);
-  const double endpoint_yaw_error = std::abs(math::normalize_angle_rad(
-      endpoint.yaw_rad - request.goal.yaw_rad));
+      std::hypot(endpoint.x_m - request.goal.x_m, endpoint.y_m - request.goal.y_m);
+  const double endpoint_yaw_error =
+      std::abs(math::normalize_angle_rad(endpoint.yaw_rad - request.goal.yaw_rad));
 
   if (structural_error) {
     return fail(common::Status::kValidationFailed, structural_reason);
@@ -587,17 +541,14 @@ common::PlanResult UserAstar::plan(
     }
     return fail(common::Status::kValidationFailed,
                 "output curvature " + std::to_string(worst_curvature) +
-                    " 1/m at s=" + std::to_string(worst_s) +
-                    " exceeds the vehicle limit " +
+                    " 1/m at s=" + std::to_string(worst_s) + " exceeds the vehicle limit " +
                     std::to_string(max_curvature));
   }
   if (endpoint_position_error > kEndpointPositionToleranceM) {
-    return fail(common::Status::kValidationFailed,
-                "endpoint position error exceeds 0.05 m");
+    return fail(common::Status::kValidationFailed, "endpoint position error exceeds 0.05 m");
   }
   if (endpoint_yaw_error > kEndpointYawToleranceRad) {
-    return fail(common::Status::kValidationFailed,
-                "endpoint yaw error exceeds 0.02 rad");
+    return fail(common::Status::kValidationFailed, "endpoint yaw error exceeds 0.02 rad");
   }
   if (!collision_checker.check_path(result.path).is_clear()) {
     return fail(common::Status::kValidationFailed,

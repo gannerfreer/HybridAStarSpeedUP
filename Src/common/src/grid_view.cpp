@@ -33,8 +33,8 @@ std::optional<int> GridView::try_cell(int row, int col) const noexcept {
 
 bool operator==(const GridView& lhs, const GridView& rhs) {
   return lhs.map_id == rhs.map_id && lhs.map_version == rhs.map_version && lhs.width == rhs.width &&
-         lhs.height == rhs.height && lhs.resolution_m == rhs.resolution_m && lhs.origin == rhs.origin &&
-         lhs.cells == rhs.cells;
+         lhs.height == rhs.height && lhs.resolution_m == rhs.resolution_m &&
+         lhs.origin == rhs.origin && lhs.cells == rhs.cells;
 }
 
 GridFrame GridFrame::from_grid(const GridView& grid) noexcept {
@@ -56,8 +56,8 @@ Point2d GridFrame::to_grid_frame(const Point2d& world_point) const noexcept {
 }
 
 bool GridFrame::inside_map(const Point2d& grid_point) const noexcept {
-  return grid_point.x_m >= 0.0 && grid_point.x_m <= width_m &&
-         grid_point.y_m >= 0.0 && grid_point.y_m <= height_m;
+  return grid_point.x_m >= 0.0 && grid_point.x_m <= width_m && grid_point.y_m >= 0.0 &&
+         grid_point.y_m <= height_m;
 }
 
 double GridFrame::distance_to_boundary(const Point2d& grid_point) const noexcept {

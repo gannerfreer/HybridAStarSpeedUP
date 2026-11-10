@@ -38,8 +38,8 @@ class Polygon2d {
    * @param[out] reason 校验失败时的可选原因说明文本。
    * @return 有效凸多边形；输入非法时返回 std::nullopt。
    */
-  [[nodiscard]] static std::optional<Polygon2d> convex(
-      std::vector<Point2d> vertices, std::string* reason = nullptr);
+  [[nodiscard]] static std::optional<Polygon2d> convex(std::vector<Point2d> vertices,
+                                                       std::string* reason = nullptr);
 
   /**
    * @brief 获取逆时针顶点序列。
@@ -101,8 +101,7 @@ double signed_area_twice(const std::vector<Point2d>& polygon) noexcept;
  * @param[out] reason 校验失败时的可选原因说明文本。
  * @return 若顶点数 >= 3、坐标有限、非共线退化且具备凸性则返回 true。
  */
-bool convex_polygon_valid(const std::vector<Point2d>& polygon,
-                          std::string* reason = nullptr);
+bool convex_polygon_valid(const std::vector<Point2d>& polygon, std::string* reason = nullptr);
 
 /**
  * @brief 检查多边形顶点序列是否为严格逆时针 (CCW) 排列。
@@ -126,8 +125,7 @@ void normalize_counter_clockwise(std::vector<Point2d>& polygon);
  * @param[out] reason 构造失败时的诊断文本。
  * @return 包含 4 个 CCW 顶点的多边形。
  */
-std::vector<Point2d> rectangle_polygon(double x_min, double y_min,
-                                       double x_max, double y_max,
+std::vector<Point2d> rectangle_polygon(double x_min, double y_min, double x_max, double y_max,
                                        std::string* reason = nullptr);
 
 /**
@@ -144,8 +142,7 @@ std::vector<Point2d> convex_hull(std::vector<Point2d> points);
  * @param[in] tol 接触判定距离容差（米）。
  * @return 若在容差范围内存在交集或接触则返回 true。
  */
-bool convex_polygons_intersect(const std::vector<Point2d>& a,
-                               const std::vector<Point2d>& b,
+bool convex_polygons_intersect(const std::vector<Point2d>& a, const std::vector<Point2d>& b,
                                double tol = 0.0) noexcept;
 
 /**
@@ -157,8 +154,7 @@ bool convex_polygons_intersect(const std::vector<Point2d>& a,
  * @param[in] tol 接触判定距离容差（米）。
  * @return 若在容差范围内存在交集或接触则返回 true。
  */
-bool convex_polygons_intersect(const Point2d* a, std::size_t na,
-                               const Point2d* b, std::size_t nb,
+bool convex_polygons_intersect(const Point2d* a, std::size_t na, const Point2d* b, std::size_t nb,
                                double tol = 0.0) noexcept;
 
 /**
@@ -168,8 +164,7 @@ bool convex_polygons_intersect(const Point2d* a, std::size_t na,
  * @param[in] tol 接触判定距离容差（米）。
  * @return 若在容差范围内相交或接触则返回 true。
  */
-bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
-                                    const Aabb2d& box,
+bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon, const Aabb2d& box,
                                     double tol = 0.0) noexcept;
 
 /**
@@ -180,8 +175,7 @@ bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
  * @param[in] tol 接触判定距离容差（米）。
  * @return 若在容差范围内相交或接触则返回 true。
  */
-bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n,
-                                    const Aabb2d& box,
+bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n, const Aabb2d& box,
                                     double tol = 0.0) noexcept;
 /// @}
 
@@ -196,8 +190,7 @@ bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n,
  * @param[in] polygon 凸多边形。
  * @return 最小欧氏距离（米）。
  */
-double point_polygon_distance(const Point2d& p,
-                              const std::vector<Point2d>& polygon) noexcept;
+double point_polygon_distance(const Point2d& p, const std::vector<Point2d>& polygon) noexcept;
 
 /**
  * @brief 计算点到闭凸多边形的最小欧氏距离（零分配裸指针入口）。
@@ -206,8 +199,7 @@ double point_polygon_distance(const Point2d& p,
  * @param[in] n 多边形顶点数量。
  * @return 最小欧氏距离（米）。
  */
-double point_polygon_distance(const Point2d& p, const Point2d* polygon,
-                              std::size_t n) noexcept;
+double point_polygon_distance(const Point2d& p, const Point2d* polygon, std::size_t n) noexcept;
 
 /**
  * @brief 计算点到闭凸多边形的最小欧氏距离的平方。
@@ -215,8 +207,7 @@ double point_polygon_distance(const Point2d& p, const Point2d* polygon,
  * @param[in] polygon 凸多边形。
  * @return 平方欧氏距离（m^2）。
  */
-double point_polygon_distance_sq(const Point2d& p,
-                                 const std::vector<Point2d>& polygon) noexcept;
+double point_polygon_distance_sq(const Point2d& p, const std::vector<Point2d>& polygon) noexcept;
 
 /**
  * @brief 计算点到闭凸多边形的最小欧氏距离的平方（零分配裸指针入口）。
@@ -225,8 +216,7 @@ double point_polygon_distance_sq(const Point2d& p,
  * @param[in] n 多边形顶点数量。
  * @return 平方欧氏距离（m^2）。
  */
-double point_polygon_distance_sq(const Point2d& p, const Point2d* polygon,
-                                 std::size_t n) noexcept;
+double point_polygon_distance_sq(const Point2d& p, const Point2d* polygon, std::size_t n) noexcept;
 
 /**
  * @brief 计算两个闭凸多边形之间的最小欧氏距离（相交或接触时返回 0）。
@@ -245,8 +235,8 @@ double convex_polygon_distance(const std::vector<Point2d>& a,
  * @param[in] nb 第二个多边形顶点数量。
  * @return 最小欧氏距离（米）。
  */
-double convex_polygon_distance(const Point2d* a, std::size_t na,
-                               const Point2d* b, std::size_t nb) noexcept;
+double convex_polygon_distance(const Point2d* a, std::size_t na, const Point2d* b,
+                               std::size_t nb) noexcept;
 
 /**
  * @brief 计算两个闭凸多边形之间的最小欧氏距离的平方。
@@ -265,8 +255,8 @@ double convex_polygon_distance_sq(const std::vector<Point2d>& a,
  * @param[in] nb 第二个多边形顶点数量。
  * @return 平方距离（m^2）。
  */
-double convex_polygon_distance_sq(const Point2d* a, std::size_t na,
-                                  const Point2d* b, std::size_t nb) noexcept;
+double convex_polygon_distance_sq(const Point2d* a, std::size_t na, const Point2d* b,
+                                  std::size_t nb) noexcept;
 
 /**
  * @brief 计算凸多边形与闭 AABB 之间的最小欧氏距离（相交或接触时返回 0）。
@@ -274,8 +264,7 @@ double convex_polygon_distance_sq(const Point2d* a, std::size_t na,
  * @param[in] box 目标 AABB。
  * @return 最小欧氏距离（米）。
  */
-double polygon_aabb_distance(const std::vector<Point2d>& polygon,
-                             const Aabb2d& box) noexcept;
+double polygon_aabb_distance(const std::vector<Point2d>& polygon, const Aabb2d& box) noexcept;
 
 /**
  * @brief 计算凸多边形与闭 AABB 之间的最小欧氏距离（零分配裸指针入口）。
@@ -284,8 +273,7 @@ double polygon_aabb_distance(const std::vector<Point2d>& polygon,
  * @param[in] box 目标 AABB。
  * @return 最小欧氏距离（米）。
  */
-double polygon_aabb_distance(const Point2d* polygon, std::size_t n,
-                             const Aabb2d& box) noexcept;
+double polygon_aabb_distance(const Point2d* polygon, std::size_t n, const Aabb2d& box) noexcept;
 
 /**
  * @brief 计算凸多边形与闭 AABB 之间的最小欧氏距离的平方。
@@ -293,8 +281,7 @@ double polygon_aabb_distance(const Point2d* polygon, std::size_t n,
  * @param[in] box 目标 AABB。
  * @return 平方距离（m^2）。
  */
-double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
-                                const Aabb2d& box) noexcept;
+double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon, const Aabb2d& box) noexcept;
 
 /**
  * @brief 计算凸多边形与闭 AABB 之间的最小欧氏距离的平方（零分配裸指针入口）。
@@ -303,8 +290,7 @@ double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
  * @param[in] box 目标 AABB。
  * @return 平方距离（m^2）。
  */
-double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n,
-                                const Aabb2d& box) noexcept;
+double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n, const Aabb2d& box) noexcept;
 /// @}
 
 // 零动态分配的固定容量几何入口；n 必须不大于 8。

@@ -11,10 +11,8 @@
 
 namespace planner::math {
 
-Box2d::Box2d(const Vec2d& center, double length_m, double width_m,
-             double heading_rad) noexcept
-    : Box2d(center, length_m, width_m, heading_rad, std::cos(heading_rad),
-            std::sin(heading_rad)) {}
+Box2d::Box2d(const Vec2d& center, double length_m, double width_m, double heading_rad) noexcept
+    : Box2d(center, length_m, width_m, heading_rad, std::cos(heading_rad), std::sin(heading_rad)) {}
 
 bool Box2d::intersects(const Aabb2d& box, double tol) const noexcept {
   const std::array<Point2d, 4> c = corners();

@@ -21,8 +21,7 @@ double curvature_from_steer(double steer_rad, double wheelbase_m) noexcept;
  * @param[in] wheelbase_m 车辆轴距（米）。
  * @return 前轮转向角（弧度）。
  */
-double steer_from_curvature(double curvature_per_m,
-                            double wheelbase_m) noexcept;
+double steer_from_curvature(double curvature_per_m, double wheelbase_m) noexcept;
 
 /**
  * @brief 由轴距与最大前轮转角计算后轴中心最小转弯半径。

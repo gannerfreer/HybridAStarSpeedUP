@@ -1,10 +1,3 @@
-#include "collision_checker.hpp"
-#include "planner/common/grid_view.hpp"
-#include "planner/common/path.hpp"
-#include "planner/common/vehicle.hpp"
-#include "planner/math/angle.hpp"
-#include "scene.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -13,6 +6,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "collision_checker.hpp"
+#include "planner/common/grid_view.hpp"
+#include "planner/common/path.hpp"
+#include "planner/common/vehicle.hpp"
+#include "planner/math/angle.hpp"
+#include "scene.hpp"
 
 namespace {
 using namespace planner;
@@ -28,8 +28,7 @@ common::VehicleModel test_vehicle() {
   return vehicle;
 }
 
-collision::Scene make_scene(int width = 40, int height = 40,
-                            double resolution_m = 0.5) {
+collision::Scene make_scene(int width = 40, int height = 40, double resolution_m = 0.5) {
   collision::Scene scene;
   auto& grid = scene.grid;
   grid.map_id = "collision_test";
@@ -37,15 +36,13 @@ collision::Scene make_scene(int width = 40, int height = 40,
   grid.width = width;
   grid.height = height;
   grid.resolution_m = resolution_m;
-  grid.cells.assign(static_cast<std::size_t>(width) *
-                        static_cast<std::size_t>(height),
+  grid.cells.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height),
                     common::kCellFree);
   return scene;
 }
 
 common::PathPoint path_point(double x_m, double y_m, double s_m,
-                             common::Direction direction =
-                                 common::Direction::kForward,
+                             common::Direction direction = common::Direction::kForward,
                              double curvature_per_m = 0.0) {
   common::PathPoint point;
   point.pose = {x_m, y_m, 0.0};
@@ -80,8 +77,7 @@ TEST(CollisionChecker, PoseClearGridOccupiedAndUnknown) {
 TEST(CollisionChecker, PoseObstacleOutsideMapAndEmptyGrid) {
   const auto vehicle = test_vehicle();
   auto obstacle_scene = make_scene(40, 40);
-  obstacle_scene.obstacles.push_back(
-      collision::Obstacle::rectangle("box", 5.0, 5.0, 7.0, 7.0));
+  obstacle_scene.obstacles.push_back(collision::Obstacle::rectangle("box", 5.0, 5.0, 7.0, 7.0));
   collision::CollisionChecker obstacle_checker(vehicle, obstacle_scene);
   ASSERT_TRUE(obstacle_checker.valid()) << obstacle_checker.invalid_reason();
   const auto obstacle = obstacle_checker.check_pose({5.5, 5.5, 0.0});
@@ -111,8 +107,7 @@ TEST(CollisionChecker, MotionClearAndCollide) {
   clear_motion.length_m = 3.0;
   EXPECT_TRUE(clear_checker.check_motion(clear_motion).is_clear());
 
-  scene.obstacles.push_back(
-      collision::Obstacle::rectangle("blocking_box", 10.0, 4.0, 11.0, 6.0));
+  scene.obstacles.push_back(collision::Obstacle::rectangle("blocking_box", 10.0, 4.0, 11.0, 6.0));
   collision::CollisionChecker checker(vehicle, scene);
   ASSERT_TRUE(checker.valid());
   collision::MotionSegment blocked_motion;
@@ -136,8 +131,7 @@ TEST(CollisionChecker, MotionClearAndCollide) {
 TEST(CollisionChecker, PathCheckClearAndCollide) {
   const auto vehicle = test_vehicle();
   auto scene = make_scene();
-  scene.obstacles.push_back(
-      collision::Obstacle::rectangle("path_box", 10.0, 4.0, 11.0, 6.0));
+  scene.obstacles.push_back(collision::Obstacle::rectangle("path_box", 10.0, 4.0, 11.0, 6.0));
   collision::CollisionChecker checker(vehicle, scene);
   ASSERT_TRUE(checker.valid());
 
@@ -147,24 +141,20 @@ TEST(CollisionChecker, PathCheckClearAndCollide) {
   EXPECT_TRUE(checker.check_path(clear_path).is_clear());
 
   common::PathSegment blocked_path;
-  blocked_path.points = {path_point(2.0, 5.0, 0.0),
-                         path_point(4.0, 5.0, 2.0),
-                         path_point(6.0, 5.0, 4.0),
-                         path_point(8.0, 5.0, 6.0)};
+  blocked_path.points = {path_point(2.0, 5.0, 0.0), path_point(4.0, 5.0, 2.0),
+                         path_point(6.0, 5.0, 4.0), path_point(8.0, 5.0, 6.0)};
   const auto blocked = checker.check_path(blocked_path);
   EXPECT_TRUE(blocked.collided());
   EXPECT_EQ(blocked.path_segment_index, 0);
   EXPECT_GT(blocked.first_s_m, 0.0);
 
   common::PathSegment first_segment;
-  first_segment.points = {path_point(2.0, 5.0, 0.0),
-                          path_point(4.0, 5.0, 2.0),
+  first_segment.points = {path_point(2.0, 5.0, 0.0), path_point(4.0, 5.0, 2.0),
                           path_point(6.0, 5.0, 4.0)};
   common::PathSegment second_segment;
-  second_segment.points = {path_point(6.0, 5.0, 0.0),
-                           path_point(8.0, 5.0, 2.0)};
-  const auto multi = checker.check_path(
-      std::vector<common::PathSegment>{first_segment, second_segment});
+  second_segment.points = {path_point(6.0, 5.0, 0.0), path_point(8.0, 5.0, 2.0)};
+  const auto multi =
+      checker.check_path(std::vector<common::PathSegment>{first_segment, second_segment});
   EXPECT_TRUE(multi.collided());
   EXPECT_EQ(multi.path_segment_index, 1);
 }
@@ -175,40 +165,32 @@ TEST(CollisionChecker, InvalidInputAndInvalidConstruction) {
   collision::CollisionChecker checker(vehicle, scene);
   ASSERT_TRUE(checker.valid());
 
-  EXPECT_EQ(checker.check_pose({std::numeric_limits<double>::quiet_NaN(), 0, 0})
-                .status,
+  EXPECT_EQ(checker.check_pose({std::numeric_limits<double>::quiet_NaN(), 0, 0}).status,
             collision::CheckStatus::kInvalidInput);
 
   collision::MotionSegment motion;
   motion.start = {3.0, 5.0, 0.0};
   motion.length_m = -1.0;
-  EXPECT_EQ(checker.check_motion(motion).status,
-            collision::CheckStatus::kInvalidInput);
+  EXPECT_EQ(checker.check_motion(motion).status, collision::CheckStatus::kInvalidInput);
   motion.length_m = std::numeric_limits<double>::infinity();
-  EXPECT_EQ(checker.check_motion(motion).status,
-            collision::CheckStatus::kInvalidInput);
+  EXPECT_EQ(checker.check_motion(motion).status, collision::CheckStatus::kInvalidInput);
   motion.length_m = 1.0;
   motion.curvature_per_m = 2.0e6;
-  EXPECT_EQ(checker.check_motion(motion).status,
-            collision::CheckStatus::kInvalidInput);
+  EXPECT_EQ(checker.check_motion(motion).status, collision::CheckStatus::kInvalidInput);
 
   common::PathSegment empty_path;
-  EXPECT_EQ(checker.check_path(empty_path).status,
-            collision::CheckStatus::kInvalidInput);
+  EXPECT_EQ(checker.check_path(empty_path).status, collision::CheckStatus::kInvalidInput);
   EXPECT_EQ(checker.check_path(std::vector<common::PathSegment>{}).status,
             collision::CheckStatus::kInvalidInput);
 
   common::PathSegment mixed_direction;
-  mixed_direction.points = {
-      path_point(2.0, 5.0, 0.0),
-      path_point(3.0, 5.0, 1.0, common::Direction::kReverse)};
-  EXPECT_EQ(checker.check_path(mixed_direction).status,
-            collision::CheckStatus::kInvalidInput);
+  mixed_direction.points = {path_point(2.0, 5.0, 0.0),
+                            path_point(3.0, 5.0, 1.0, common::Direction::kReverse)};
+  EXPECT_EQ(checker.check_path(mixed_direction).status, collision::CheckStatus::kInvalidInput);
 
   common::PathSegment decreasing_s;
   decreasing_s.points = {path_point(2.0, 5.0, 1.0), path_point(3.0, 5.0, 1.0)};
-  EXPECT_EQ(checker.check_path(decreasing_s).status,
-            collision::CheckStatus::kInvalidInput);
+  EXPECT_EQ(checker.check_path(decreasing_s).status, collision::CheckStatus::kInvalidInput);
 
   common::VehicleModel invalid_vehicle = vehicle;
   invalid_vehicle.wheelbase_m = 0.0;
@@ -220,8 +202,7 @@ TEST(CollisionChecker, InvalidInputAndInvalidConstruction) {
 
   collision::CheckOptions invalid_options;
   invalid_options.sweep_precision_m = 0.0;
-  collision::CollisionChecker bad_options_checker(vehicle, scene,
-                                                  invalid_options);
+  collision::CollisionChecker bad_options_checker(vehicle, scene, invalid_options);
   EXPECT_FALSE(bad_options_checker.valid());
 }
 
@@ -234,14 +215,12 @@ TEST(CollisionFootprint, BoxGeometryPreservesLegacyCornerValues) {
   std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
   for (int i = 0; i < 200; ++i) {
     SCOPED_TRACE(i);
-    const common::Pose2d pose{coordinate(engine), coordinate(engine),
-                              angle(engine)};
+    const common::Pose2d pose{coordinate(engine), coordinate(engine), angle(engine)};
     const auto expected_body = footprint.body_corners();
     const auto expected = footprint.world_corners(pose);
     const auto box_corners = footprint.world_box(pose).corners();
     for (std::size_t k = 0; k < 4; ++k) {
-      EXPECT_EQ(expected[k],
-                math::transform_point(pose, expected_body[k]));
+      EXPECT_EQ(expected[k], math::transform_point(pose, expected_body[k]));
       EXPECT_EQ(box_corners[k], expected[k]);
     }
     const auto aabb = footprint.world_box(pose).aabb();
@@ -252,8 +231,7 @@ TEST(CollisionFootprint, BoxGeometryPreservesLegacyCornerValues) {
 }
 
 TEST(CollisionObstacle, FactoriesNormalizeAndCacheGeometry) {
-  const auto rectangle =
-      collision::Obstacle::rectangle("rect", -1.0, -2.0, 3.0, 4.0);
+  const auto rectangle = collision::Obstacle::rectangle("rect", -1.0, -2.0, 3.0, 4.0);
   ASSERT_TRUE(rectangle.valid());
   EXPECT_EQ(rectangle.id, "rect");
   EXPECT_EQ(rectangle.size(), 4u);
@@ -266,41 +244,38 @@ TEST(CollisionObstacle, FactoriesNormalizeAndCacheGeometry) {
   EXPECT_DOUBLE_EQ(rectangle.aabb().max_x, 3.0);
   EXPECT_DOUBLE_EQ(rectangle.aabb().max_y, 4.0);
 
-  const auto clockwise = collision::Obstacle::convex_polygon(
-      "cw", {{0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}});
+  const auto clockwise =
+      collision::Obstacle::convex_polygon("cw", {{0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}});
   ASSERT_TRUE(clockwise.valid());
   EXPECT_TRUE(math::is_counter_clockwise(clockwise.vertices()));
   EXPECT_DOUBLE_EQ(clockwise.aabb().max_x, 2.0);
   EXPECT_DOUBLE_EQ(clockwise.aabb().max_y, 2.0);
 
-  const auto invalid = collision::Obstacle::convex_polygon(
-      "bad", {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}});
+  const auto invalid =
+      collision::Obstacle::convex_polygon("bad", {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}});
   EXPECT_TRUE(invalid.empty());
   EXPECT_FALSE(invalid.valid());
   EXPECT_DOUBLE_EQ(invalid.aabb().min_x, 0.0);
   EXPECT_DOUBLE_EQ(invalid.aabb().max_x, 0.0);
 
-  const auto inverted = collision::Obstacle::rectangle("inverted", 2.0, 0.0,
-                                                       1.0, 1.0);
+  const auto inverted = collision::Obstacle::rectangle("inverted", 2.0, 0.0, 1.0, 1.0);
   EXPECT_TRUE(inverted.empty());
   EXPECT_FALSE(inverted.valid());
 }
 
 TEST(CollisionObstacle, StringViewIdIsCopied) {
   std::string source = "factory_source";
-  const auto rectangle = collision::Obstacle::rectangle(
-      std::string_view(source), 0.0, 0.0, 2.0, 2.0);
+  const auto rectangle =
+      collision::Obstacle::rectangle(std::string_view(source), 0.0, 0.0, 2.0, 2.0);
   const auto polygon = collision::Obstacle::convex_polygon(
-      std::string_view(source),
-      {{0.0, 0.0}, {2.0, 0.0}, {2.0, 2.0}, {0.0, 2.0}});
+      std::string_view(source), {{0.0, 0.0}, {2.0, 0.0}, {2.0, 2.0}, {0.0, 2.0}});
   source.assign("mutated");
   EXPECT_EQ(rectangle.id, "factory_source");
   EXPECT_EQ(polygon.id, "factory_source");
 }
 
 TEST(CollisionToString, KnownAndInvalidEnumerators) {
-  EXPECT_EQ(collision::to_string(collision::CheckStatus::kClear),
-            std::string_view("clear"));
+  EXPECT_EQ(collision::to_string(collision::CheckStatus::kClear), std::string_view("clear"));
   EXPECT_EQ(collision::to_string(collision::CollisionReason::kObstacle),
             std::string_view("obstacle"));
   EXPECT_EQ(collision::to_string(static_cast<collision::CheckStatus>(99)),

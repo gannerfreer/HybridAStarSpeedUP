@@ -26,11 +26,11 @@ inline constexpr float kPotentialInfinity = std::numeric_limits<float>::infinity
  * @brief 二维势场距离图结构体，存储各栅格到目标单元的最短路径距离。
  */
 struct GridPotential {
-  int width{0};                   ///< 栅格宽度（列数）。
-  int height{0};                  ///< 栅格高度（行数）。
-  double resolution_m{0.0};       ///< 栅格像元分辨率（米，m）。
+  int width{0};              ///< 栅格宽度（列数）。
+  int height{0};             ///< 栅格高度（行数）。
+  double resolution_m{0.0};  ///< 栅格像元分辨率（米，m）。
   std::vector<float> distance_m;  ///< 行主序存储的距离场（米，m）；不可达像元为无穷大（infinity）。
-  bool aborted{false};            ///< 是否因超时或外部终止而提前中止计算。
+  bool aborted{false};  ///< 是否因超时或外部终止而提前中止计算。
 };
 
 /**
@@ -50,8 +50,7 @@ std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row, int goa
  * @param[in] deadline_exceeded 可选的超时检查回调，若超时返回 true 则提前中止计算。
  * @return 计算得到的势场数据；若被中止，结构体内的 aborted 标志置为 true。
  */
-GridPotential compute_grid_potential(const common::GridView& grid, int goal_row,
-                                     int goal_col,
+GridPotential compute_grid_potential(const common::GridView& grid, int goal_row, int goal_col,
                                      const std::function<bool()>& deadline_exceeded);
 
 }  // namespace planner::hybrid_astar::internal

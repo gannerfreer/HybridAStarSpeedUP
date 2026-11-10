@@ -68,9 +68,7 @@ struct Segment2d {
    * @param[in] p 待测点。
    * @return 最小欧氏距离（米）。
    */
-  double distance_to(const Vec2d& p) const noexcept {
-    return (p - closest_point(p)).norm();
-  }
+  double distance_to(const Vec2d& p) const noexcept { return (p - closest_point(p)).norm(); }
 
   /**
    * @brief 计算点到线段 [start, end] 的最小欧氏距离的平方。
@@ -120,9 +118,8 @@ struct Segment2d {
     if (intersects(other)) {
       return 0.0;
     }
-    return std::min(
-        std::min(other.distance_to(start), other.distance_to(end)),
-        std::min(distance_to(other.start), distance_to(other.end)));
+    return std::min(std::min(other.distance_to(start), other.distance_to(end)),
+                    std::min(distance_to(other.start), distance_to(other.end)));
   }
 
   /**
@@ -133,8 +130,7 @@ struct Segment2d {
   double distance_sq_to(const Segment2d& other) const noexcept {
     if (!internal::coordinates_in_fast_domain(start.x_m, start.y_m) ||
         !internal::coordinates_in_fast_domain(end.x_m, end.y_m) ||
-        !internal::coordinates_in_fast_domain(other.start.x_m,
-                                             other.start.y_m) ||
+        !internal::coordinates_in_fast_domain(other.start.x_m, other.start.y_m) ||
         !internal::coordinates_in_fast_domain(other.end.x_m, other.end.y_m)) {
       const double d = distance_to(other);
       return d * d;
@@ -152,9 +148,8 @@ struct Segment2d {
     if (d2 == 0.0 && distance_sq_to(other.end) == 0.0) return 0.0;
     if (d3 == 0.0 && other.distance_sq_to(start) == 0.0) return 0.0;
     if (d4 == 0.0 && other.distance_sq_to(end) == 0.0) return 0.0;
-    return std::min(
-        std::min(other.distance_sq_to(start), other.distance_sq_to(end)),
-        std::min(distance_sq_to(other.start), distance_sq_to(other.end)));
+    return std::min(std::min(other.distance_sq_to(start), other.distance_sq_to(end)),
+                    std::min(distance_sq_to(other.start), distance_sq_to(other.end)));
   }
 };
 

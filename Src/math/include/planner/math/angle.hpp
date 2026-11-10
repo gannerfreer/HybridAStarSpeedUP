@@ -28,17 +28,13 @@ inline constexpr double kPi = 3.14159265358979323846;
  * @param[in] angle_deg 角度（度）。
  * @return 对应弧度值。
  */
-inline constexpr double deg_to_rad(double angle_deg) noexcept {
-  return angle_deg * (kPi / 180.0);
-}
+inline constexpr double deg_to_rad(double angle_deg) noexcept { return angle_deg * (kPi / 180.0); }
 
 /**
  * @brief 将角度由弧度转换为度。
  * @param[in] angle_rad 角度（弧度）。
  * @return 对应角度值（度）。
  */
-inline constexpr double rad_to_deg(double angle_rad) noexcept {
-  return angle_rad * (180.0 / kPi);
-}
+inline constexpr double rad_to_deg(double angle_rad) noexcept { return angle_rad * (180.0 / kPi); }
 
 }  // namespace planner::math

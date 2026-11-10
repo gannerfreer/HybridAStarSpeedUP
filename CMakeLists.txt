@@ -77,6 +77,12 @@ add_subdirectory(Src/collision)
 add_subdirectory(Src/rs)
 add_subdirectory(Src/hybrid_astar)
 
+add_custom_target(check_layering
+  COMMAND ${CMAKE_COMMAND}
+    -DPLANNER_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -P ${CMAKE_SOURCE_DIR}/cmake/check_layering.cmake
+  COMMENT "Checking source layering rules")
+
 if(PLANNER_BUILD_TOOLS AND PLANNER_WITH_CONFIG)
   add_subdirectory(tools)
 endif()

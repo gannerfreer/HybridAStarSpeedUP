@@ -24,9 +24,9 @@
 #include "planner/math/polygon2d.hpp"
 
 namespace planner::collision {
+using common::Direction;
 using common::Point2d;
 using common::Pose2d;
-using common::Direction;
 
 using planner::common::GridView;
 using planner::common::VehicleModel;
@@ -35,8 +35,8 @@ using planner::common::VehicleModel;
  * @brief 局部世界坐标系下的凸多边形静态障碍物。
  */
 struct Obstacle {
-  std::string id;          ///< 障碍物唯一标识符。
-  math::Polygon2d polygon; ///< 按逆时针 (CCW) 排列的闭合凸多边形（顶点数 >= 3）。
+  std::string id;           ///< 障碍物唯一标识符。
+  math::Polygon2d polygon;  ///< 按逆时针 (CCW) 排列的闭合凸多边形（顶点数 >= 3）。
 
   /**
    * @brief 创建轴对齐矩形凸障碍物的工厂方法。
@@ -47,8 +47,8 @@ struct Obstacle {
    * @param[in] y_max_m Y 轴上界（米）。
    * @return 包含 4 个 CCW 顶点的 Obstacle，若参数非法则返回空多边形。
    */
-  static Obstacle rectangle(std::string_view id, double x_min_m,
-                            double y_min_m, double x_max_m, double y_max_m);
+  static Obstacle rectangle(std::string_view id, double x_min_m, double y_min_m, double x_max_m,
+                            double y_max_m);
 
   /**
    * @brief 创建通用凸多边形障碍物的工厂方法（自动归一化为逆时针）。
@@ -56,8 +56,7 @@ struct Obstacle {
    * @param[in] vertices 多边形顶点数组。
    * @return 包含逆时针顶点的 Obstacle，若非凸或退化则返回空多边形。
    */
-  static Obstacle convex_polygon(std::string_view id,
-                                 std::vector<Point2d> vertices);
+  static Obstacle convex_polygon(std::string_view id, std::vector<Point2d> vertices);
 
   /**
    * @brief 校验障碍物顶点坐标、数量、面积及凸性是否合法。
@@ -70,9 +69,7 @@ struct Obstacle {
    * @brief 获取逆时针顶点序列。
    * @return 顶点序列只读引用。
    */
-  const std::vector<Point2d>& vertices() const noexcept {
-    return polygon.vertices();
-  }
+  const std::vector<Point2d>& vertices() const noexcept { return polygon.vertices(); }
 
   /**
    * @brief 获取顶点连续存储首地址。
@@ -134,22 +131,23 @@ Scene make_scene(const common::ScenarioConfig& scenario);
  * @details 坐标系规范：车体局部坐标系，原点位于后轴中心，X 轴沿车身中心线朝前，Y 轴朝左。
  */
 struct Footprint {
-  double x_min_m{0.0};          ///< 车体系纵向后向极限：-(rear_overhang + margin)（米）。
-  double x_max_m{0.0};          ///< 车体系纵向前向极限：wheelbase + front_overhang + margin（米）。
-  double y_min_m{0.0};          ///< 车体系横向右侧极限：-(width/2 + margin)（米）。
-  double y_max_m{0.0};          ///< 车体系横向左侧极限：+(width/2 + margin)（米）。
-  double corner_radius_m{0.0};  ///< 各角点相对后轴中心的最大回转半径，用于扫掠包围球上界估计（米）。
-  double half_width_m{0.0};     ///< 包含安全裕量的车身总半宽（米）。
-  double half_length_m{0.0};    ///< 包含安全裕量的车身总半长（米）。
-  double center_x_m{0.0};       ///< 足迹矩形几何中心在车体系下的 X 坐标（米）。
+  double x_min_m{0.0};  ///< 车体系纵向后向极限：-(rear_overhang + margin)（米）。
+  double x_max_m{0.0};  ///< 车体系纵向前向极限：wheelbase + front_overhang + margin（米）。
+  double y_min_m{0.0};  ///< 车体系横向右侧极限：-(width/2 + margin)（米）。
+  double y_max_m{0.0};  ///< 车体系横向左侧极限：+(width/2 + margin)（米）。
+  double corner_radius_m{
+      0.0};  ///< 各角点相对后轴中心的最大回转半径，用于扫掠包围球上界估计（米）。
+  double half_width_m{0.0};   ///< 包含安全裕量的车身总半宽（米）。
+  double half_length_m{0.0};  ///< 包含安全裕量的车身总半长（米）。
+  double center_x_m{0.0};     ///< 足迹矩形几何中心在车体系下的 X 坐标（米）。
 
   /**
    * @brief 计算车体系下的 4 个角点坐标，从 (x_min, y_min) 起沿逆时针排列。
    * @return 包含 4 个车体系角点的定长数组。
    */
   std::array<Point2d, 4> body_corners() const noexcept {
-    return {Point2d{x_min_m, y_min_m}, Point2d{x_max_m, y_min_m},
-            Point2d{x_max_m, y_max_m}, Point2d{x_min_m, y_max_m}};
+    return {Point2d{x_min_m, y_min_m}, Point2d{x_max_m, y_min_m}, Point2d{x_max_m, y_max_m},
+            Point2d{x_min_m, y_max_m}};
   }
 
   /**
@@ -157,9 +155,9 @@ struct Footprint {
    * @return 中心位于足迹几何中心、航向角为 0 的 Box2d。
    */
   math::Box2d body_box() const noexcept {
-    return math::Box2d{math::Vec2d{center_x_m, 0.0}, x_max_m - x_min_m,
-                       y_max_m - y_min_m, 0.0, 1.0, 0.0,
-                       math::Vec2d{0.0, 0.0}, body_corners()};
+    return math::Box2d{
+        math::Vec2d{center_x_m, 0.0}, x_max_m - x_min_m, y_max_m - y_min_m, 0.0, 1.0, 0.0,
+        math::Vec2d{0.0, 0.0},        body_corners()};
   }
 
   /**
@@ -172,10 +170,14 @@ struct Footprint {
     // Box2d 复用缓存的正余弦与车体角点批量生成世界系角点。
     const double c = std::cos(pose.yaw_rad);
     const double s = std::sin(pose.yaw_rad);
-    const math::Vec2d center{pose.x_m + c * center_x_m,
-                             pose.y_m + s * center_x_m};
-    return math::Box2d{center, x_max_m - x_min_m, y_max_m - y_min_m,
-                       pose.yaw_rad, c, s, math::Vec2d{pose.x_m, pose.y_m},
+    const math::Vec2d center{pose.x_m + c * center_x_m, pose.y_m + s * center_x_m};
+    return math::Box2d{center,
+                       x_max_m - x_min_m,
+                       y_max_m - y_min_m,
+                       pose.yaw_rad,
+                       c,
+                       s,
+                       math::Vec2d{pose.x_m, pose.y_m},
                        body_corners()};
   }
 
@@ -196,8 +198,7 @@ struct Footprint {
  * @param[out] reason 失败时的诊断说明文本。
  * @return 若所有尺寸与转角参数均为合法值则返回 true。
  */
-bool vehicle_footprint_valid(const VehicleModel& vehicle,
-                             std::string* reason = nullptr);
+bool vehicle_footprint_valid(const VehicleModel& vehicle, std::string* reason = nullptr);
 
 /**
  * @brief 根据车辆模型参数构造对应的矩形足迹模型。

@@ -1,15 +1,3 @@
-#include "planner/math/aabb2d.hpp"
-#include "planner/math/angle.hpp"
-#include "collision_checker.hpp"
-#include "planner/common/grid_view.hpp"
-#include "planner/common/plan.hpp"
-#include "planner/common/status.hpp"
-#include "planner/common/vehicle.hpp"
-#include "planner/math/kinematics/arc.hpp"
-#include "planner/math/polygon2d.hpp"
-#include "scene.hpp"
-#include "user_astar.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -17,6 +5,18 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+
+#include "collision_checker.hpp"
+#include "planner/common/grid_view.hpp"
+#include "planner/common/plan.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
+#include "planner/math/aabb2d.hpp"
+#include "planner/math/angle.hpp"
+#include "planner/math/kinematics/arc.hpp"
+#include "planner/math/polygon2d.hpp"
+#include "scene.hpp"
+#include "user_astar.hpp"
 
 namespace {
 
@@ -78,9 +78,8 @@ collision::Scene bench_scene() {
 int main() {
   std::printf("planner benchmarks (std::chrono::steady_clock)\n");
 
-  double seconds = measure_seconds(5000000, [](int i) {
-    g_sink = g_sink + math::normalize_angle_rad(-1000.0 + i * 0.001);
-  });
+  double seconds = measure_seconds(
+      5000000, [](int i) { g_sink = g_sink + math::normalize_angle_rad(-1000.0 + i * 0.001); });
   report_ns_per_op("math::normalize_angle_rad", 5000000, seconds);
 
   const common::Pose2d arc_start{1.0, 2.0, 0.3};
@@ -96,9 +95,7 @@ int main() {
   seconds = measure_seconds(2000000, [&](int i) {
     const double offset = (i % 100) * 0.01;
     const math::Aabb2d box{0.5 + offset, 0.5, 1.5 + offset, 1.5};
-    g_sink = g_sink + (math::convex_polygon_intersects_aabb(polygon, box, 0.0)
-                           ? 1.0
-                           : 0.0);
+    g_sink = g_sink + (math::convex_polygon_intersects_aabb(polygon, box, 0.0) ? 1.0 : 0.0);
   });
   report_ns_per_op("math::convex_polygon_intersects_aabb", 2000000, seconds);
 
@@ -106,8 +103,7 @@ int main() {
   const auto scene = bench_scene();
   const collision::CollisionChecker checker(vehicle, scene);
   if (!checker.valid()) {
-    std::fprintf(stderr, "benchmark scene invalid: %s\n",
-                 checker.invalid_reason().c_str());
+    std::fprintf(stderr, "benchmark scene invalid: %s\n", checker.invalid_reason().c_str());
     return EXIT_FAILURE;
   }
 
@@ -139,8 +135,7 @@ int main() {
   const auto warmup = planner.plan(request, scene.grid, checker);
   if (warmup.status != common::Status::kSuccess) {
     const std::string status(common::to_string(warmup.status));
-    std::fprintf(stderr, "benchmark warmup plan failed: %s\n",
-                 status.c_str());
+    std::fprintf(stderr, "benchmark warmup plan failed: %s\n", status.c_str());
     return EXIT_FAILURE;
   }
 
@@ -152,8 +147,7 @@ int main() {
     const auto begin = Clock::now();
     const auto result = planner.plan(request, scene.grid, checker);
     const auto end = Clock::now();
-    const double elapsed =
-        std::chrono::duration<double>(end - begin).count();
+    const double elapsed = std::chrono::duration<double>(end - begin).count();
     total_seconds += elapsed;
     best_seconds = std::min(best_seconds, elapsed);
     if (result.status == common::Status::kSuccess && !result.path.empty()) {
@@ -163,16 +157,12 @@ int main() {
     }
   }
   if (successes != plan_iterations) {
-    std::fprintf(stderr, "benchmark plan succeeded only %d/%d times\n",
-                 successes, plan_iterations);
+    std::fprintf(stderr, "benchmark plan succeeded only %d/%d times\n", successes, plan_iterations);
     return EXIT_FAILURE;
   }
-  report_ms_per_op("UserAstar::plan (obstacle detour)", plan_iterations,
-                   total_seconds);
+  report_ms_per_op("UserAstar::plan (obstacle detour)", plan_iterations, total_seconds);
   std::printf("%-42s %12.4f ms\n", "UserAstar::plan best", best_seconds * 1e3);
-  std::printf("%-42s %12.3f m\n", "UserAstar::plan path length",
-              path_length_m);
-  std::printf("%-42s %12d/%d\n", "UserAstar::plan success", successes,
-              plan_iterations);
+  std::printf("%-42s %12.3f m\n", "UserAstar::plan path length", path_length_m);
+  std::printf("%-42s %12d/%d\n", "UserAstar::plan success", successes, plan_iterations);
   return EXIT_SUCCESS;
 }

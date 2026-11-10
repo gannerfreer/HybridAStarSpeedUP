@@ -24,9 +24,7 @@ struct PathView {
   double length_m{0.0};
 };
 
-double tolerance_for(double length_m) {
-  return 1e-12 * std::max(1.0, length_m);
-}
+double tolerance_for(double length_m) { return 1e-12 * std::max(1.0, length_m); }
 
 // 校验分段几何有效性，并预先计算各分段起点位姿与累计弧长边界。
 // 若路径结构异常则抛出 std::invalid_argument。
@@ -41,12 +39,10 @@ PathView make_view(const RsPath& path) {
   common::Pose2d cursor = path.start;
   for (const RsSegment& segment : path.segments) {
     if (!std::isfinite(segment.length_m) || segment.length_m < 0.0) {
-      throw std::invalid_argument(
-          "rs::sample: segment length_m must be finite and >= 0");
+      throw std::invalid_argument("rs::sample: segment length_m must be finite and >= 0");
     }
     if (!std::isfinite(segment.curvature_per_m)) {
-      throw std::invalid_argument(
-          "rs::sample: segment curvature_per_m must be finite");
+      throw std::invalid_argument("rs::sample: segment curvature_per_m must be finite");
     }
     view.seg_start.push_back(cursor);
     cumulative += segment.length_m;
@@ -59,13 +55,11 @@ PathView make_view(const RsPath& path) {
   const double tol = tolerance_for(std::max(std::fabs(path.length_m), cumulative));
   if (path.segments.empty()) {
     if (std::fabs(path.length_m) > tol) {
-      throw std::invalid_argument(
-          "rs::sample: an empty path must have length_m == 0");
+      throw std::invalid_argument("rs::sample: an empty path must have length_m == 0");
     }
     view.length_m = 0.0;
   } else if (std::fabs(cumulative - path.length_m) > tol) {
-    throw std::invalid_argument(
-        "rs::sample: path.length_m does not match the segment sum");
+    throw std::invalid_argument("rs::sample: path.length_m does not match the segment sum");
   }
   // 保持以 path.length_m 为基准总长，使采样的 s_m 与调用方预期精确一致；局部段内偏移钳位在分段长度内。
   return view;

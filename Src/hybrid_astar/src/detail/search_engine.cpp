@@ -36,8 +36,7 @@ void SearchEngine::set_abort_callback(std::function<bool()> callback) {
   abort_callback_ = std::move(callback);
 }
 
-void SearchEngine::set_pose_collision_hook(
-    std::function<bool(const math::Pose2d&)> hook) {
+void SearchEngine::set_pose_collision_hook(std::function<bool(const math::Pose2d&)> hook) {
   pose_collision_hook_ = std::move(hook);
 }
 
@@ -64,10 +63,8 @@ void SearchEngine::reset_state() {
   open_queue_.clear();
 }
 
-SearchResult SearchEngine::search(const math::Pose2d& start,
-                                  const math::Pose2d& goal,
-                                  common::Direction goal_direction,
-                                  std::int64_t node_budget) {
+SearchResult SearchEngine::search(const math::Pose2d& start, const math::Pose2d& goal,
+                                  common::Direction goal_direction, std::int64_t node_budget) {
   SearchResult result;
   result.status = common::Status::kInvalidInput;
 
@@ -75,9 +72,8 @@ SearchResult SearchEngine::search(const math::Pose2d& start,
     result.reason = "required collision or goal hook is missing";
     return result;
   }
-  if (!std::isfinite(start.x_m) || !std::isfinite(start.y_m) ||
-      !std::isfinite(start.yaw_rad) || !std::isfinite(goal.x_m) ||
-      !std::isfinite(goal.y_m) || !std::isfinite(goal.yaw_rad)) {
+  if (!std::isfinite(start.x_m) || !std::isfinite(start.y_m) || !std::isfinite(start.yaw_rad) ||
+      !std::isfinite(goal.x_m) || !std::isfinite(goal.y_m) || !std::isfinite(goal.yaw_rad)) {
     result.reason = "start or goal is not finite";
     return result;
   }
@@ -167,8 +163,7 @@ SearchResult SearchEngine::search(const math::Pose2d& start,
       result.reason = "no feasible path";
     } else {
       result.status = common::Status::kTimeout;
-      result.reason = "node budget of " + std::to_string(max_iterations) +
-                      " exhausted";
+      result.reason = "node budget of " + std::to_string(max_iterations) + " exhausted";
     }
     return result;
   }
@@ -188,26 +183,19 @@ bool SearchEngine::is_collision(const Vertex3D& node) const {
   return pose_collision_hook_(node.state.pose);
 }
 
-bool SearchEngine::is_goal(const Vertex3D& node) const {
-  return goal_hook_(node.state);
-}
+bool SearchEngine::is_goal(const Vertex3D& node) const { return goal_hook_(node.state); }
 
 std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
-  int32_t x_bin = static_cast<int32_t>(
-      std::floor(node.state.pose.x_m / config_.xy_resolution_m));
-  int32_t y_bin = static_cast<int32_t>(
-      std::floor(node.state.pose.y_m / config_.xy_resolution_m));
-  const double heading_bin_rad =
-      2.0 * kPi / static_cast<double>(config_.heading_bins);
-  int32_t angle_bin = static_cast<int32_t>(std::floor(
-      (math::normalize_angle_rad(node.state.pose.yaw_rad) + kPi) /
-      heading_bin_rad));
+  int32_t x_bin = static_cast<int32_t>(std::floor(node.state.pose.x_m / config_.xy_resolution_m));
+  int32_t y_bin = static_cast<int32_t>(std::floor(node.state.pose.y_m / config_.xy_resolution_m));
+  const double heading_bin_rad = 2.0 * kPi / static_cast<double>(config_.heading_bins);
+  int32_t angle_bin = static_cast<int32_t>(
+      std::floor((math::normalize_angle_rad(node.state.pose.yaw_rad) + kPi) / heading_bin_rad));
   if (angle_bin >= config_.heading_bins) {
     angle_bin %= config_.heading_bins;
   }
   if (angle_bin < 0) {
-    angle_bin = (angle_bin % config_.heading_bins + config_.heading_bins) %
-                config_.heading_bins;
+    angle_bin = (angle_bin % config_.heading_bins + config_.heading_bins) % config_.heading_bins;
   }
 
   std::uint64_t hash = 0U;
@@ -232,42 +220,33 @@ std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
   return hash;
 }
 
-void SearchEngine::expand_node(const Vertex3D& current,
-                               const math::Pose2d& start,
+void SearchEngine::expand_node(const Vertex3D& current, const math::Pose2d& start,
                                const math::Pose2d& goal) {
   const int32_t steering_num = std::max(2, config_.steering_samples);
   const double steer_min_rad = -vehicle_.max_steer_rad;
   const double steer_max_rad = vehicle_.max_steer_rad;
   const double delta_steer_rad =
-      (steer_max_rad - steer_min_rad) /
-      static_cast<double>(steering_num - 1);
+      (steer_max_rad - steer_min_rad) / static_cast<double>(steering_num - 1);
 
   bool allow_backward = config_.allow_reverse;
   if (allow_backward && config_.backward_search_range_m > 0.0) {
     const double dist2_start_sq =
-        (current.state.pose.x_m - start.x_m) *
-            (current.state.pose.x_m - start.x_m) +
-        (current.state.pose.y_m - start.y_m) *
-            (current.state.pose.y_m - start.y_m);
-    const double range_sq =
-        config_.backward_search_range_m * config_.backward_search_range_m;
+        (current.state.pose.x_m - start.x_m) * (current.state.pose.x_m - start.x_m) +
+        (current.state.pose.y_m - start.y_m) * (current.state.pose.y_m - start.y_m);
+    const double range_sq = config_.backward_search_range_m * config_.backward_search_range_m;
     if (dist2_start_sq > range_sq) {
       allow_backward = false;
     }
   }
 
   for (int32_t i = 0; i < steering_num; ++i) {
-    const double steering =
-        steer_min_rad + static_cast<double>(i) * delta_steer_rad;
+    const double steering = steer_min_rad + static_cast<double>(i) * delta_steer_rad;
     const common::Direction begin_dir = common::Direction::kForward;
     const common::Direction end_dir =
-        allow_backward ? common::Direction::kReverse
-                       : common::Direction::kForward;
+        allow_backward ? common::Direction::kReverse : common::Direction::kForward;
 
-    for (int32_t d = static_cast<int32_t>(begin_dir);
-         d <= static_cast<int32_t>(end_dir); ++d) {
-      const common::Direction direction =
-          static_cast<common::Direction>(d);
+    for (int32_t d = static_cast<int32_t>(begin_dir); d <= static_cast<int32_t>(end_dir); ++d) {
+      const common::Direction direction = static_cast<common::Direction>(d);
       Vertex3D succ = propagate(current, direction, steering);
       succ.id = vertex_hash(succ);
       if (closed_set_.find(succ.id) != closed_set_.end()) {
@@ -291,58 +270,45 @@ void SearchEngine::expand_node(const Vertex3D& current,
   }
 }
 
-SearchEngine::Vertex3D SearchEngine::propagate(
-    const Vertex3D& start, common::Direction direction,
-    double steering_rad) const {
+SearchEngine::Vertex3D SearchEngine::propagate(const Vertex3D& start, common::Direction direction,
+                                               double steering_rad) const {
   Vertex3D end;
   end.parent_id = start.id;
   end.state.direction = direction;
   end.state.curvature_per_m =
-      math::kinematics::curvature_from_steer(steering_rad,
-                                             vehicle_.wheelbase_m);
+      math::kinematics::curvature_from_steer(steering_rad, vehicle_.wheelbase_m);
   end.state.arc_length_m = config_.motion_step_m;
-  const double sign =
-      direction == common::Direction::kForward ? 1.0 : -1.0;
-  end.state.pose = math::integrate_arc(start.state.pose,
-                                       sign * end.state.arc_length_m,
+  const double sign = direction == common::Direction::kForward ? 1.0 : -1.0;
+  end.state.pose = math::integrate_arc(start.state.pose, sign * end.state.arc_length_m,
                                        end.state.curvature_per_m);
   return end;
 }
 
-double SearchEngine::transition_cost(const Vertex3D& from,
-                                     const Vertex3D& to) const {
+double SearchEngine::transition_cost(const Vertex3D& from, const Vertex3D& to) const {
   const double dx_start = from.state.pose.x_m - search_start_pose_.x_m;
   const double dy_start = from.state.pose.y_m - search_start_pose_.y_m;
   const double dist_to_start_sq = dx_start * dx_start + dy_start * dy_start;
-  const double coeff =
-      (dist_to_start_sq > config_.linear_preferred_distance_m2) ? 1.0 : 5.0;
-  const double heading_change = std::fabs(math::normalize_angle_rad(
-      to.state.pose.yaw_rad - from.state.pose.yaw_rad));
-  const double direction_cost =
-      (to.state.direction == common::Direction::kReverse)
-          ? config_.reverse_cost
-          : config_.forward_cost;
+  const double coeff = (dist_to_start_sq > config_.linear_preferred_distance_m2) ? 1.0 : 5.0;
+  const double heading_change =
+      std::fabs(math::normalize_angle_rad(to.state.pose.yaw_rad - from.state.pose.yaw_rad));
+  const double direction_cost = (to.state.direction == common::Direction::kReverse)
+                                    ? config_.reverse_cost
+                                    : config_.forward_cost;
   const double switch_cost =
-      (to.state.direction == from.state.direction) ? 0.0
-                                                    : config_.switch_cost;
+      (to.state.direction == from.state.direction) ? 0.0 : config_.switch_cost;
 
   return from.g + config_.motion_step_m * direction_cost +
          coeff * config_.turn_penalty * heading_change + switch_cost;
 }
 
-double SearchEngine::heuristic(const Vertex3D& node,
-                               const math::Pose2d& goal) const {
-  const double euclid =
-      std::hypot(node.state.pose.x_m - goal.x_m,
-                 node.state.pose.y_m - goal.y_m);
-  const double yaw_diff = std::fabs(math::normalize_angle_rad(
-      node.state.pose.yaw_rad - goal.yaw_rad));
-  return euclid * std::max(1.0, config_.forward_cost) +
-         yaw_diff * config_.turn_penalty;
+double SearchEngine::heuristic(const Vertex3D& node, const math::Pose2d& goal) const {
+  const double euclid = std::hypot(node.state.pose.x_m - goal.x_m, node.state.pose.y_m - goal.y_m);
+  const double yaw_diff =
+      std::fabs(math::normalize_angle_rad(node.state.pose.yaw_rad - goal.yaw_rad));
+  return euclid * std::max(1.0, config_.forward_cost) + yaw_diff * config_.turn_penalty;
 }
 
-bool SearchEngine::reconstruct_path(std::uint64_t final_id,
-                                    std::vector<SearchState>* path) const {
+bool SearchEngine::reconstruct_path(std::uint64_t final_id, std::vector<SearchState>* path) const {
   if (path == nullptr || final_id == kInvalidNodeId) {
     return false;
   }

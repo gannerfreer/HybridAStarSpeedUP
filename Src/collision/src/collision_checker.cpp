@@ -11,7 +11,6 @@
  *   若达到精度下限仍未证伪碰撞，则保守报告为碰撞。
  */
 
-#include "planner/math/kinematics/arc.hpp"
 #include "collision_checker.hpp"
 
 #include <algorithm>
@@ -31,6 +30,7 @@
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/detail/geometry_utils.hpp"
 #include "planner/math/detail/sat_cache.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "planner/math/vec2d.hpp"
 
@@ -64,8 +64,7 @@ constexpr double kEnvelopeSafetyOffset_m = 1e-12;
 
 /// 检查位姿各坐标分量是否均为有限浮点数。
 bool pose_finite(const Pose2d& pose) noexcept {
-  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) &&
-         std::isfinite(pose.yaw_rad);
+  return std::isfinite(pose.x_m) && std::isfinite(pose.y_m) && std::isfinite(pose.yaw_rad);
 }
 
 }  // namespace
@@ -85,8 +84,9 @@ struct CollisionCheckerImpl {
   std::string invalid_reason;
 
   std::vector<math::Aabb2d> obstacle_boxes;
-  std::vector<int> obstacle_order;  ///< 按 aabb.min_x 升序排列的障碍物索引，用于快速剪枝与遍历加速。
-  double obstacle_scale_m{0.0};     ///< 所有障碍物包围盒顶点坐标的最大绝对值，用于计算数值容差。
+  std::vector<int>
+      obstacle_order;  ///< 按 aabb.min_x 升序排列的障碍物索引，用于快速剪枝与遍历加速。
+  double obstacle_scale_m{0.0};  ///< 所有障碍物包围盒顶点坐标的最大绝对值，用于计算数值容差。
   bool use_obstacle_order{false};
 
   int chunk_size{kGridChunkCells};
@@ -135,8 +135,7 @@ void build_prefix_pyramid(const GridView& grid,
     for (int row = 0; row < grid.height; ++row) {
       const int block_row = row / block;
       for (int col = 0; col < grid.width; ++col) {
-        if (grid.cells[static_cast<std::size_t>(row) * grid.width + col] ==
-            kCellFree) {
+        if (grid.cells[static_cast<std::size_t>(row) * grid.width + col] == kCellFree) {
           continue;
         }
         ++pyramid.sum[static_cast<std::size_t>(block_row + 1) * stride +
@@ -146,14 +145,10 @@ void build_prefix_pyramid(const GridView& grid,
     // 原位 2D 前缀和：sum[r][c] 表示区间 [0..r-1, 0..c-1] 内的阻挡像元总计数
     for (int r = 1; r <= pyramid.rows; ++r) {
       for (int c = 1; c <= pyramid.cols; ++c) {
-        pyramid.sum[static_cast<std::size_t>(r) * stride +
-                    static_cast<std::size_t>(c)] +=
-            pyramid.sum[static_cast<std::size_t>(r - 1) * stride +
-                        static_cast<std::size_t>(c)] +
-            pyramid.sum[static_cast<std::size_t>(r) * stride +
-                        static_cast<std::size_t>(c - 1)] -
-            pyramid.sum[static_cast<std::size_t>(r - 1) * stride +
-                        static_cast<std::size_t>(c - 1)];
+        pyramid.sum[static_cast<std::size_t>(r) * stride + static_cast<std::size_t>(c)] +=
+            pyramid.sum[static_cast<std::size_t>(r - 1) * stride + static_cast<std::size_t>(c)] +
+            pyramid.sum[static_cast<std::size_t>(r) * stride + static_cast<std::size_t>(c - 1)] -
+            pyramid.sum[static_cast<std::size_t>(r - 1) * stride + static_cast<std::size_t>(c - 1)];
       }
     }
   }
@@ -162,8 +157,8 @@ void build_prefix_pyramid(const GridView& grid,
 /// 检查闭区间像元范围 [row0, row1] x [col0, col1] 内是否不含任何被占用或未知单元。
 /// 该范围首先向外扩充至所在块边界并截断至栅格内；若 4 点查表的 2D 前缀和为 0，
 /// 则该外包超集保证不含任何阻挡像元。空范围或非法范围视为无障碍。
-bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0,
-                      int row1, int col0, int col1) noexcept {
+bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0, int row1, int col0,
+                      int col1) noexcept {
   if (row1 < row0 || col1 < col0) {
     return true;
   }
@@ -194,21 +189,17 @@ bool prefix_box_empty(const CollisionCheckerImpl& st, int level, int row0,
   }
   const std::size_t stride = static_cast<std::size_t>(pyramid.cols) + 1;
   const auto at = [&](int r, int c) noexcept -> std::uint32_t {
-    return pyramid.sum[static_cast<std::size_t>(r) * stride +
-                       static_cast<std::size_t>(c)];
+    return pyramid.sum[static_cast<std::size_t>(r) * stride + static_cast<std::size_t>(c)];
   };
-  const std::uint32_t total = at(block_row1 + 1, block_col1 + 1) -
-                              at(block_row0, block_col1 + 1) -
-                              at(block_row1 + 1, block_col0) +
-                              at(block_row0, block_col0);
+  const std::uint32_t total = at(block_row1 + 1, block_col1 + 1) - at(block_row0, block_col1 + 1) -
+                              at(block_row1 + 1, block_col0) + at(block_row0, block_col0);
   return total == 0;
 }
 
 /// 从粗到细依次测试金字塔各层；若任意层级证明该包围盒不含被阻挡单元，则返回 true。
-bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
-                          int col0, int col1) noexcept {
-  for (int level = static_cast<int>(st.prefix_levels.size()) - 1; level >= 0;
-       --level) {
+bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1, int col0,
+                          int col1) noexcept {
+  for (int level = static_cast<int>(st.prefix_levels.size()) - 1; level >= 0; --level) {
     if (prefix_box_empty(st, level, row0, row1, col0, col1)) {
       return true;
     }
@@ -220,8 +211,8 @@ bool prefix_pyramid_empty(const CollisionCheckerImpl& st, int row0, int row1,
 /// 空闲像元在 test_cell 中会立即跳过，因此跳过它们绝不会改变检测决策。
 /// 遍历顺序与全扫描顺序一致（行递增、列递增），当 fn(row, col) 返回 false 时提前终止。
 template <typename Fn>
-void for_each_blocked_cell_in(const CollisionCheckerImpl& st, int row0, int row1,
-                              int col0, int col1, Fn&& fn) {
+void for_each_blocked_cell_in(const CollisionCheckerImpl& st, int row0, int row1, int col0,
+                              int col1, Fn&& fn) {
   const int* cols = st.blocked_cols.data();
   for (int row = row0; row <= row1; ++row) {
     const int* begin = cols + st.blocked_offsets[static_cast<std::size_t>(row)];
@@ -241,8 +232,8 @@ struct PoseHit {
   std::string detail;
 };
 
-std::array<Point2d, 4> grid_corners_from_world(
-    const CollisionCheckerImpl& st, const std::array<Point2d, 4>& world) {
+std::array<Point2d, 4> grid_corners_from_world(const CollisionCheckerImpl& st,
+                                               const std::array<Point2d, 4>& world) {
   std::array<Point2d, 4> out;
   for (std::size_t i = 0; i < 4; ++i) {
     out[i] = st.frame.to_grid_frame(world[i]);
@@ -317,22 +308,18 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       }
       const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
       const double tol =
-          math::contact_tolerance(std::max(footprint_scale,
-                                     obstacle.aabb().max_abs_coordinate()));
+          math::contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
       // O(1) 粗筛：若分离轴投影间隙大于容差 tol，则两多边形最小欧氏距离 d >= gap > tol，
       // 两者绝无接触可能，可安全跳过精确距离计算。
-      if (!math::convex_polygons_intersect(world.data(), world.size(),
-                                           obstacle.data(), obstacle.size(),
-                                           tol)) {
+      if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.data(),
+                                           obstacle.size(), tol)) {
         return;
       }
-      if (math::convex_polygon_distance_sq(world.data(), world.size(),
-                                           obstacle.data(), obstacle.size()) <=
-          tol * tol) {
+      if (math::convex_polygon_distance_sq(world.data(), world.size(), obstacle.data(),
+                                           obstacle.size()) <= tol * tol) {
         obstacle_hit.hit = true;
         obstacle_hit.reason = CollisionReason::kObstacle;
-        obstacle_hit.detail = "obstacle '" + obstacle.id +
-                              "' overlaps the vehicle footprint";
+        obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
       }
     });
     if (obstacle_hit.hit) {
@@ -364,9 +351,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     if (prefix_pyramid_empty(st, row0, row1, col0, col1)) {
       return PoseHit{};
     }
-    const double scale =
-        std::max(std::max(std::abs(min_x), std::abs(max_x)),
-                 std::max(std::abs(min_y), std::abs(max_y)));
+    const double scale = std::max(std::max(std::abs(min_x), std::abs(max_x)),
+                                  std::max(std::abs(min_y), std::abs(max_y)));
     const double tol = math::contact_tolerance(scale);
     // 栅格单元分离轴定理（SAT）预计算缓存：在 evaluate_pose 内部车辆多边形保持固定，
     // 故包围盒与边法向量仅计算一次，在各个候选单元间复用。
@@ -379,38 +365,33 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       if (cell_hit.hit) {
         return;
       }
-      const int value =
-          grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
+      const int value = grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
       if (value == kCellFree) {
         return;
       }
-      const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res,
-                            (row + 1) * res};
+      const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res, (row + 1) * res};
       // O(1) 粗筛：若分离轴投影间隙超过容差，则最小距离必大于 tol，两者不可能发生接触。
       if (!cell_sat.maybe_intersects(cell_box, tol)) {
         return;
       }
       // 在平方距离域执行精确欧氏距离检验。
-      if (math::polygon_aabb_distance_sq(grid.data(), grid.size(), cell_box) >
-          cell_tol_sq) {
+      if (math::polygon_aabb_distance_sq(grid.data(), grid.size(), cell_box) > cell_tol_sq) {
         return;
       }
       cell_hit.hit = true;
-      cell_hit.reason = (value == kCellOccupied) ? CollisionReason::kGridOccupied
-                                                 : CollisionReason::kGridUnknown;
-      cell_hit.detail = "grid cell (" + std::to_string(row) + "," +
-                        std::to_string(col) + ") " +
+      cell_hit.reason =
+          (value == kCellOccupied) ? CollisionReason::kGridOccupied : CollisionReason::kGridUnknown;
+      cell_hit.detail = "grid cell (" + std::to_string(row) + "," + std::to_string(col) + ") " +
                         (value == kCellOccupied ? "occupied" : "unknown") +
                         " overlaps the vehicle footprint";
     };
 
     if (st.blocked_index_valid) {
       // 精确候选枚举：按行主序仅迭代被阻挡单元。
-      for_each_blocked_cell_in(st, row0, row1, col0, col1,
-                               [&](int row, int col) {
-                                 test_cell(row, col);
-                                 return !cell_hit.hit;
-                               });
+      for_each_blocked_cell_in(st, row0, row1, col0, col1, [&](int row, int col) {
+        test_cell(row, col);
+        return !cell_hit.hit;
+      });
     } else if (st.use_chunk_index && !st.chunk_blocked.empty()) {
       const int chunk = st.chunk_size;
       const int c0 = col0 / chunk;
@@ -454,8 +435,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
 
 struct Envelope {
   std::array<Point2d, 8> hull{};  ///< 世界坐标系下的外包凸包顶点（固定容量栈存储）。
-  std::size_t hull_size{0};       ///< 凸包有效顶点数量。
-  double sagitta_m{0.0};          ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差。
+  std::size_t hull_size{0};  ///< 凸包有效顶点数量。
+  double sagitta_m{0.0};  ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差。
 };
 
 /// 构建区间内车辆扫掠轮廓的保守外包络（Envelope）：
@@ -469,26 +450,21 @@ Envelope build_envelope(const CollisionCheckerImpl& st, const Pose2d& p0, const 
   if (abs_yaw >= kPi) {
     // 病态多圈旋转区间：回退至保守上界“到弦的距离 <= 2 * 旋转半径”，迫使算法进行进一步二分。
     const double arc_radius =
-        (kappa != 0.0 ? std::abs(1.0 / kappa) : 0.0) +
-        st.footprint.corner_radius_m;
-    envelope.sagitta_m = 2.0 * arc_radius * kEnvelopeSafetyFactor +
-                         kEnvelopeSafetyOffset_m;
+        (kappa != 0.0 ? std::abs(1.0 / kappa) : 0.0) + st.footprint.corner_radius_m;
+    envelope.sagitta_m = 2.0 * arc_radius * kEnvelopeSafetyFactor + kEnvelopeSafetyOffset_m;
   } else if (delta_yaw != 0.0) {
     const double tan_quarter = std::abs(std::tan(0.25 * delta_yaw));
     for (std::size_t i = 0; i < 4; ++i) {
       const double chord = math::distance(c0[i], c1[i]);
-      envelope.sagitta_m =
-          std::max(envelope.sagitta_m, 0.5 * chord * tan_quarter);
+      envelope.sagitta_m = std::max(envelope.sagitta_m, 0.5 * chord * tan_quarter);
     }
-    envelope.sagitta_m =
-        envelope.sagitta_m * kEnvelopeSafetyFactor + kEnvelopeSafetyOffset_m;
+    envelope.sagitta_m = envelope.sagitta_m * kEnvelopeSafetyFactor + kEnvelopeSafetyOffset_m;
   }
   std::array<Point2d, 8> points{};
   std::size_t n = 0;
   for (const Point2d& p : c0) points[n++] = p;
   for (const Point2d& p : c1) points[n++] = p;
-  envelope.hull_size =
-      math::convex_hull_small(points, n, envelope.hull);
+  envelope.hull_size = math::convex_hull_small(points, n, envelope.hull);
   return envelope;
 }
 
@@ -497,15 +473,13 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
   if (envelope.hull_size == 0) {
     return false;
   }
-  const math::Aabb2d hull_box =
-      math::aabb_of_raw(envelope.hull.data(), envelope.hull_size);
+  const math::Aabb2d hull_box = math::aabb_of_raw(envelope.hull.data(), envelope.hull_size);
   const double scale = hull_box.max_abs_coordinate() + 1.0;
   const double tol = math::contact_tolerance(scale);
   const double reach = envelope.sagitta_m + tol;
   // 障碍物可能位于较大坐标处；数值容差必须与双边距离策略严格匹配
   const double obstacle_reach =
-      envelope.sagitta_m +
-      math::contact_tolerance(std::max(scale, st.obstacle_scale_m));
+      envelope.sagitta_m + math::contact_tolerance(std::max(scale, st.obstacle_scale_m));
 
   // 栅格检测：地图边界包含性与阻挡像元相交性
   if (st.scene.has_grid()) {
@@ -514,8 +488,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     for (std::size_t i = 0; i < envelope.hull_size; ++i) {
       grid_hull[grid_hull_size++] = st.frame.to_grid_frame(envelope.hull[i]);
     }
-    const math::Aabb2d hull_grid_box =
-        math::aabb_of_raw(grid_hull.data(), grid_hull_size);
+    const math::Aabb2d hull_grid_box = math::aabb_of_raw(grid_hull.data(), grid_hull_size);
     for (std::size_t i = 0; i < grid_hull_size; ++i) {
       // distance_to_boundary <= reach 同时涵盖了靠近地图边界与出界两种情形
       if (st.frame.distance_to_boundary(grid_hull[i]) <= reach) {
@@ -536,20 +509,17 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     row1 = std::min(row1, grid_view.height);
     // 在闭区间像元范围 [row0, row1-1] x [col0, col1-1] 上进行多分辨率前缀和快速判空。
     // 若任意层级证明不存在被阻挡单元，则可安全跳过像元细筛扫描。
-    const bool grid_empty =
-        prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
+    const bool grid_empty = prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
     bool clear = true;
     // 预先为外包凸包构建 SAT 分离轴缓存
     math::internal::PolygonSatCache8 hull_sat;
     hull_sat.build(grid_hull.data(), grid_hull_size);
     const auto test_cell = [&](int row, int col) {
-      const int value =
-          grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
+      const int value = grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];
       if (value == kCellFree) {
         return;
       }
-      const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res,
-                            (row + 1) * res};
+      const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res, (row + 1) * res};
       if (!math::aabb_within(cell_box, hull_grid_box, reach)) {
         return;  // AABB 包围盒粗筛：aabb_dist <= polygon_dist
       }
@@ -557,19 +527,18 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
       if (!hull_sat.maybe_intersects(cell_box, reach)) {
         return;
       }
-      if (math::polygon_aabb_distance_sq(grid_hull.data(), grid_hull_size,
-                                         cell_box) <= reach * reach) {
+      if (math::polygon_aabb_distance_sq(grid_hull.data(), grid_hull_size, cell_box) <=
+          reach * reach) {
         clear = false;
       }
     };
     if (!grid_empty) {
       if (st.blocked_index_valid) {
         // 精确候选枚举：按行主序仅迭代被阻挡单元
-        for_each_blocked_cell_in(st, row0, row1 - 1, col0, col1 - 1,
-                                 [&](int row, int col) {
-                                   test_cell(row, col);
-                                   return clear;
-                                 });
+        for_each_blocked_cell_in(st, row0, row1 - 1, col0, col1 - 1, [&](int row, int col) {
+          test_cell(row, col);
+          return clear;
+        });
       } else if (st.use_chunk_index && !st.chunk_blocked.empty()) {
         const int chunk = st.chunk_size;
         const int c0 = col0 / chunk;
@@ -613,14 +582,12 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     }
     const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
     // O(1) SAT 粗筛：当分离轴间隙大于 obstacle_reach 时跳过精确多边形距离计算
-    if (!math::convex_polygons_intersect(envelope.hull.data(), envelope.hull_size,
-                                         obstacle.data(), obstacle.size(),
-                                         obstacle_reach)) {
+    if (!math::convex_polygons_intersect(envelope.hull.data(), envelope.hull_size, obstacle.data(),
+                                         obstacle.size(), obstacle_reach)) {
       return;
     }
-    const double d_sq = math::convex_polygon_distance_sq(
-        envelope.hull.data(), envelope.hull_size, obstacle.data(),
-        obstacle.size());
+    const double d_sq = math::convex_polygon_distance_sq(envelope.hull.data(), envelope.hull_size,
+                                                         obstacle.data(), obstacle.size());
     if (d_sq <= obstacle_reach * obstacle_reach) {
       clear = false;
     }
@@ -647,8 +614,8 @@ struct Decision {
   std::string detail;
 };
 
-double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
-                             const Pose2d& p1, double delta_yaw) {
+double interval_displacement(const SweepContext& ctx, const Pose2d& p0, const Pose2d& p1,
+                             double delta_yaw) {
   const std::array<Point2d, 4> c0 = ctx.state->footprint.world_corners(p0);
   const std::array<Point2d, 4> c1 = ctx.state->footprint.world_corners(p1);
   double max_chord = 0.0;
@@ -659,8 +626,7 @@ double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
   if (abs_yaw >= kPi) {
     // 保守上界：弧长位移 <= |delta_yaw| * (|1/kappa| + corner_radius)
     const double arc_radius =
-        (ctx.kappa != 0.0 ? std::abs(1.0 / ctx.kappa) : 0.0) +
-        ctx.state->footprint.corner_radius_m;
+        (ctx.kappa != 0.0 ? std::abs(1.0 / ctx.kappa) : 0.0) + ctx.state->footprint.corner_radius_m;
     return abs_yaw * arc_radius;
   }
   if (abs_yaw == 0.0) {
@@ -673,15 +639,12 @@ double interval_displacement(const SweepContext& ctx, const Pose2d& p0,
 
 /// 求解扫掠区间 (s0, s1] 内的碰撞状态；调用方保证起始位姿 pose(s0) 严格无碰撞。
 /// 按轨迹遍历顺序返回首个确定的碰撞、首个达到精度下限的不确定区间，或全部安全通过。
-Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
-                 double s1) {
+Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0, double s1) {
   const CollisionCheckerImpl& st = *ctx.state;
-  const Pose2d p1 =
-      math::integrate_arc_trig(ctx.start, s1, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
+  const Pose2d p1 = math::integrate_arc_trig(ctx.start, s1, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
   const PoseHit hit1 = evaluate_pose(st, p1);
   const double delta_yaw = ctx.kappa * (s1 - s0);
-  const bool at_floor =
-      interval_displacement(ctx, p0, p1, delta_yaw) <= ctx.precision_m;
+  const bool at_floor = interval_displacement(ctx, p0, p1, delta_yaw) <= ctx.precision_m;
 
   if (hit1.hit) {
     // 在区间 (s0, s1] 中检测到碰撞，继续二分以报告最早发生的碰撞点
@@ -695,8 +658,7 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
       return decision;
     }
     const double sm = 0.5 * (s0 + s1);
-    const Pose2d pm =
-        math::integrate_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
+    const Pose2d pm = math::integrate_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
     const PoseHit hitm = evaluate_pose(st, pm);
     if (hitm.hit) {
       return resolve(ctx, s0, p0, sm);
@@ -719,13 +681,11 @@ Decision resolve(const SweepContext& ctx, double s0, const Pose2d& p0,
     decision.pose = p0;
     decision.reason = CollisionReason::kPrecisionFloor;
     decision.detail = "swept interval unresolved at the precision floor (" +
-                      format_double(ctx.precision_m) +
-                      " m); treated as collision";
+                      format_double(ctx.precision_m) + " m); treated as collision";
     return decision;
   }
   const double sm = 0.5 * (s0 + s1);
-  const Pose2d pm =
-      math::integrate_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
+  const Pose2d pm = math::integrate_arc_trig(ctx.start, sm, ctx.kappa, ctx.cos_yaw, ctx.sin_yaw);
   const PoseHit hitm = evaluate_pose(st, pm);
   if (hitm.hit) {
     return resolve(ctx, s0, p0, sm);
@@ -749,8 +709,7 @@ CheckResult invalid_result(const std::string& detail) {
   return result;
 }
 
-bool validate_motion_segment(const MotionSegment& segment,
-                             std::string* reason) {
+bool validate_motion_segment(const MotionSegment& segment, std::string* reason) {
   if (!pose_finite(segment.start)) {
     *reason = "motion start pose is not finite";
     return false;
@@ -848,8 +807,7 @@ bool validate_path_segment(const PathSegment& segment, std::string* reason) {
       return false;
     }
     if (!std::isfinite(point.s_m) || point.s_m < 0.0) {
-      *reason = "path point " + std::to_string(i) +
-                " arc length must be finite and non-negative";
+      *reason = "path point " + std::to_string(i) + " arc length must be finite and non-negative";
       return false;
     }
     if (i > 0 && !(point.s_m > previous_s)) {
@@ -857,14 +815,14 @@ bool validate_path_segment(const PathSegment& segment, std::string* reason) {
       return false;
     }
     if (point.direction != direction) {
-      *reason = "path segment mixes travel directions; gear changes must "
-                "start a new segment";
+      *reason =
+          "path segment mixes travel directions; gear changes must "
+          "start a new segment";
       return false;
     }
     if (!std::isfinite(point.curvature_per_m) ||
         std::abs(point.curvature_per_m) > kMaxAbsCurvature_per_m) {
-      *reason = "path point " + std::to_string(i) +
-                " curvature is not finite or out of range";
+      *reason = "path point " + std::to_string(i) + " curvature is not finite or out of range";
       return false;
     }
     previous_s = point.s_m;
@@ -872,16 +830,14 @@ bool validate_path_segment(const PathSegment& segment, std::string* reason) {
   return true;
 }
 
-CheckResult check_path_impl(const CollisionCheckerImpl& st,
-                            const std::vector<PathSegment>& path) {
+CheckResult check_path_impl(const CollisionCheckerImpl& st, const std::vector<PathSegment>& path) {
   if (path.empty()) {
     return invalid_result("path is empty");
   }
   for (std::size_t seg = 0; seg < path.size(); ++seg) {
     std::string reason;
     if (!validate_path_segment(path[seg], &reason)) {
-      return invalid_result("path segment " + std::to_string(seg) + ": " +
-                            reason);
+      return invalid_result("path segment " + std::to_string(seg) + ": " + reason);
     }
     const auto& points = path[seg].points;
     const double base_s = points.front().s_m;
@@ -926,8 +882,8 @@ CheckResult check_path_impl(const CollisionCheckerImpl& st,
 // CollisionChecker
 // ---------------------------------------------------------------------------
 
-CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
-                                   const Scene& scene, CheckOptions options) {
+CollisionChecker::CollisionChecker(const VehicleModel& vehicle, const Scene& scene,
+                                   CheckOptions options) {
   auto state = std::make_shared<CollisionCheckerImpl>();
   state->vehicle = vehicle;
   state->scene = scene;
@@ -937,8 +893,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
     state->valid = false;
   } else if (!scene.valid(&reason)) {
     state->valid = false;
-  } else if (!std::isfinite(options.sweep_precision_m) ||
-             !(options.sweep_precision_m > 0.0)) {
+  } else if (!std::isfinite(options.sweep_precision_m) || !(options.sweep_precision_m > 0.0)) {
     reason = "sweep precision must be finite and positive";
     state->valid = false;
   } else {
@@ -955,8 +910,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
     for (const Obstacle& obstacle : state->scene.obstacles) {
       state->obstacle_boxes.push_back(obstacle.aabb());
       state->obstacle_scale_m =
-          std::max(state->obstacle_scale_m,
-                   state->obstacle_boxes.back().max_abs_coordinate());
+          std::max(state->obstacle_scale_m, state->obstacle_boxes.back().max_abs_coordinate());
     }
     if (scene.has_grid()) {
       // 构建非空闲栅格单元的精确行索引结构（始终构建；独立于 enable_acceleration，
@@ -969,9 +923,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
       for (int row = 0; row < height; ++row) {
         int count = 0;
         for (int col = 0; col < width; ++col) {
-          const int value = scene.grid.cells[static_cast<std::size_t>(row) *
-                                                 width +
-                                             col];
+          const int value = scene.grid.cells[static_cast<std::size_t>(row) * width + col];
           if (value != kCellFree) {
             ++count;
           }
@@ -987,9 +939,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
         std::size_t cursor = 0;
         for (int row = 0; row < height; ++row) {
           for (int col = 0; col < width; ++col) {
-            const int value = scene.grid.cells[static_cast<std::size_t>(row) *
-                                                   width +
-                                               col];
+            const int value = scene.grid.cells[static_cast<std::size_t>(row) * width + col];
             if (value != kCellFree) {
               state->blocked_cols[cursor++] = col;
             }
@@ -1007,28 +957,22 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
       for (std::size_t i = 0; i < state->obstacle_order.size(); ++i) {
         state->obstacle_order[i] = static_cast<int>(i);
       }
-      std::sort(state->obstacle_order.begin(), state->obstacle_order.end(),
-                [&](int a, int b) {
-                  return state->obstacle_boxes[static_cast<std::size_t>(a)].min_x <
-                         state->obstacle_boxes[static_cast<std::size_t>(b)].min_x;
-                });
+      std::sort(state->obstacle_order.begin(), state->obstacle_order.end(), [&](int a, int b) {
+        return state->obstacle_boxes[static_cast<std::size_t>(a)].min_x <
+               state->obstacle_boxes[static_cast<std::size_t>(b)].min_x;
+      });
       if (scene.has_grid()) {
         state->use_chunk_index = true;
-        state->chunks_x =
-            (scene.grid.width + kGridChunkCells - 1) / kGridChunkCells;
-        state->chunks_y =
-            (scene.grid.height + kGridChunkCells - 1) / kGridChunkCells;
-        state->chunk_blocked.assign(
-            static_cast<std::size_t>(state->chunks_x) * state->chunks_y, 0);
+        state->chunks_x = (scene.grid.width + kGridChunkCells - 1) / kGridChunkCells;
+        state->chunks_y = (scene.grid.height + kGridChunkCells - 1) / kGridChunkCells;
+        state->chunk_blocked.assign(static_cast<std::size_t>(state->chunks_x) * state->chunks_y, 0);
         for (int row = 0; row < scene.grid.height; ++row) {
           for (int col = 0; col < scene.grid.width; ++col) {
-            const int value = scene.grid.cells[static_cast<std::size_t>(row) *
-                                                   scene.grid.width +
-                                               col];
+            const int value =
+                scene.grid.cells[static_cast<std::size_t>(row) * scene.grid.width + col];
             if (value != kCellFree) {
               const std::size_t idx =
-                  static_cast<std::size_t>(row / kGridChunkCells) *
-                      state->chunks_x +
+                  static_cast<std::size_t>(row / kGridChunkCells) * state->chunks_x +
                   static_cast<std::size_t>(col / kGridChunkCells);
               state->chunk_blocked[idx] = 1;
             }
@@ -1046,15 +990,11 @@ const std::string& CollisionChecker::invalid_reason() const noexcept {
   return state_->invalid_reason;
 }
 
-const VehicleModel& CollisionChecker::vehicle() const noexcept {
-  return state_->vehicle;
-}
+const VehicleModel& CollisionChecker::vehicle() const noexcept { return state_->vehicle; }
 
 const Scene& CollisionChecker::scene() const noexcept { return state_->scene; }
 
-const CheckOptions& CollisionChecker::options() const noexcept {
-  return state_->options;
-}
+const CheckOptions& CollisionChecker::options() const noexcept { return state_->options; }
 
 CheckResult CollisionChecker::check_pose(const Pose2d& pose) const {
   if (!state_->valid) {
@@ -1077,8 +1017,7 @@ CheckResult CollisionChecker::check_path(const PathSegment& segment) const {
   return check_path_impl(*state_, std::vector<PathSegment>{segment});
 }
 
-CheckResult CollisionChecker::check_path(
-    const std::vector<PathSegment>& path) const {
+CheckResult CollisionChecker::check_path(const std::vector<PathSegment>& path) const {
   if (!state_->valid) {
     return invalid_result(state_->invalid_reason);
   }
@@ -1089,8 +1028,8 @@ CheckResult CollisionChecker::check_path(
 // 独立接口函数
 // ---------------------------------------------------------------------------
 
-CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,
-                       const Scene& scene, const CheckOptions& options) {
+CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle, const Scene& scene,
+                       const CheckOptions& options) {
   CollisionChecker checker(vehicle, scene, options);
   return checker.check_pose(pose);
 }
@@ -1101,15 +1040,14 @@ CheckResult check_motion(const MotionSegment& segment, const VehicleModel& vehic
   return checker.check_motion(segment);
 }
 
-CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle,
-                       const Scene& scene, const CheckOptions& options) {
+CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle, const Scene& scene,
+                       const CheckOptions& options) {
   CollisionChecker checker(vehicle, scene, options);
   return checker.check_path(segment);
 }
 
-CheckResult check_path(const std::vector<PathSegment>& path,
-                       const VehicleModel& vehicle, const Scene& scene,
-                       const CheckOptions& options) {
+CheckResult check_path(const std::vector<PathSegment>& path, const VehicleModel& vehicle,
+                       const Scene& scene, const CheckOptions& options) {
   CollisionChecker checker(vehicle, scene, options);
   return checker.check_path(path);
 }

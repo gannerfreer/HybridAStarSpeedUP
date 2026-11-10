@@ -1,0 +1,18 @@
+---
+# Conservative clang-tidy configuration for first-party sources.
+# Enable broad bugprone/performance/modernize families, but disable checks
+# that are noisy, style-only, or would suggest non-C++17 constructs.
+Checks: >
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  -bugprone-narrowing-conversions,
+  -modernize-avoid-c-arrays,
+  -modernize-return-braced-init-list,
+  -modernize-use-emplace,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/Src/.*'
+FormatStyle: file
+...

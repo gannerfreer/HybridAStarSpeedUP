@@ -3,18 +3,18 @@
  * @brief 车辆模型与 Hybrid A* 规划器配置合法性校验单元测试。
  */
 
-#include "planner/common/path.hpp"
-#include "planner/common/planner_config.hpp"
-#include "planner/common/status.hpp"
-#include "planner/common/vehicle.hpp"
-#include "planner/math/angle.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <limits>
 #include <string>
 #include <string_view>
+
+#include "planner/common/path.hpp"
+#include "planner/common/planner_config.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
+#include "planner/math/angle.hpp"
 
 namespace {
 
@@ -234,14 +234,10 @@ TEST(PlannerConfigValid, RejectsInvalidDiscreteSearchParameters) {
 }
 
 TEST(CommonToString, KnownAndInvalidEnumerators) {
-  EXPECT_EQ(common::to_string(common::Status::kSuccess),
-            std::string_view("success"));
-  EXPECT_EQ(common::to_string(common::Direction::kReverse),
-            std::string_view("reverse"));
-  EXPECT_EQ(common::to_string(static_cast<common::Status>(999)),
-            std::string_view("unknown"));
-  EXPECT_EQ(common::to_string(static_cast<common::Direction>(999)),
-            std::string_view("unknown"));
+  EXPECT_EQ(common::to_string(common::Status::kSuccess), std::string_view("success"));
+  EXPECT_EQ(common::to_string(common::Direction::kReverse), std::string_view("reverse"));
+  EXPECT_EQ(common::to_string(static_cast<common::Status>(999)), std::string_view("unknown"));
+  EXPECT_EQ(common::to_string(static_cast<common::Direction>(999)), std::string_view("unknown"));
 }
 
 TEST(RenamedFields, PreserveCurvatureAndDistanceValues) {

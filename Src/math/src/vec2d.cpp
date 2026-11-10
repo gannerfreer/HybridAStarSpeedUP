@@ -7,16 +7,12 @@
 
 namespace planner::math {
 
-double cross(const Point2d& a, const Point2d& b) noexcept {
-  return a.cross(b);
-}
+double cross(const Point2d& a, const Point2d& b) noexcept { return a.cross(b); }
 
 double dot(const Point2d& a, const Point2d& b) noexcept { return a.dot(b); }
 
 double norm(const Point2d& a) noexcept { return a.norm(); }
 
-double distance(const Point2d& a, const Point2d& b) noexcept {
-  return (a - b).norm();
-}
+double distance(const Point2d& a, const Point2d& b) noexcept { return (a - b).norm(); }
 
 }  // namespace planner::math

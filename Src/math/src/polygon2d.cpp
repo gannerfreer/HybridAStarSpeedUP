@@ -19,21 +19,20 @@
 
 namespace planner::math {
 namespace {
-std::size_t convex_hull_impl(Point2d* points, std::size_t n, Point2d* chain, Point2d* out) noexcept {
+std::size_t convex_hull_impl(Point2d* points, std::size_t n, Point2d* chain,
+                             Point2d* out) noexcept {
   if (n <= 2) {
     for (std::size_t i = 0; i < n; ++i) out[i] = points[i];
     return n;
   }
-  std::sort(points, points + n,
-            [](const Point2d& a, const Point2d& b) {
-              if (a.x_m != b.x_m) return a.x_m < b.x_m;
-              return a.y_m < b.y_m;
-            });
+  std::sort(points, points + n, [](const Point2d& a, const Point2d& b) {
+    if (a.x_m != b.x_m) return a.x_m < b.x_m;
+    return a.y_m < b.y_m;
+  });
   // 剔除重复顶点
   std::size_t m = 0;
   for (std::size_t i = 0; i < n; ++i) {
-    if (m > 0 && points[i].x_m == points[m - 1].x_m &&
-        points[i].y_m == points[m - 1].y_m) {
+    if (m > 0 && points[i].x_m == points[m - 1].x_m && points[i].y_m == points[m - 1].y_m) {
       continue;
     }
     points[m++] = points[i];
@@ -61,15 +60,14 @@ std::size_t convex_hull_impl(Point2d* points, std::size_t n, Point2d* chain, Poi
   for (std::size_t i = 0; i < k; ++i) out[i] = chain[i];
   return k;
 }
-}
+}  // namespace
 std::size_t convex_hull_small(std::array<Point2d, 8> points, std::size_t n,
                               std::array<Point2d, 8>& out) noexcept {
   std::array<Point2d, 16> chain{};
   return convex_hull_impl(points.data(), n, chain.data(), out.data());
 }
 
-std::optional<Polygon2d> Polygon2d::convex(std::vector<Point2d> vertices,
-                                           std::string* reason) {
+std::optional<Polygon2d> Polygon2d::convex(std::vector<Point2d> vertices, std::string* reason) {
   if (!convex_polygon_valid(vertices, reason)) {
     return std::nullopt;
   }
@@ -80,9 +78,7 @@ std::optional<Polygon2d> Polygon2d::convex(std::vector<Point2d> vertices,
   return polygon;
 }
 
-bool Polygon2d::valid(std::string* reason) const {
-  return convex_polygon_valid(vertices_, reason);
-}
+bool Polygon2d::valid(std::string* reason) const { return convex_polygon_valid(vertices_, reason); }
 
 namespace {
 
@@ -108,8 +104,7 @@ bool polygon_in_fast_domain(const Point2d* points, std::size_t n) noexcept {
 }
 
 // 检查多边形所有有效外法向轴模长是否均落在快速安全域内
-bool polygon_axes_in_fast_domain(const Point2d* polygon,
-                                 std::size_t n) noexcept {
+bool polygon_axes_in_fast_domain(const Point2d* polygon, std::size_t n) noexcept {
   for (std::size_t i = 0; i < n; ++i) {
     const Point2d& p0 = polygon[i];
     const Point2d& p1 = polygon[(i + 1) % n];
@@ -131,8 +126,7 @@ double project(const Point2d& p, const Point2d& axis) noexcept {
   return p.x_m * axis.x_m + p.y_m * axis.y_m;
 }
 
-bool separating_axis_normalized(const Point2d* a, std::size_t na,
-                                const Point2d* b, std::size_t nb,
+bool separating_axis_normalized(const Point2d* a, std::size_t na, const Point2d* b, std::size_t nb,
                                 const Point2d& axis, double tol) noexcept {
   const double axis_len = std::sqrt(axis.x_m * axis.x_m + axis.y_m * axis.y_m);
   if (!(axis_len > 0.0) || !std::isfinite(axis_len)) {
@@ -158,12 +152,9 @@ bool separating_axis_normalized(const Point2d* a, std::size_t na,
 
 // 未归一化分离轴判定：在投影间隙平方域比较，彻底免除开方与除法计算。
 // 调用方需保证 tol >= 0 且几何数据落在无溢出安全域内。
-bool separating_axis_unnormalized(const Point2d* a, std::size_t na,
-                                  const Point2d* b, std::size_t nb,
-                                  const Point2d& axis,
-                                  double tol_sq) noexcept {
-  const double axis_len_sq =
-      axis.x_m * axis.x_m + axis.y_m * axis.y_m;
+bool separating_axis_unnormalized(const Point2d* a, std::size_t na, const Point2d* b,
+                                  std::size_t nb, const Point2d& axis, double tol_sq) noexcept {
+  const double axis_len_sq = axis.x_m * axis.x_m + axis.y_m * axis.y_m;
   if (!(axis_len_sq > 0.0)) {
     return false;  // 退化轴：无法构成有效分离轴
   }
@@ -194,9 +185,8 @@ bool separating_axis_unnormalized(const Point2d* a, std::size_t na,
 }
 
 // 归一化 SAT 回退实现：与标准分离轴测试在数值上逐位等价
-bool convex_polygons_intersect_normalized(const Point2d* a, std::size_t na,
-                                          const Point2d* b, std::size_t nb,
-                                          double tol) noexcept {
+bool convex_polygons_intersect_normalized(const Point2d* a, std::size_t na, const Point2d* b,
+                                          std::size_t nb, double tol) noexcept {
   if (na < 3 || nb < 3) {
     return convex_polygon_distance(a, na, b, nb) <= tol;
   }
@@ -216,9 +206,8 @@ bool convex_polygons_intersect_normalized(const Point2d* a, std::size_t na,
 }
 
 // 通用凸多边形 vs AABB 未归一化相交检测（用于多边形顶点数超过固定栈缓存容量时的快速遍历）
-bool convex_polygon_intersects_aabb_unnormalized(
-    const Point2d* polygon, std::size_t n, const Aabb2d& box,
-    double tol) noexcept {
+bool convex_polygon_intersects_aabb_unnormalized(const Point2d* polygon, std::size_t n,
+                                                 const Aabb2d& box, double tol) noexcept {
   double min_x = std::numeric_limits<double>::infinity();
   double max_x = -std::numeric_limits<double>::infinity();
   double min_y = std::numeric_limits<double>::infinity();
@@ -229,8 +218,8 @@ bool convex_polygon_intersects_aabb_unnormalized(
     min_y = std::min(min_y, polygon[i].y_m);
     max_y = std::max(max_y, polygon[i].y_m);
   }
-  if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
-      max_y < box.min_y - tol || min_y > box.max_y + tol) {
+  if (max_x < box.min_x - tol || min_x > box.max_x + tol || max_y < box.min_y - tol ||
+      min_y > box.max_y + tol) {
     return false;
   }
   const double tol_sq = tol * tol;
@@ -238,8 +227,7 @@ bool convex_polygon_intersects_aabb_unnormalized(
     const Point2d& p0 = polygon[i];
     const Point2d& p1 = polygon[(i + 1) % n];
     const Point2d axis{-(p1.y_m - p0.y_m), p1.x_m - p0.x_m};
-    const double axis_len_sq =
-        axis.x_m * axis.x_m + axis.y_m * axis.y_m;
+    const double axis_len_sq = axis.x_m * axis.x_m + axis.y_m * axis.y_m;
     if (!(axis_len_sq > 0.0)) {
       continue;
     }
@@ -280,12 +268,11 @@ double signed_area_twice_raw(const Point2d* polygon, std::size_t n) noexcept {
 }
 
 // 多边形内点判断；reverse 为 true 时按反向索引访问以保持 CCW 语义。
-bool point_in_ccw_polygon(const Point2d& p, const Point2d* polygon,
-                          std::size_t n, bool reverse) noexcept {
+bool point_in_ccw_polygon(const Point2d& p, const Point2d* polygon, std::size_t n,
+                          bool reverse) noexcept {
   const double area_scale = abs_coordinate_scale(polygon, n) + 1.0;
   // 面积容差 (8 * epsilon * scale^2)
-  const double tol =
-      8.0 * std::numeric_limits<double>::epsilon() * area_scale * area_scale;
+  const double tol = 8.0 * std::numeric_limits<double>::epsilon() * area_scale * area_scale;
   for (std::size_t i = 0; i < n; ++i) {
     const Point2d& a = polygon[reverse ? n - 1 - i : i];
     const Point2d& b = polygon[reverse ? n - 1 - ((i + 1) % n) : (i + 1) % n];
@@ -341,18 +328,14 @@ double point_polygon_distance_sq_raw(const Point2d& p, const Point2d* polygon,
   }
   double best = std::numeric_limits<double>::infinity();
   for (std::size_t i = 0; i < n; ++i) {
-    best = std::min(best,
-                    Segment2d{polygon[i], polygon[(i + 1) % n]}.distance_sq_to(p));
+    best = std::min(best, Segment2d{polygon[i], polygon[(i + 1) % n]}.distance_sq_to(p));
   }
   return best;
 }
 
-std::size_t polygon_edge_count(std::size_t n) noexcept {
-  return n == 1 ? 1 : n;
-}
+std::size_t polygon_edge_count(std::size_t n) noexcept { return n == 1 ? 1 : n; }
 
-Segment2d polygon_edge(const Point2d* polygon, std::size_t n,
-                       std::size_t i) noexcept {
+Segment2d polygon_edge(const Point2d* polygon, std::size_t n, std::size_t i) noexcept {
   if (n == 1) {
     return Segment2d{polygon[0], polygon[0]};
   }
@@ -364,10 +347,8 @@ Segment2d polygon_edge(const Point2d* polygon, std::size_t n,
 namespace internal {
 
 // 归一化 SAT 回退实现：单位外法向轴结合显式模长与除法运算。
-bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
-                                               std::size_t count,
-                                               const Aabb2d& box,
-                                               double tol) noexcept {
+bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon, std::size_t count,
+                                               const Aabb2d& box, double tol) noexcept {
   if (count == 0) {
     return false;
   }
@@ -381,8 +362,8 @@ bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon,
     min_y = std::min(min_y, polygon[i].y_m);
     max_y = std::max(max_y, polygon[i].y_m);
   }
-  if (max_x < box.min_x - tol || min_x > box.max_x + tol ||
-      max_y < box.min_y - tol || min_y > box.max_y + tol) {
+  if (max_x < box.min_x - tol || min_x > box.max_x + tol || max_y < box.min_y - tol ||
+      min_y > box.max_y + tol) {
     return false;
   }
   for (std::size_t i = 0; i < count; ++i) {
@@ -434,8 +415,7 @@ void normalize_counter_clockwise(std::vector<Point2d>& polygon) {
   }
 }
 
-bool convex_polygon_valid(const std::vector<Point2d>& polygon,
-                          std::string* reason) {
+bool convex_polygon_valid(const std::vector<Point2d>& polygon, std::string* reason) {
   // 去除相邻连续重复顶点及首尾闭合多余顶点
   std::vector<Point2d> clean;
   clean.reserve(polygon.size());
@@ -486,8 +466,7 @@ bool convex_polygon_valid(const std::vector<Point2d>& polygon,
   return true;
 }
 
-std::vector<Point2d> rectangle_polygon(double x_min, double y_min,
-                                       double x_max, double y_max,
+std::vector<Point2d> rectangle_polygon(double x_min, double y_min, double x_max, double y_max,
                                        std::string* reason) {
   if (!std::isfinite(x_min) || !std::isfinite(y_min) || !std::isfinite(x_max) ||
       !std::isfinite(y_max)) {
@@ -510,8 +489,7 @@ std::vector<Point2d> convex_hull(std::vector<Point2d> points) {
   return hull;
 }
 
-bool convex_polygons_intersect(const Point2d* a, std::size_t na,
-                               const Point2d* b, std::size_t nb,
+bool convex_polygons_intersect(const Point2d* a, std::size_t na, const Point2d* b, std::size_t nb,
                                double tol) noexcept {
   if (na < 3 || nb < 3) {
     // 退化几何输入：回退至线段/点欧氏距离判定
@@ -539,34 +517,29 @@ bool convex_polygons_intersect(const Point2d* a, std::size_t na,
   return true;
 }
 
-bool convex_polygons_intersect(const std::vector<Point2d>& a,
-                               const std::vector<Point2d>& b,
+bool convex_polygons_intersect(const std::vector<Point2d>& a, const std::vector<Point2d>& b,
                                double tol) noexcept {
   return convex_polygons_intersect(a.data(), a.size(), b.data(), b.size(), tol);
 }
 
-double point_polygon_distance(const Point2d& p, const Point2d* polygon,
-                              std::size_t n) noexcept {
+double point_polygon_distance(const Point2d& p, const Point2d* polygon, std::size_t n) noexcept {
   return point_polygon_distance_raw(p, polygon, n);
 }
 
-double point_polygon_distance(const Point2d& p,
-                              const std::vector<Point2d>& polygon) noexcept {
+double point_polygon_distance(const Point2d& p, const std::vector<Point2d>& polygon) noexcept {
   return point_polygon_distance(p, polygon.data(), polygon.size());
 }
 
-double point_polygon_distance_sq(const Point2d& p, const Point2d* polygon,
-                                 std::size_t n) noexcept {
+double point_polygon_distance_sq(const Point2d& p, const Point2d* polygon, std::size_t n) noexcept {
   return point_polygon_distance_sq_raw(p, polygon, n);
 }
 
-double point_polygon_distance_sq(const Point2d& p,
-                                 const std::vector<Point2d>& polygon) noexcept {
+double point_polygon_distance_sq(const Point2d& p, const std::vector<Point2d>& polygon) noexcept {
   return point_polygon_distance_sq(p, polygon.data(), polygon.size());
 }
 
-bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n,
-                                    const Aabb2d& box, double tol) noexcept {
+bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n, const Aabb2d& box,
+                                    double tol) noexcept {
   if (n == 0 || polygon == nullptr) {
     return false;
   }
@@ -576,24 +549,20 @@ bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n,
     cache.build(polygon, n);
     return cache.maybe_intersects(box, tol);
   }
-  if (!(tol >= 0.0) || !std::isfinite(tol) ||
-      !polygon_in_fast_domain(polygon, n) ||
-      !internal::box_in_fast_domain(box) ||
-      !polygon_axes_in_fast_domain(polygon, n)) {
-    return internal::convex_polygon_intersects_aabb_normalized(
-        polygon, n, box, tol);
+  if (!(tol >= 0.0) || !std::isfinite(tol) || !polygon_in_fast_domain(polygon, n) ||
+      !internal::box_in_fast_domain(box) || !polygon_axes_in_fast_domain(polygon, n)) {
+    return internal::convex_polygon_intersects_aabb_normalized(polygon, n, box, tol);
   }
   return convex_polygon_intersects_aabb_unnormalized(polygon, n, box, tol);
 }
 
-bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon,
-                                    const Aabb2d& box, double tol) noexcept {
-  return convex_polygon_intersects_aabb(polygon.data(), polygon.size(), box,
-                                        tol);
+bool convex_polygon_intersects_aabb(const std::vector<Point2d>& polygon, const Aabb2d& box,
+                                    double tol) noexcept {
+  return convex_polygon_intersects_aabb(polygon.data(), polygon.size(), box, tol);
 }
 
-double convex_polygon_distance(const Point2d* a, std::size_t na,
-                               const Point2d* b, std::size_t nb) noexcept {
+double convex_polygon_distance(const Point2d* a, std::size_t na, const Point2d* b,
+                               std::size_t nb) noexcept {
   if (na == 0 || nb == 0 || a == nullptr || b == nullptr) {
     return std::numeric_limits<double>::infinity();
   }
@@ -629,8 +598,8 @@ double convex_polygon_distance(const std::vector<Point2d>& a,
   return convex_polygon_distance(a.data(), a.size(), b.data(), b.size());
 }
 
-double convex_polygon_distance_sq(const Point2d* a, std::size_t na,
-                                  const Point2d* b, std::size_t nb) noexcept {
+double convex_polygon_distance_sq(const Point2d* a, std::size_t na, const Point2d* b,
+                                  std::size_t nb) noexcept {
   if (na == 0 || nb == 0 || a == nullptr || b == nullptr) {
     return std::numeric_limits<double>::infinity();
   }
@@ -671,8 +640,7 @@ double convex_polygon_distance_sq(const std::vector<Point2d>& a,
   return convex_polygon_distance_sq(a.data(), a.size(), b.data(), b.size());
 }
 
-double polygon_aabb_distance(const Point2d* polygon, std::size_t n,
-                             const Aabb2d& box) noexcept {
+double polygon_aabb_distance(const Point2d* polygon, std::size_t n, const Aabb2d& box) noexcept {
   if (n == 0 || polygon == nullptr) {
     return std::numeric_limits<double>::infinity();
   }
@@ -683,11 +651,10 @@ double polygon_aabb_distance(const Point2d* polygon, std::size_t n,
       return 0.0;
     }
   }
-  const std::array<Point2d, 4> corners{
-      Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
-      Point2d{box.max_x, box.max_y}, Point2d{box.min_x, box.max_y}};
-  if (internal::convex_polygon_intersects_aabb_normalized(
-          polygon, n, box, 0.0)) {
+  const std::array<Point2d, 4> corners{Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
+                                       Point2d{box.max_x, box.max_y},
+                                       Point2d{box.min_x, box.max_y}};
+  if (internal::convex_polygon_intersects_aabb_normalized(polygon, n, box, 0.0)) {
     return 0.0;
   }
   for (const Point2d& c : corners) {
@@ -696,13 +663,11 @@ double polygon_aabb_distance(const Point2d* polygon, std::size_t n,
   return best;
 }
 
-double polygon_aabb_distance(const std::vector<Point2d>& polygon,
-                             const Aabb2d& box) noexcept {
+double polygon_aabb_distance(const std::vector<Point2d>& polygon, const Aabb2d& box) noexcept {
   return polygon_aabb_distance(polygon.data(), polygon.size(), box);
 }
 
-double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n,
-                                const Aabb2d& box) noexcept {
+double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n, const Aabb2d& box) noexcept {
   if (n == 0 || polygon == nullptr) {
     return std::numeric_limits<double>::infinity();
   }
@@ -713,9 +678,9 @@ double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n,
       return 0.0;
     }
   }
-  const std::array<Point2d, 4> corners{
-      Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
-      Point2d{box.max_x, box.max_y}, Point2d{box.min_x, box.max_y}};
+  const std::array<Point2d, 4> corners{Point2d{box.min_x, box.min_y}, Point2d{box.max_x, box.min_y},
+                                       Point2d{box.max_x, box.max_y},
+                                       Point2d{box.min_x, box.max_y}};
   if (convex_polygon_intersects_aabb(polygon, n, box, 0.0)) {
     return 0.0;
   }
@@ -725,8 +690,7 @@ double polygon_aabb_distance_sq(const Point2d* polygon, std::size_t n,
   return best;
 }
 
-double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon,
-                                const Aabb2d& box) noexcept {
+double polygon_aabb_distance_sq(const std::vector<Point2d>& polygon, const Aabb2d& box) noexcept {
   return polygon_aabb_distance_sq(polygon.data(), polygon.size(), box);
 }
 

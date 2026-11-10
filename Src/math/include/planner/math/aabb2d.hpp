@@ -35,8 +35,7 @@ struct Aabb2d {
    * @return 若点在盒内或边上返回 true
    */
   bool contains(const Point2d& p) const noexcept {
-    return p.x_m >= min_x && p.x_m <= max_x && p.y_m >= min_y &&
-           p.y_m <= max_y;
+    return p.x_m >= min_x && p.x_m <= max_x && p.y_m >= min_y && p.y_m <= max_y;
   }
 
   /**
@@ -134,9 +133,8 @@ namespace internal {
  * @return 若所有坐标有限且绝对值不超过安全上限则返回 true。
  */
 inline bool box_in_fast_domain(const Aabb2d& box) noexcept {
-  return std::isfinite(box.min_x) && std::isfinite(box.max_x) &&
-         std::isfinite(box.min_y) && std::isfinite(box.max_y) &&
-         std::abs(box.min_x) <= kFastMaxAbsCoordinate &&
+  return std::isfinite(box.min_x) && std::isfinite(box.max_x) && std::isfinite(box.min_y) &&
+         std::isfinite(box.max_y) && std::abs(box.min_x) <= kFastMaxAbsCoordinate &&
          std::abs(box.max_x) <= kFastMaxAbsCoordinate &&
          std::abs(box.min_y) <= kFastMaxAbsCoordinate &&
          std::abs(box.max_y) <= kFastMaxAbsCoordinate;

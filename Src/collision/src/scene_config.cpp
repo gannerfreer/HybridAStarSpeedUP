@@ -49,8 +49,7 @@ Scene make_scene(const common::ScenarioConfig& scenario) {
 
   scene.obstacles.reserve(scenario.obstacles.size());
   for (const common::ObstacleConfig& config : scenario.obstacles) {
-    scene.obstacles.push_back(
-        Obstacle::convex_polygon(config.id, config.vertices));
+    scene.obstacles.push_back(Obstacle::convex_polygon(config.id, config.vertices));
   }
   return scene;
 }

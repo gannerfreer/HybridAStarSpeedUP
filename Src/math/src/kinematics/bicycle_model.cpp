@@ -13,8 +13,7 @@ double curvature_from_steer(double steer_rad, double wheelbase_m) noexcept {
   return std::tan(steer_rad) / wheelbase_m;
 }
 
-double steer_from_curvature(double curvature_per_m,
-                            double wheelbase_m) noexcept {
+double steer_from_curvature(double curvature_per_m, double wheelbase_m) noexcept {
   return std::atan(curvature_per_m * wheelbase_m);
 }
 

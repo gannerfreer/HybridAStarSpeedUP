@@ -24,8 +24,6 @@ bool operator==(const PathPoint& lhs, const PathPoint& rhs) {
          lhs.direction == rhs.direction;
 }
 
-bool operator==(const PathSegment& lhs, const PathSegment& rhs) {
-  return lhs.points == rhs.points;
-}
+bool operator==(const PathSegment& lhs, const PathSegment& rhs) { return lhs.points == rhs.points; }
 
 }  // namespace planner::common

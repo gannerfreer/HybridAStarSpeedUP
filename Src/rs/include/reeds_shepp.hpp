@@ -27,7 +27,7 @@ namespace planner::rs {
  * @{
  */
 inline constexpr double kEndpointPositionToleranceM = 1e-6;  ///< 终点位置欧氏距离容差（米）。
-inline constexpr double kEndpointYawToleranceRad = 1e-6;     ///< 终点航向角闭合容差（弧度）。
+inline constexpr double kEndpointYawToleranceRad = 1e-6;  ///< 终点航向角闭合容差（弧度）。
 /// @}
 
 /**
@@ -35,8 +35,9 @@ inline constexpr double kEndpointYawToleranceRad = 1e-6;     ///< 终点航向�
  */
 struct RsSegment {
   common::Direction direction{common::Direction::kForward};  ///< 行驶挡位方向（前进或倒车）。
-  double length_m{0.0};         ///< 本段沿曲线行进的弧长（米，非负）。
-  double curvature_per_m{0.0};  ///< 有符号曲率 \f$ \tan(\delta)/L \f$（1/m，直线为 0，圆弧为 \f$\pm 1/R_{\min}\f$）。
+  double length_m{0.0};  ///< 本段沿曲线行进的弧长（米，非负）。
+  double curvature_per_m{
+      0.0};  ///< 有符号曲率 \f$ \tan(\delta)/L \f$（1/m，直线为 0，圆弧为 \f$\pm 1/R_{\min}\f$）。
 };
 
 /**
@@ -54,9 +55,11 @@ struct RsPath {
  * @brief Reeds-Shepp 路径规划的非异常返回结果载荷。
  */
 struct RsPlan {
-  common::Status status{common::Status::kInvalidInput};  ///< 求解状态码（kSuccess, kInvalidInput 或 kOptimizationFailed）。
-  std::string reason;   ///< 失败时的详细诊断原因说明。
-  RsPath path;          ///< 最优最短路径（仅在 status == Status::kSuccess 时有效）。
+  common::Status status{
+      common::Status::
+          kInvalidInput};  ///< 求解状态码（kSuccess, kInvalidInput 或 kOptimizationFailed）。
+  std::string reason;      ///< 失败时的详细诊断原因说明。
+  RsPath path;  ///< 最优最短路径（仅在 status == Status::kSuccess 时有效）。
 };
 
 /**
@@ -84,8 +87,7 @@ double min_turn_radius_m(const common::VehicleModel& vehicle);
  * @param[in] vehicle 车辆运动学模型。
  * @return 包含执行状态、诊断文本及最优路径的 RsPlan 结构。
  */
-[[nodiscard]] RsPlan plan(const common::Pose2d& start,
-                          const common::Pose2d& goal,
+[[nodiscard]] RsPlan plan(const common::Pose2d& start, const common::Pose2d& goal,
                           const common::VehicleModel& vehicle);
 
 /**
@@ -97,8 +99,7 @@ double min_turn_radius_m(const common::VehicleModel& vehicle);
  * @throw std::invalid_argument 若输入参数非法。
  * @throw std::runtime_error 若路径求解或几何校验失败。
  */
-[[nodiscard]] double distance(const common::Pose2d& start,
-                              const common::Pose2d& goal,
+[[nodiscard]] double distance(const common::Pose2d& start, const common::Pose2d& goal,
                               const common::VehicleModel& vehicle);
 
 /**
@@ -121,8 +122,8 @@ RsPath path(const common::Pose2d& start, const common::Pose2d& goal,
  * @return 推进后的位姿。
  * @throw std::invalid_argument 若 ds_m 为负或超过本段总长。
  */
-common::Pose2d integrate_segment(const common::Pose2d& start,
-                                 const RsSegment& segment, double ds_m);
+common::Pose2d integrate_segment(const common::Pose2d& start, const RsSegment& segment,
+                                 double ds_m);
 
 /**
  * @brief 沿 Reeds-Shepp 路径以近似均匀的弧长步长进行离散采样。

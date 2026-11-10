@@ -14,9 +14,7 @@ namespace planner::common {
 
 namespace {
 
-bool finite_nonnegative(double value) {
-  return std::isfinite(value) && value >= 0.0;
-}
+bool finite_nonnegative(double value) { return std::isfinite(value) && value >= 0.0; }
 
 }  // namespace
 
@@ -53,8 +51,9 @@ bool vehicle_valid(const VehicleModel& vehicle, std::string* reason) {
 
 bool operator==(const VehicleModel& lhs, const VehicleModel& rhs) {
   return lhs.id == rhs.id && lhs.wheelbase_m == rhs.wheelbase_m && lhs.width_m == rhs.width_m &&
-         lhs.front_overhang_m == rhs.front_overhang_m && lhs.rear_overhang_m == rhs.rear_overhang_m &&
-         lhs.max_steer_rad == rhs.max_steer_rad && lhs.safety_margin_m == rhs.safety_margin_m;
+         lhs.front_overhang_m == rhs.front_overhang_m &&
+         lhs.rear_overhang_m == rhs.rear_overhang_m && lhs.max_steer_rad == rhs.max_steer_rad &&
+         lhs.safety_margin_m == rhs.safety_margin_m;
 }
 
 }  // namespace planner::common

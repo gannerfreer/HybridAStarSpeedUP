@@ -35,13 +35,13 @@ enum class CheckStatus {
  * @brief 触发碰撞判定或请求拒绝的具体诱因分类。
  */
 enum class CollisionReason {
-  kNone,            ///< 无碰撞。
-  kObstacle,        ///< 与凸多边形障碍物相交或接触。
-  kGridOccupied,    ///< 与占用栅格单元 (kCellOccupied) 重叠。
-  kGridUnknown,     ///< 与未知栅格单元 (kCellUnknown) 重叠（保守视作障碍物）。
-  kOutsideMap,      ///< 车体足迹部分或全部超出栅格地图矩形边界。
+  kNone,          ///< 无碰撞。
+  kObstacle,      ///< 与凸多边形障碍物相交或接触。
+  kGridOccupied,  ///< 与占用栅格单元 (kCellOccupied) 重叠。
+  kGridUnknown,   ///< 与未知栅格单元 (kCellUnknown) 重叠（保守视作障碍物）。
+  kOutsideMap,    ///< 车体足迹部分或全部超出栅格地图矩形边界。
   kPrecisionFloor,  ///< 细化区间达到极限扫掠精度下限仍未收敛（保守记为碰撞）。
-  kInvalidInput     ///< 输入参数包含非有限数或结构异常。
+  kInvalidInput  ///< 输入参数包含非有限数或结构异常。
 };
 
 /**
@@ -62,12 +62,13 @@ enum class CollisionReason {
  * @brief 单次碰撞检测查询的完整结果载荷。
  */
 struct CheckResult {
-  CheckStatus status{CheckStatus::kClear};            ///< 综合检测状态（kClear, kCollision 或 kInvalidInput）。
-  CollisionReason reason_code{CollisionReason::kNone};///< 触发碰撞的具体诱因。
-  std::string detail;                                 ///< 人类可读的诊断原因与细节描述。
-  Pose2d first_pose;                                  ///< 检测到首次发生接触/碰撞处的后轴中心位姿。
-  double first_s_m{0.0};                              ///< 沿运动段或路径到首次碰撞点处的累计弧长（米）。
-  int path_segment_index{-1};                         ///< 发生碰撞的路径分段索引（仅在多段路径检测时有效）。
+  CheckStatus status{
+      CheckStatus::kClear};  ///< 综合检测状态（kClear, kCollision 或 kInvalidInput）。
+  CollisionReason reason_code{CollisionReason::kNone};  ///< 触发碰撞的具体诱因。
+  std::string detail;     ///< 人类可读的诊断原因与细节描述。
+  Pose2d first_pose;      ///< 检测到首次发生接触/碰撞处的后轴中心位姿。
+  double first_s_m{0.0};  ///< 沿运动段或路径到首次碰撞点处的累计弧长（米）。
+  int path_segment_index{-1};  ///< 发生碰撞的路径分段索引（仅在多段路径检测时有效）。
 
   /**
    * @brief 判定是否发生碰撞。
@@ -111,10 +112,10 @@ struct CheckOptions {
  *          航向角增量满足 \f$ \Delta\psi = \kappa \cdot s_{\text{signed}} \f$。
  */
 struct MotionSegment {
-  Pose2d start;                             ///< 车辆后轴中心起始位姿。
-  double length_m{0.0};                     ///< 沿曲线行进的弧长（米，非负）。
-  Direction direction{Direction::kForward}; ///< 行驶挡位（前进或倒车）。
-  double curvature_per_m{0.0};              ///< 有符号路径曲率 \f$ \kappa = \tan(\delta)/L \f$（1/m）。
+  Pose2d start;                              ///< 车辆后轴中心起始位姿。
+  double length_m{0.0};                      ///< 沿曲线行进的弧长（米，非负）。
+  Direction direction{Direction::kForward};  ///< 行驶挡位（前进或倒车）。
+  double curvature_per_m{0.0};  ///< 有符号路径曲率 \f$ \kappa = \tan(\delta)/L \f$（1/m）。
 };
 
 /**
@@ -125,10 +126,8 @@ struct MotionSegment {
  * @param[in] options 碰撞检测选项。
  * @return 包含无碰撞或首个接触原因的结果体。
  */
-[[nodiscard]] CheckResult check_pose(const Pose2d& pose,
-                                     const VehicleModel& vehicle,
-                                     const Scene& scene,
-                                     const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_pose(const Pose2d& pose, const VehicleModel& vehicle,
+                                     const Scene& scene, const CheckOptions& options = {});
 
 /**
  * @brief 检测沿单一常曲率运动分段的连续扫掠运动碰撞。
@@ -138,10 +137,8 @@ struct MotionSegment {
  * @param[in] options 碰撞检测选项。
  * @return 包含无碰撞或首次接触位姿与弧长的检测结果。
  */
-[[nodiscard]] CheckResult check_motion(const MotionSegment& segment,
-                                       const VehicleModel& vehicle,
-                                       const Scene& scene,
-                                       const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_motion(const MotionSegment& segment, const VehicleModel& vehicle,
+                                       const Scene& scene, const CheckOptions& options = {});
 
 /**
  * @brief 检测沿单一连续同向路径分段的连续运动碰撞。
@@ -151,10 +148,8 @@ struct MotionSegment {
  * @param[in] options 碰撞检测选项。
  * @return 检测结果。
  */
-[[nodiscard]] CheckResult check_path(const PathSegment& segment,
-                                     const VehicleModel& vehicle,
-                                     const Scene& scene,
-                                     const CheckOptions& options = {});
+[[nodiscard]] CheckResult check_path(const PathSegment& segment, const VehicleModel& vehicle,
+                                     const Scene& scene, const CheckOptions& options = {});
 
 /**
  * @brief 检测包含多个分段的完整换向规划路径的连续运动碰撞。
@@ -165,8 +160,7 @@ struct MotionSegment {
  * @return 检测结果，包含首次碰撞所在的分段索引。
  */
 [[nodiscard]] CheckResult check_path(const std::vector<PathSegment>& path,
-                                     const VehicleModel& vehicle,
-                                     const Scene& scene,
+                                     const VehicleModel& vehicle, const Scene& scene,
                                      const CheckOptions& options = {});
 
 struct CollisionCheckerImpl;
@@ -182,8 +176,7 @@ class CollisionChecker {
    * @param[in] scene 目标场景快照。
    * @param[in] options 碰撞检测配置选项。
    */
-  CollisionChecker(const VehicleModel& vehicle, const Scene& scene,
-                   CheckOptions options = {});
+  CollisionChecker(const VehicleModel& vehicle, const Scene& scene, CheckOptions options = {});
 
   /**
    * @brief 检查检测器初始化与输入参数是否合法有效。
@@ -204,8 +197,7 @@ class CollisionChecker {
   [[nodiscard]] CheckResult check_pose(const Pose2d& pose) const;
   [[nodiscard]] CheckResult check_motion(const MotionSegment& segment) const;
   [[nodiscard]] CheckResult check_path(const PathSegment& segment) const;
-  [[nodiscard]] CheckResult check_path(
-      const std::vector<PathSegment>& path) const;
+  [[nodiscard]] CheckResult check_path(const std::vector<PathSegment>& path) const;
 
  private:
   std::shared_ptr<const CollisionCheckerImpl> state_;

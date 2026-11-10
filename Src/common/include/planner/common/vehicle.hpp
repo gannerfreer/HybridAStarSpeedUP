@@ -16,7 +16,7 @@ namespace planner::common {
  * @details 最小转弯半径由轴距与最大前轮转角推导得出。
  */
 struct VehicleModel {
-  std::string id;               ///< 车辆模型唯一标识。
+  std::string id;                ///< 车辆模型唯一标识。
   double wheelbase_m{0.0};       ///< 轴距（前后轴中心距，米）。
   double width_m{0.0};           ///< 车身总宽度（米）。
   double front_overhang_m{0.0};  ///< 前悬长度（前轴至前保险杠外缘距离，米）。
@@ -41,8 +41,7 @@ struct VehicleModel {
  * @param[out] reason 失败时的诊断说明文本指针，可为 nullptr。
  * @return 若所有尺寸与转角参数均为有限合法值则返回 true。
  */
-[[nodiscard]] bool vehicle_valid(const VehicleModel& vehicle,
-                                 std::string* reason = nullptr);
+[[nodiscard]] bool vehicle_valid(const VehicleModel& vehicle, std::string* reason = nullptr);
 
 /**
  * @name 精确全等比较操作符

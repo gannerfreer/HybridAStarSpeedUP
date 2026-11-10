@@ -21,7 +21,7 @@ inline constexpr double kFastMaxAxisLenSq = 1.0e300;
 // - 允许 2.225e-308 下溢到 0.0，
 //   范围内直接调用 std::sqrt 否则使用 std::hypot。
 inline double hypot_fast(double dx, double dy) noexcept {
-  constexpr double kHypotFastMax = 1.0e150;   // (1e150)^2 = 1e300
+  constexpr double kHypotFastMax = 1.0e150;  // (1e150)^2 = 1e300
   const double ax = std::abs(dx);
   const double ay = std::abs(dy);
   // (0, 0) 是碰撞检测热点路径中最常见的退化输入（两点重叠或间距为零）
@@ -35,8 +35,7 @@ inline double hypot_fast(double dx, double dy) noexcept {
 }
 
 inline bool coordinates_in_fast_domain(double x, double y) noexcept {
-  return std::isfinite(x) && std::isfinite(y) &&
-         std::abs(x) <= kFastMaxAbsCoordinate &&
+  return std::isfinite(x) && std::isfinite(y) && std::abs(x) <= kFastMaxAbsCoordinate &&
          std::abs(y) <= kFastMaxAbsCoordinate;
 }
 

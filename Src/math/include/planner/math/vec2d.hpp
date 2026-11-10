@@ -28,18 +28,14 @@ struct Vec2d {
    * @param[in] other 第二个二维向量。
    * @return 点积标量值。
    */
-  double dot(const Vec2d& other) const noexcept {
-    return x_m * other.x_m + y_m * other.y_m;
-  }
+  double dot(const Vec2d& other) const noexcept { return x_m * other.x_m + y_m * other.y_m; }
 
   /**
    * @brief 计算二维向量叉积标量（对应三维叉积的 Z 分量）：\f$ a_x b_y - a_y b_x \f$。
    * @param[in] other 第二个二维向量。
    * @return 叉积标量值。
    */
-  double cross(const Vec2d& other) const noexcept {
-    return x_m * other.y_m - y_m * other.x_m;
-  }
+  double cross(const Vec2d& other) const noexcept { return x_m * other.y_m - y_m * other.x_m; }
 
   /**
    * @brief 计算二维向量欧氏范数的平方。

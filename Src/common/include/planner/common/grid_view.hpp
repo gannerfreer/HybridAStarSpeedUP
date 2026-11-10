@@ -23,7 +23,7 @@ using math::Pose2d;
  */
 inline constexpr int kCellFree = 0;      ///< 自由空闲栅格，无障碍物且可安全通行。
 inline constexpr int kCellOccupied = 1;  ///< 被障碍物占用的栅格。
-inline constexpr int kCellUnknown = 2;   ///< 未知栅格（碰撞检测与规划保守视作占用）。
+inline constexpr int kCellUnknown = 2;  ///< 未知栅格（碰撞检测与规划保守视作占用）。
 /// @}
 
 /**
@@ -35,13 +35,13 @@ inline constexpr int kCellUnknown = 2;   ///< 未知栅格（碰撞检测与规�
  *          \f$ \text{origin} + ((c + 0.5) \cdot \text{res}, (r + 0.5) \cdot \text{res}) \f$。
  */
 struct GridView {
-  std::string map_id;       ///< 地图唯一标识符。
-  std::string map_version;  ///< 地图版本字符串，用于校验快照一致性。
-  int width{0};             ///< 栅格列数（沿局部 X 轴方向）。
-  int height{0};            ///< 栅格行数（沿局部 Y 轴方向）。
-  double resolution_m{0.0}; ///< 正方形栅格单元边长分辨率（米）。
-  Pose2d origin;            ///< 栅格地图原点位姿（[0,0] 单元左下角顶点）。
-  std::vector<int> cells;   ///< 行主序存储的栅格单元占用状态数组。
+  std::string map_id;        ///< 地图唯一标识符。
+  std::string map_version;   ///< 地图版本字符串，用于校验快照一致性。
+  int width{0};              ///< 栅格列数（沿局部 X 轴方向）。
+  int height{0};             ///< 栅格行数（沿局部 Y 轴方向）。
+  double resolution_m{0.0};  ///< 正方形栅格单元边长分辨率（米）。
+  Pose2d origin;             ///< 栅格地图原点位姿（[0,0] 单元左下角顶点）。
+  std::vector<int> cells;    ///< 行主序存储的栅格单元占用状态数组。
 
   /**
    * @brief 检查给定的行列索引是否位于网格有效边界内。
