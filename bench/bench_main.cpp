@@ -129,7 +129,7 @@ int main() {
   request.time_budget_s = 10.0;
 
   hybrid_astar::UserAstar planner;
-  const int plan_iterations = 5;
+  const int plan_iterations = 10;
   const auto warmup = planner.plan(request, scene.grid, checker);
   if (warmup.status != common::Status::kSuccess) {
     std::fprintf(stderr, "benchmark warmup plan failed: %s\n",

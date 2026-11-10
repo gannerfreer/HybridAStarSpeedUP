@@ -9,7 +9,7 @@
 namespace {
 using namespace planner;
 
-// 使用显式检查，保证 Release 构建也执行验证。
+// GoogleTest 断言在 Release 构建中同样启用。
 TEST(ObstacleDetour, PlansCollisionFreeDetour) {
   common::VehicleModel vehicle;
   vehicle.wheelbase_m = 2.5;
