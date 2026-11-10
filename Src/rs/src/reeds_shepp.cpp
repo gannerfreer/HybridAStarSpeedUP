@@ -3,7 +3,7 @@
  * @brief 原生 48 类解析 Reeds-Shepp 最短路径求解器的具体实现。
  */
 
-#include "motion.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "reeds_shepp.hpp"
 
 #include <algorithm>
@@ -25,7 +25,7 @@
 namespace planner::rs {
 namespace {
 
-constexpr double kPi = common::kPi;
+using math::kPi;
 constexpr double kZero = 10.0 * std::numeric_limits<double>::epsilon();
 
 // ---------------------------------------------------------------------------

@@ -4,14 +4,14 @@
  * @note 按照双精度浮点设计！！！
  */
 
-#include "geometry.hpp"
+#include "planner/math/geometry.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
 
-#include "geometry_internal.hpp"
+#include "planner/math/detail/sat_cache.hpp"
 
 namespace planner::math {
 

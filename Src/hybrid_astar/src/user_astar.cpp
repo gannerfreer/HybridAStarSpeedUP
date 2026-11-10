@@ -3,7 +3,7 @@
  * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件。
  */
 
-#include "motion.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "user_astar.hpp"
 
 #include <algorithm>
@@ -28,7 +28,7 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-constexpr double kPi = 3.14159265358979323846;
+using math::kPi;
 constexpr double kStartPoseToleranceM = 1e-6;
 constexpr double kStartYawToleranceRad = 1e-6;
 constexpr double kEndpointPositionToleranceM = 0.05;  ///< 终点位置容差阈值（米，m）。

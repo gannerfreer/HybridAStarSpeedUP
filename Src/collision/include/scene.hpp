@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "geometry.hpp"
+#include "planner/math/geometry.hpp"
+#include "types.hpp"
 
 namespace planner::collision {
 using common::Point2d;

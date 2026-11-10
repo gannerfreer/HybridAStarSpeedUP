@@ -53,14 +53,6 @@ int GridView::cell(int row, int col) const {
   return cells[index];
 }
 
-bool operator==(const Point2d& lhs, const Point2d& rhs) {
-  return lhs.x_m == rhs.x_m && lhs.y_m == rhs.y_m;
-}
-
-bool operator==(const Pose2d& lhs, const Pose2d& rhs) {
-  return lhs.x_m == rhs.x_m && lhs.y_m == rhs.y_m && lhs.yaw_rad == rhs.yaw_rad;
-}
-
 bool operator==(const VehicleModel& lhs, const VehicleModel& rhs) {
   return lhs.id == rhs.id && lhs.wheelbase_m == rhs.wheelbase_m && lhs.width_m == rhs.width_m &&
          lhs.front_overhang_m == rhs.front_overhang_m && lhs.rear_overhang_m == rhs.rear_overhang_m &&

@@ -1,8 +1,7 @@
 #pragma once
 #include <cmath>
-#include "types.hpp"
+#include "planner/math/pose2d.hpp"
 namespace planner::math::internal {
-using common::Pose2d;
 constexpr double kSincSeriesBound = 1e-8;
 inline double sinc(double x) noexcept {
   if (std::abs(x) < kSincSeriesBound) {
@@ -25,4 +24,4 @@ inline Pose2d advance_arc_trig_unchecked(const Pose2d& start, double s, double k
   out.yaw_rad = start.yaw_rad + b;
   return out;
 }
-}
+}  // namespace planner::math::internal

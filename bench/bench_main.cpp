@@ -1,7 +1,7 @@
-#include "angle.hpp"
+#include "planner/math/angle.hpp"
 #include "collision_checker.hpp"
-#include "geometry.hpp"
-#include "motion.hpp"
+#include "planner/math/geometry.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "scene.hpp"
 #include "user_astar.hpp"
 

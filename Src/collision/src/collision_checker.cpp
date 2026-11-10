@@ -11,7 +11,7 @@
  *   若达到精度下限仍未证伪碰撞，则保守报告为碰撞。
  */
 
-#include "motion.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "collision_checker.hpp"
 
 #include <algorithm>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "geometry_internal.hpp"
+#include "planner/math/detail/sat_cache.hpp"
 #include "types.hpp"
 
 using planner::math::operator+;

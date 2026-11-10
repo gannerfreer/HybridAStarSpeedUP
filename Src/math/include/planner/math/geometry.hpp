@@ -14,13 +14,10 @@
 #include <string>
 #include <vector>
 
-#include "types.hpp"
+#include "planner/math/pose2d.hpp"
+#include "planner/math/vec2d.hpp"
 
 namespace planner::math {
-
-using planner::common::Direction;
-using planner::common::Point2d;
-using planner::common::Pose2d;
 
 /**
  * @name 二维基础向量代数

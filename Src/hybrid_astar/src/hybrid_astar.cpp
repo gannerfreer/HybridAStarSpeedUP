@@ -3,7 +3,7 @@
  * @brief Hybrid A* 路径搜索算法及动力学状态外扩的具体实现。
  */
 
-#include "motion.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "hybrid_astar.h"
 
 #include <algorithm>
@@ -14,7 +14,7 @@
 
 namespace astar {
 
-using planner::common::kPi;
+using planner::math::kPi;
 
 HybridAStar::HybridAStar(const PlannerConfig& config) : config_(config) {
     SetConfig(config);

@@ -1,5 +1,5 @@
 #include "hybrid_astar.h"
-#include "motion.hpp"
+#include "planner/math/kinematics/arc.hpp"
 #include "reeds_shepp.hpp"
 #include "user_astar.hpp"
 

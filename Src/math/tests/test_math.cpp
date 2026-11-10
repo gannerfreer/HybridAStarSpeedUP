@@ -1,6 +1,6 @@
-#include "geometry.hpp"
-#include "geometry_internal.hpp"
-#include "motion.hpp"
+#include "planner/math/detail/sat_cache.hpp"
+#include "planner/math/geometry.hpp"
+#include "planner/math/kinematics/arc.hpp"
 
 #include <gtest/gtest.h>
 
@@ -19,13 +19,13 @@ void expect_near(double a, double b, double tolerance = 1e-11) {
 }
 
 TEST(MathAngle, NormalizesIntoHalfOpenRange) {
-  EXPECT_EQ(math::normalize_angle_rad(common::kPi), -common::kPi);
-  EXPECT_EQ(math::normalize_angle_rad(-common::kPi), -common::kPi);
+  EXPECT_EQ(math::normalize_angle_rad(math::kPi), -math::kPi);
+  EXPECT_EQ(math::normalize_angle_rad(-math::kPi), -math::kPi);
   for (double a : {0., -0., 1., -1., 100., -100., 1e12, -1e12}) {
     SCOPED_TRACE(a);
     const double out = math::normalize_angle_rad(a);
-    EXPECT_GE(out, -common::kPi);
-    EXPECT_LT(out, common::kPi);
+    EXPECT_GE(out, -math::kPi);
+    EXPECT_LT(out, math::kPi);
     EXPECT_EQ(math::normalize_angle_rad(out), out);
   }
   EXPECT_TRUE(std::isnan(
@@ -37,8 +37,8 @@ TEST(MathArc, MatchesClosedFormAndRoundTrips) {
   std::uniform_real_distribution<double> distribution(-3., 3.);
   for (int i = 0; i < 600; ++i) {
     SCOPED_TRACE(i);
-    common::Pose2d start{distribution(engine), distribution(engine),
-                         distribution(engine)};
+    math::Pose2d start{distribution(engine), distribution(engine),
+                       distribution(engine)};
     const double s = distribution(engine);
     const double k = i % 3 == 0 ? 1e-12
                                 : (i % 3 == 1 ? 0. : distribution(engine));
@@ -78,8 +78,8 @@ TEST(MathGeometry, PrimitivesAndSatFallback) {
   expect_near(math::point_segment_distance_sq({2, 2}, {0, 0}, {0, 0}), 8.);
   expect_near(math::aabb_distance({0, 0, 1, 1}, {2, 2, 3, 3}),
               std::sqrt(2.));
-  const common::Pose2d pose{3, -2, 0.7};
-  const common::Point2d p{1, 4};
+  const math::Pose2d pose{3, -2, 0.7};
+  const math::Point2d p{1, 4};
   const auto restored =
       math::to_body_frame(pose, math::transform_point(pose, p));
   expect_near(restored.x_m, p.x_m);
@@ -90,8 +90,8 @@ TEST(MathGeometry, PrimitivesAndSatFallback) {
   for (int i = 0; i < 500; ++i) {
     SCOPED_TRACE(i);
     auto rotated = polygon;
-    const common::Pose2d transform{distribution(engine), distribution(engine),
-                                   distribution(engine)};
+    const math::Pose2d transform{distribution(engine), distribution(engine),
+                                 distribution(engine)};
     for (auto& point : rotated) point = math::transform_point(transform, point);
     const double x = distribution(engine);
     const double y = distribution(engine);
@@ -120,12 +120,12 @@ TEST(MathGeometry, PrimitivesAndSatFallback) {
   EXPECT_FALSE(cache.maybe_intersects({2e80, 2e80, 3e80, 3e80}, 0))
       << "fallback separation";
 
-  std::array<common::Point2d, 8> input{
+  std::array<math::Point2d, 8> input{
       {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {0, 0}, {0.5, 0.5}, {1, 0}, {0, 1}}},
       out;
   EXPECT_EQ(math::convex_hull_small(input, 8, out), 4)
       << "small hull duplicates";
-  std::vector<common::Point2d> many(input.begin(), input.end());
+  std::vector<math::Point2d> many(input.begin(), input.end());
   many.push_back({0.2, 0.2});
   many.push_back({0.7, 0.7});
   EXPECT_EQ(math::convex_hull(many).size(), 4) << "generic hull duplicates";

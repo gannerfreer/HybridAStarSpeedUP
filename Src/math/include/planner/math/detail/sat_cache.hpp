@@ -1,5 +1,5 @@
 /**
- * @file geometry_internal.hpp
+ * @file sat_cache.hpp
  * @brief 碰撞检测底层几何快速路径数据结构与 SAT 预计算缓存。
  * @details 碰撞检测查询热点路径的核心优化机制：
  *          - 采用未归一化的边法向投影轴，并在投影间隙平方域进行比较：
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "geometry.hpp"
+#include "planner/math/geometry.hpp"
 
 namespace planner::math::internal {
 
