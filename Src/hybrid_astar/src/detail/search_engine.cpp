@@ -50,6 +50,13 @@ void SearchEngine::set_goal_hook(std::function<bool(const SearchState&)> hook) {
   goal_hook_ = std::move(hook);
 }
 
+void SearchEngine::clear_hooks() {
+  abort_callback_ = nullptr;
+  pose_collision_hook_ = nullptr;
+  motion_collision_hook_ = nullptr;
+  goal_hook_ = nullptr;
+}
+
 void SearchEngine::reset_state() {
   open_set_.clear();
   closed_set_.clear();

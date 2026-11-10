@@ -135,6 +135,9 @@ common::PlanResult UserAstar::plan(
   common::PlanResult result;
   result.request_id = request.request_id;
 
+  // 防御性清空上一轮规划遗留的钩子及其捕获引用；随后统一重新注册。
+  impl_->engine.clear_hooks();
+
   const auto fail = [&result](common::Status status, const std::string& reason) {
     result.status = status;
     result.reason = reason;

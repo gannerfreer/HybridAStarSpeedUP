@@ -147,6 +147,93 @@ TEST(SearchEngineRegression, NodeBudgetReturnsTimeout) {
   EXPECT_NE(result.reason.find("node budget"), std::string::npos);
 }
 
+TEST(SearchEngineRegression, RejectedSuccessorsReturnNoPath) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return true; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return false; });
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0},
+                                    common::Direction::kForward, 100);
+  EXPECT_EQ(result.status, common::Status::kNoPath);
+  EXPECT_TRUE(result.path.empty());
+}
+
+TEST(SearchEngineRegression, StartPoseCollisionReturnsInvalidInput) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  engine.set_pose_collision_hook([](const math::Pose2d&) { return true; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook(
+      [](const hybrid_astar::detail::SearchState&) { return false; });
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0},
+                                    common::Direction::kForward, 100);
+  EXPECT_EQ(result.status, common::Status::kInvalidInput);
+  EXPECT_NE(result.reason.find("collision"), std::string::npos);
+}
+
+TEST(SearchEngineRegression, ReconstructsMultiNodePathFromOrigin) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  common::UserAstarConfig config;
+  config.motion_step_m = 1.0;
+  config.steering_samples = 5;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  const math::Pose2d goal{2.0, 0.0, 0.0};
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook([&](const hybrid_astar::detail::SearchState& state) {
+    return std::hypot(state.pose.x_m - goal.x_m,
+                      state.pose.y_m - goal.y_m) <= 1.1;
+  });
+  const auto result = engine.search({0, 0, 0}, goal,
+                                    common::Direction::kForward, 100);
+  ASSERT_EQ(result.status, common::Status::kSuccess);
+  ASSERT_GE(result.path.size(), 2u);
+  EXPECT_NEAR(result.path.front().pose.x_m, 0.0, 1e-12);
+  EXPECT_NEAR(result.path.front().pose.y_m, 0.0, 1e-12);
+  EXPECT_LE(std::hypot(result.path.back().pose.x_m - goal.x_m,
+                       result.path.back().pose.y_m - goal.y_m),
+            1.1);
+}
+
+TEST(SearchEngineRegression, ReuseClearsPreviousSearchState) {
+  const common::VehicleModel vehicle = regression_vehicle();
+  const common::UserAstarConfig config;
+  hybrid_astar::detail::SearchEngine engine(vehicle, config);
+  math::Pose2d target{2.0, 0.0, 0.0};
+  engine.set_pose_collision_hook(
+      [](const math::Pose2d&) { return false; });
+  engine.set_motion_collision_hook(
+      [](const hybrid_astar::detail::SearchState&,
+         const hybrid_astar::detail::SearchState&) { return false; });
+  engine.set_goal_hook([&](const hybrid_astar::detail::SearchState& state) {
+    return std::hypot(state.pose.x_m - target.x_m,
+                      state.pose.y_m - target.y_m) <= 1.1;
+  });
+  const auto first = engine.search({0, 0, 0}, target,
+                                   common::Direction::kForward, 100);
+  ASSERT_EQ(first.status, common::Status::kSuccess);
+  ASSERT_GE(first.path.size(), 2u);
+
+  target = {3.0, 0.0, 0.0};
+  const auto second = engine.search({0, 0, 0}, target,
+                                    common::Direction::kForward, 100);
+  EXPECT_EQ(second.status, common::Status::kSuccess);
+  EXPECT_GE(second.path.size(), 2u);
+  EXPECT_NEAR(second.path.front().pose.x_m, 0.0, 1e-12);
+}
+
 TEST(SearchEngineRegression, ReconstructsStartAtNegativePi) {
   const common::VehicleModel vehicle = regression_vehicle();
   const common::UserAstarConfig config;

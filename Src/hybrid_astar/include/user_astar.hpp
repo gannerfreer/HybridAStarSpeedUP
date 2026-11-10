@@ -61,7 +61,8 @@ class UserAstar {
                           const collision::CollisionChecker& collision_checker);
 
   /**
-   * @brief 清空内部缓存的启发式势场网格与离散查找表。
+   * @brief 清空内部缓存的启发式势场网格与离散查找表，同时清空引擎搜索状态
+   *        （保留容器已分配的容量以便跨规划复用）。
    */
   void reset_cache();
 

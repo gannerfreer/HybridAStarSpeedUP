@@ -99,6 +99,11 @@ class SearchEngine {
    */
   void set_goal_hook(std::function<bool(const SearchState&)> hook);
 
+  /**
+   * @brief 清空全部搜索钩子，避免复用引擎时残留上一轮规划的捕获引用。
+   */
+  void clear_hooks();
+
   /** @} */
 
   /**
