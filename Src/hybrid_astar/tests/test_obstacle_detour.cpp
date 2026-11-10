@@ -1,3 +1,7 @@
+#include "planner/common/grid_view.hpp"
+#include "planner/common/plan.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "user_astar.hpp"
 

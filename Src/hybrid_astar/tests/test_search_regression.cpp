@@ -1,4 +1,8 @@
 #include "hybrid_astar.h"
+#include "planner/common/path.hpp"
+#include "planner/common/plan.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "reeds_shepp.hpp"
 #include "user_astar.hpp"
@@ -27,7 +31,7 @@ TEST(SearchRegression, RejectsCollisionInArcTail) {
   grid.resolution_m = 0.5;
   grid.cells.assign(400, common::kCellFree);
   const common::Pose2d start{5, 5, 0};
-  const common::Pose2d goal = math::integrate_arc(start, common::kPi / 2, 1);
+  const common::Pose2d goal = math::integrate_arc(start, math::kPi / 2, 1);
   const auto hit = math::integrate_arc(start, 0.498, 1);
   scene.obstacles.push_back(collision::Obstacle::rectangle(
       "thin_obstacle", hit.x_m - 0.00002, hit.y_m - 0.00002,
@@ -147,11 +151,11 @@ TEST(SearchRegression, HooksReverseCancellationBudgetsPiBoundaryAndRsIntegration
       << "time budget";
   request.time_budget_s.reset();
 
-  request.start = {30, 10, common::kPi};
-  request.goal = {10, 10, common::kPi};
+  request.start = {30, 10, math::kPi};
+  request.goal = {10, 10, math::kPi};
   auto plus = planner.plan(request, grid, checker);
-  request.start.yaw_rad = -common::kPi;
-  request.goal.yaw_rad = -common::kPi;
+  request.start.yaw_rad = -math::kPi;
+  request.goal.yaw_rad = -math::kPi;
   auto minus = planner.plan(request, grid, checker);
   ASSERT_EQ(plus.status, common::Status::kSuccess);
   ASSERT_EQ(minus.status, common::Status::kSuccess);

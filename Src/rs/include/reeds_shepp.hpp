@@ -16,7 +16,9 @@
 #include <string>
 #include <vector>
 
-#include "types.hpp"
+#include "planner/common/path.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
 
 namespace planner::rs {
 

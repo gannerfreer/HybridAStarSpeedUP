@@ -10,7 +10,7 @@
 #include <queue>
 #include <utility>
 
-#include "types.hpp"
+#include "planner/common/grid_view.hpp"
 
 namespace planner::hybrid_astar::internal {
 

@@ -1,3 +1,6 @@
+#include "planner/common/path.hpp"
+#include "planner/common/status.hpp"
+#include "planner/common/vehicle.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "reeds_shepp.hpp"
 

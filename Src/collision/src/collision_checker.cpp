@@ -25,12 +25,14 @@
 #include <utility>
 #include <vector>
 
+#include "planner/common/grid_view.hpp"
+#include "planner/common/path.hpp"
+#include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/detail/geometry_utils.hpp"
 #include "planner/math/detail/sat_cache.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "planner/math/vec2d.hpp"
-#include "types.hpp"
 
 using planner::math::operator+;
 using planner::math::operator-;
@@ -43,7 +45,7 @@ namespace {
 using planner::common::kCellFree;
 using planner::common::kCellOccupied;
 using planner::common::kCellUnknown;
-using planner::common::kPi;
+using planner::math::kPi;
 using planner::math::normalize_angle_rad;
 
 constexpr double kMaxAbsCurvature_inv_m = 1.0e6;  ///< 最大绝对曲率限制（对应转弯半径 >= 1 um）
@@ -78,7 +80,7 @@ struct CollisionCheckerImpl {
   Scene scene;
   CheckOptions options;
   Footprint footprint;
-  GridFrame frame;
+  common::GridFrame frame;
   bool valid{false};
   std::string invalid_reason;
 
@@ -945,7 +947,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle,
   state->invalid_reason = reason;
   state->footprint = make_footprint(vehicle);
   if (scene.has_grid()) {
-    state->frame = GridFrame::from_grid(scene.grid);
+    state->frame = common::GridFrame::from_grid(scene.grid);
   }
 
   if (state->valid) {

@@ -9,8 +9,6 @@
 #include <cmath>
 #include <utility>
 
-#include "types.hpp"
-
 using planner::math::operator+;
 using planner::math::operator-;
 using planner::math::operator*;
@@ -116,30 +114,7 @@ bool Scene::valid(std::string* reason) const {
 
 bool vehicle_footprint_valid(const VehicleModel& vehicle,
                              std::string* reason) {
-  const auto finite_nonneg = [](double v) {
-    return std::isfinite(v) && v >= 0.0;
-  };
-  if (!std::isfinite(vehicle.wheelbase_m) || !(vehicle.wheelbase_m > 0.0)) {
-    if (reason) *reason = "vehicle wheelbase must be finite and positive";
-    return false;
-  }
-  if (!std::isfinite(vehicle.width_m) || !(vehicle.width_m > 0.0)) {
-    if (reason) *reason = "vehicle width must be finite and positive";
-    return false;
-  }
-  if (!finite_nonneg(vehicle.front_overhang_m)) {
-    if (reason) *reason = "vehicle front overhang must be finite and >= 0";
-    return false;
-  }
-  if (!finite_nonneg(vehicle.rear_overhang_m)) {
-    if (reason) *reason = "vehicle rear overhang must be finite and >= 0";
-    return false;
-  }
-  if (!finite_nonneg(vehicle.safety_margin_m)) {
-    if (reason) *reason = "vehicle safety margin must be finite and >= 0";
-    return false;
-  }
-  return true;
+  return common::vehicle_valid(vehicle, reason);
 }
 
 Footprint make_footprint(const VehicleModel& vehicle) noexcept {
@@ -158,39 +133,6 @@ Footprint make_footprint(const VehicleModel& vehicle) noexcept {
                  std::max(std::abs(footprint.y_min_m),
                           std::abs(footprint.y_max_m)));
   return footprint;
-}
-
-// ---------------------------------------------------------------------------
-// 栅格坐标系 GridFrame
-// ---------------------------------------------------------------------------
-
-GridFrame GridFrame::from_grid(const GridView& grid) noexcept {
-  GridFrame frame;
-  frame.cos_yaw = std::cos(grid.origin.yaw_rad);
-  frame.sin_yaw = std::sin(grid.origin.yaw_rad);
-  frame.origin_x = grid.origin.x_m;
-  frame.origin_y = grid.origin.y_m;
-  frame.width_m = grid.width * grid.resolution_m;
-  frame.height_m = grid.height * grid.resolution_m;
-  frame.resolution_m = grid.resolution_m;
-  return frame;
-}
-
-Point2d GridFrame::to_grid_frame(const Point2d& world_point) const noexcept {
-  const double dx = world_point.x_m - origin_x;
-  const double dy = world_point.y_m - origin_y;
-  return Point2d{cos_yaw * dx + sin_yaw * dy, -sin_yaw * dx + cos_yaw * dy};
-}
-
-bool GridFrame::inside_map(const Point2d& grid_point) const noexcept {
-  return grid_point.x_m >= 0.0 && grid_point.x_m <= width_m &&
-         grid_point.y_m >= 0.0 && grid_point.y_m <= height_m;
-}
-
-double GridFrame::distance_to_boundary(const Point2d& grid_point) const noexcept {
-  const double d = std::min(std::min(grid_point.x_m, width_m - grid_point.x_m),
-                            std::min(grid_point.y_m, height_m - grid_point.y_m));
-  return d;  // 若在地图外部则为负值
 }
 
 }  // namespace planner::collision

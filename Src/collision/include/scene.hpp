@@ -4,7 +4,7 @@
  * @details 碰撞环境的核心建模：
  *          - 车辆足迹模型 (Footprint)：由轴距、前后悬、车宽及安全裕量构建的刚体矩形包络。
  *          - 凸多边形障碍物 (Obstacle)：局部世界坐标系下的逆时针闭合凸多边形集合。
- *          - 栅格地图坐标系 (GridFrame)：支持世界坐标系与栅格局部坐标系之间的快速变换及地图边界判定。
+ *          - 栅格地图视图 (GridView) 与坐标系变换 (GridFrame)：由通用 common 模块提供。
  */
 
 #pragma once
@@ -14,10 +14,12 @@
 #include <string>
 #include <vector>
 
+#include "planner/common/grid_view.hpp"
+#include "planner/common/path.hpp"
+#include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/box2d.hpp"
 #include "planner/math/polygon2d.hpp"
-#include "types.hpp"
 
 namespace planner::collision {
 using common::Point2d;
@@ -177,10 +179,11 @@ struct Footprint {
 };
 
 /**
- * @brief 校验车辆模型几何尺寸（轴距、车宽、前后悬、安全裕量）的合法性。
+ * @brief 校验车辆模型几何尺寸与最大前轮转角的合法性。
+ * @details 委托 common::vehicle_valid 执行统一校验，保留本接口以兼容既有调用方。
  * @param[in] vehicle 车辆模型参数。
  * @param[out] reason 失败时的诊断说明文本。
- * @return 若所有尺寸均为有限正数/非负数则返回 true。
+ * @return 若所有尺寸与转角参数均为合法值则返回 true。
  */
 bool vehicle_footprint_valid(const VehicleModel& vehicle,
                              std::string* reason = nullptr);
@@ -191,47 +194,5 @@ bool vehicle_footprint_valid(const VehicleModel& vehicle,
  * @return 构造生成的 Footprint 结构。
  */
 Footprint make_footprint(const VehicleModel& vehicle) noexcept;
-
-/**
- * @brief 二维栅格地图坐标系几何定义与快速坐标变换缓存。
- * @details 网格坐标系中，单元 (r, c) 占据的区间为 [c*res, (c+1)*res] x [r*res, (r+1)*res]。
- */
-struct GridFrame {
-  double cos_yaw{1.0};       ///< 栅格原点航向角余弦值。
-  double sin_yaw{0.0};       ///< 栅格原点航向角正弦值。
-  double origin_x{0.0};      ///< 栅格原点在世界系下的 X 坐标（米）。
-  double origin_y{0.0};      ///< 栅格原点在世界系下的 Y 坐标（米）。
-  double width_m{0.0};       ///< 地图总物理宽度：width * resolution_m（米）。
-  double height_m{0.0};      ///< 地图总物理高度：height * resolution_m（米）。
-  double resolution_m{0.0};  ///< 正方形网格单边分辨率（米）。
-
-  /**
-   * @brief 从 GridView 提取并预计算 GridFrame 坐标变换结构。
-   * @param[in] grid 输入栅格地图视图。
-   * @return 初始化完成的 GridFrame。
-   */
-  static GridFrame from_grid(const GridView& grid) noexcept;
-
-  /**
-   * @brief 将世界坐标系下的点变换至栅格局部坐标系。
-   * @param[in] world_point 世界系点。
-   * @return 栅格局部系点。
-   */
-  Point2d to_grid_frame(const Point2d& world_point) const noexcept;
-
-  /**
-   * @brief 判定栅格坐标系下的点是否位于地图矩形 [0, width_m] x [0, height_m] 内。
-   * @param[in] grid_point 栅格系点。
-   * @return 若在地图内或边界上返回 true。
-   */
-  bool inside_map(const Point2d& grid_point) const noexcept;
-
-  /**
-   * @brief 计算栅格坐标点到地图矩形边界的有向最短距离（在外部为负，在内部为正）。
-   * @param[in] grid_point 栅格系点。
-   * @return 到边界的欧氏距离（米）。
-   */
-  double distance_to_boundary(const Point2d& grid_point) const noexcept;
-};
 
 }  // namespace planner::collision

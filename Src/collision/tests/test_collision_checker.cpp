@@ -1,4 +1,8 @@
 #include "collision_checker.hpp"
+#include "planner/common/grid_view.hpp"
+#include "planner/common/path.hpp"
+#include "planner/common/vehicle.hpp"
+#include "planner/math/angle.hpp"
 #include "scene.hpp"
 
 #include <gtest/gtest.h>

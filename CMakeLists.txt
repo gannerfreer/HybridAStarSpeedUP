@@ -89,6 +89,8 @@ if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
     Src/rs/tests/test_reeds_shepp.cpp planner::rs unit 20)
   planner_add_gtest(grid_view_test
     Src/common/tests/test_grid_view.cpp planner::collision unit 20)
+  planner_add_gtest(common_validators_test
+    Src/common/tests/test_validators.cpp planner::common unit 20)
   planner_add_gtest(obstacle_detour_test
     Src/hybrid_astar/tests/test_obstacle_detour.cpp planner::hybrid_astar integration 20)
   planner_add_gtest(search_regression_test

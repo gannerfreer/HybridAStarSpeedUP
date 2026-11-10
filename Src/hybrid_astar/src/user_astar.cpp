@@ -131,35 +131,10 @@ UserAstar::UserAstar(const UserAstarConfig& config) : impl_(std::make_unique<Imp
 UserAstar::~UserAstar() = default;
 const UserAstarConfig& UserAstar::config() const { return impl_->config; }
 void UserAstar::configure(const UserAstarConfig& config) {
-  if (!std::isfinite(config.xy_resolution_m) || !(config.xy_resolution_m > 0.0))
-    throw std::invalid_argument("invalid xy_resolution_m");
-  if (!std::isfinite(config.motion_step_m) || !(config.motion_step_m > 0.0))
-    throw std::invalid_argument("invalid motion_step_m");
-  if (!std::isfinite(config.goal_capture_radius_m) || !(config.goal_capture_radius_m > 0.0))
-    throw std::invalid_argument("invalid goal_capture_radius_m");
-  if (!std::isfinite(config.default_time_budget_s) || !(config.default_time_budget_s > 0.0) || config.default_time_budget_s > 1e9)
-    throw std::invalid_argument("invalid default_time_budget_s");
-  if (!std::isfinite(config.forward_cost) || !(config.forward_cost >= 0.0))
-    throw std::invalid_argument("invalid forward_cost");
-  if (!std::isfinite(config.reverse_cost) || !(config.reverse_cost >= 0.0))
-    throw std::invalid_argument("invalid reverse_cost");
-  if (!std::isfinite(config.turn_penalty) || !(config.turn_penalty >= 0.0))
-    throw std::invalid_argument("invalid turn_penalty");
-  if (!std::isfinite(config.switch_cost) || !(config.switch_cost >= 0.0))
-    throw std::invalid_argument("invalid switch_cost");
-  if (!std::isfinite(config.backward_search_range_m) || !(config.backward_search_range_m >= 0.0))
-    throw std::invalid_argument("invalid backward_search_range_m");
-  if (!std::isfinite(config.linear_preferred_distance_square) || !(config.linear_preferred_distance_square >= 0.0))
-    throw std::invalid_argument("invalid linear_preferred_distance_square");
-  if (!std::isfinite(config.analytic_shot_distance_m) || !(config.analytic_shot_distance_m >= 0.0))
-    throw std::invalid_argument("invalid analytic_shot_distance_m");
-  if (!std::isfinite(config.analytic_expansion_max_length_m) || !(config.analytic_expansion_max_length_m >= 0.0))
-    throw std::invalid_argument("invalid analytic_expansion_max_length_m");
-  if (!std::isfinite(config.min_connector_segment_m) || !(config.min_connector_segment_m >= 0.0))
-    throw std::invalid_argument("invalid min_connector_segment_m");
-  if (config.heading_bins < 8 || config.steering_samples < 2 ||
-      config.analytic_expansion_ratio < 1 || config.default_node_budget < 1)
-    throw std::invalid_argument("invalid discrete search configuration");
+  std::string reason;
+  if (!common::planner_config_valid(config, &reason)) {
+    throw std::invalid_argument(reason);
+  }
   impl_->config = config;
   reset_cache();
 }
@@ -272,7 +247,7 @@ common::PlanResult UserAstar::plan(
   // 起点与目标位姿首先由完整的车辆多边形轮廓执行精确碰撞检验。
   // ------------------------------------------------------------------
   bool potential_usable = false;
-  collision::GridFrame potential_frame = collision::GridFrame::from_grid(grid);
+  common::GridFrame potential_frame = common::GridFrame::from_grid(grid);
   const internal::GridPotential* potential = nullptr;
   const auto cell_of_pose = [&](const common::Pose2d& pose, int* row, int* col) {
     const common::Point2d grid_point =
