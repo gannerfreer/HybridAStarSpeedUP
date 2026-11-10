@@ -1,0 +1,7 @@
+schema_version = 1
+id = "nan"
+wheelbase_m = nan
+width_m = 1.8
+front_overhang_m = 0.9
+rear_overhang_m = 0.9
+max_steer_rad = 0.55

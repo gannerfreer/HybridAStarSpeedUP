@@ -9,6 +9,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(PLANNER_BUILD_TESTS "Build the test suite" ON)
 option(PLANNER_BUILD_BENCHMARKS "Build the benchmark harness" OFF)
+option(PLANNER_BUILD_TOOLS "Build command line tools" ON)
+option(PLANNER_WITH_CONFIG "Build the TOML configuration module" ON)
+option(PLANNER_FETCH_DEPS "Fetch missing third-party dependencies" ON)
 option(PLANNER_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(PLANNER_ENABLE_CLANG_TIDY "Run clang-tidy while compiling" OFF)
 
@@ -45,11 +48,38 @@ if(PLANNER_ENABLE_CLANG_TIDY)
   endif()
 endif()
 
+if(PLANNER_WITH_CONFIG)
+  find_package(tomlplusplus CONFIG QUIET)
+  if(NOT TARGET tomlplusplus::tomlplusplus)
+    if(PLANNER_FETCH_DEPS)
+      include(FetchContent)
+      FetchContent_Declare(
+        tomlplusplus
+        GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+        GIT_TAG v3.4.0
+        GIT_SHALLOW TRUE)
+      FetchContent_MakeAvailable(tomlplusplus)
+    endif()
+    if(NOT TARGET tomlplusplus::tomlplusplus)
+      message(FATAL_ERROR
+        "PLANNER_WITH_CONFIG=ON requires toml++ v3.4.0, but it was not found "
+        "and PLANNER_FETCH_DEPS is OFF")
+    endif()
+  endif()
+endif()
+
 add_subdirectory(Src/math)
 add_subdirectory(Src/common)
+if(PLANNER_WITH_CONFIG)
+  add_subdirectory(Src/config)
+endif()
 add_subdirectory(Src/collision)
 add_subdirectory(Src/rs)
 add_subdirectory(Src/hybrid_astar)
+
+if(PLANNER_BUILD_TOOLS AND PLANNER_WITH_CONFIG)
+  add_subdirectory(tools)
+endif()
 
 include(CTest)
 # 测试目标同时受 CTest 的 BUILD_TESTING 与本项目的 PLANNER_BUILD_TESTS 控制。
@@ -95,6 +125,27 @@ if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
     Src/hybrid_astar/tests/test_obstacle_detour.cpp planner::hybrid_astar integration 20)
   planner_add_gtest(search_regression_test
     Src/hybrid_astar/tests/test_search_regression.cpp planner::hybrid_astar regression 20)
+
+  if(TARGET planner::config)
+    planner_add_gtest(config_loader_test
+      Src/config/tests/test_toml_config_loader.cpp
+      "planner::config;planner::hybrid_astar" config 20)
+    target_compile_definitions(config_loader_test PRIVATE
+      PLANNER_CONFIG_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Src/config/tests/data"
+      PLANNER_CONFIG_EXAMPLE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config")
+  endif()
+
+  if(TARGET plan_demo)
+    add_test(NAME plan_demo_smoke
+      COMMAND plan_demo
+        --vehicle "${CMAKE_CURRENT_SOURCE_DIR}/config/vehicles/standard_sedan.toml"
+        --planner "${CMAKE_CURRENT_SOURCE_DIR}/config/planner/default.toml"
+        --scenario "${CMAKE_CURRENT_SOURCE_DIR}/config/scenarios/narrow_parking.toml")
+    set_tests_properties(plan_demo_smoke PROPERTIES
+      LABELS "integration"
+      TIMEOUT 20
+      PASS_REGULAR_EXPRESSION "status: success")
+  endif()
 endif()
 
 if(PLANNER_BUILD_BENCHMARKS)
@@ -103,7 +154,8 @@ if(PLANNER_BUILD_BENCHMARKS)
   planner_set_warnings(planner_bench)
 endif()
 
-foreach(target planner_math planner_common planner_collision planner_rs planner_hybrid_astar)
+foreach(target planner_math planner_common planner_config planner_collision
+        planner_rs planner_hybrid_astar)
   if(TARGET ${target})
     planner_set_warnings(${target})
   endif()

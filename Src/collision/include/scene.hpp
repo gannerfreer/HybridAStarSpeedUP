@@ -16,6 +16,7 @@
 
 #include "planner/common/grid_view.hpp"
 #include "planner/common/path.hpp"
+#include "planner/common/scenario_config.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/box2d.hpp"
@@ -117,6 +118,15 @@ struct Scene {
    */
   bool valid(std::string* reason = nullptr) const;
 };
+
+/**
+ * @brief 根据纯数据场景配置构建碰撞检测场景。
+ * @details 栅格地图标识固定为 "scenario"/"1"，所有栅格默认为自由单元；
+ *          障碍物由配置顶点构造为凸多边形。输入非法时返回的 Scene::valid() 为 false。
+ * @param[in] scenario 场景配置数据。
+ * @return 构建得到的场景快照。
+ */
+Scene make_scene(const common::ScenarioConfig& scenario);
 
 /**
  * @brief 包含额外安全裕量的车体矩形足迹几何包络。

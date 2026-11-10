@@ -1,0 +1,8 @@
+schema_version = 1
+id = "unknown"
+wheelbase_m = 2.7
+width_m = 1.8
+front_overhang_m = 0.9
+rear_overhang_m = 0.9
+max_steer_rad = 0.55
+bogus_key = 1

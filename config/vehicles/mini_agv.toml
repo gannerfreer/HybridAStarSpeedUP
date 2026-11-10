@@ -1,0 +1,10 @@
+# 小型仓储 AGV 参数（SI 单位）。
+schema_version = 1
+
+id = "mini_agv"
+wheelbase_m = 1.2
+width_m = 0.9
+front_overhang_m = 0.25
+rear_overhang_m = 0.25
+max_steer_rad = 0.7
+safety_margin_m = 0.05

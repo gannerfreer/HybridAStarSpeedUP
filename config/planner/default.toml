@@ -1,0 +1,28 @@
+# 默认 Hybrid A* 规划器参数（与 UserAstarConfig 默认值一致）。
+schema_version = 1
+
+[search]
+xy_resolution_m = 0.5
+heading_bins = 72
+motion_step_m = 1.0
+steering_samples = 5
+allow_reverse = true
+backward_search_range_m = 0.0
+linear_preferred_distance_m2 = 0.0
+goal_capture_radius_m = 8.0
+
+[cost]
+forward_cost = 1.0
+reverse_cost = 2.0
+turn_penalty = 1.0
+switch_cost = 2.0
+
+[analytic_expansion]
+ratio = 3
+shot_distance_m = 0.0
+max_length_m = 12.0
+min_connector_segment_m = 0.15
+
+[budget]
+default_time_budget_s = 5.0
+default_node_budget = 1_000_000

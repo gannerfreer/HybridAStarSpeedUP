@@ -1,0 +1,27 @@
+schema_version = 1
+
+[search]
+xy_resolution_m = 0.4
+heading_bins = 96
+motion_step_m = 0.8
+steering_samples = 7
+allow_reverse = false
+backward_search_range_m = 3.5
+linear_preferred_distance_m2 = 4.0
+goal_capture_radius_m = 6.0
+
+[cost]
+forward_cost = 1.2
+reverse_cost = 2.5
+turn_penalty = 1.5
+switch_cost = 3.0
+
+[analytic_expansion]
+ratio = 4
+shot_distance_m = 10.5
+max_length_m = 15.0
+min_connector_segment_m = 0.2
+
+[budget]
+default_time_budget_s = 2.5
+default_node_budget = 1_000_000
