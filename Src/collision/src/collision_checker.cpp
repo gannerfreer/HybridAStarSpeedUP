@@ -313,15 +313,15 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         return;
       }
       const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
-      const double tol =
-          contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
+      const double tol = contact_tolerance(
+          std::max(footprint_scale, obstacle.polygon.aabb().max_abs_coordinate()));
       // SAT 粗筛：若所有分离轴投影间隙均不大于 tol，则可能接触，继续精确距离检验
-      if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.data(),
-                                           obstacle.size(), tol)) {
+      if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.polygon.data(),
+                                           obstacle.polygon.size(), tol)) {
         return;
       }
-      if (math::convex_polygon_distance_sq(world.data(), world.size(), obstacle.data(),
-                                           obstacle.size()) <= tol * tol) {
+      if (math::convex_polygon_distance_sq(world.data(), world.size(), obstacle.polygon.data(),
+                                           obstacle.polygon.size()) <= tol * tol) {
         obstacle_hit.hit = true;
         obstacle_hit.reason = CollisionReason::kObstacle;
         obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
@@ -589,12 +589,13 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     }
     const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
     // O(1) SAT 粗筛：当分离轴间隙大于 obstacle_reach 时跳过精确多边形距离计算
-    if (!math::convex_polygons_intersect(envelope.hull.data(), envelope.hull_size, obstacle.data(),
-                                         obstacle.size(), obstacle_reach)) {
+    if (!math::convex_polygons_intersect(envelope.hull.data(), envelope.hull_size,
+                                         obstacle.polygon.data(), obstacle.polygon.size(),
+                                         obstacle_reach)) {
       return;
     }
-    const double d_sq = math::convex_polygon_distance_sq(envelope.hull.data(), envelope.hull_size,
-                                                         obstacle.data(), obstacle.size());
+    const double d_sq = math::convex_polygon_distance_sq(
+        envelope.hull.data(), envelope.hull_size, obstacle.polygon.data(), obstacle.polygon.size());
     if (d_sq <= obstacle_reach * obstacle_reach) {
       clear = false;
     }
@@ -915,7 +916,7 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle, const Scene& sce
   if (state->valid) {
     state->obstacle_boxes.reserve(state->scene.obstacles.size());
     for (const Obstacle& obstacle : state->scene.obstacles) {
-      state->obstacle_boxes.push_back(obstacle.aabb());
+      state->obstacle_boxes.push_back(obstacle.polygon.aabb());
       state->obstacle_scale_m =
           std::max(state->obstacle_scale_m, state->obstacle_boxes.back().max_abs_coordinate());
     }

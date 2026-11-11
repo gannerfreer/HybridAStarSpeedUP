@@ -356,35 +356,35 @@ TEST(CollisionFootprint, ExplicitCornerWorldBoxMatchesGenericAabbPredicate) {
 
 TEST(CollisionObstacle, FactoriesNormalizeAndCacheGeometry) {
   const auto rectangle = collision::Obstacle::rectangle("rect", -1.0, -2.0, 3.0, 4.0);
-  ASSERT_TRUE(rectangle.valid());
+  ASSERT_TRUE(rectangle.polygon.valid());
   EXPECT_EQ(rectangle.id, "rect");
-  EXPECT_EQ(rectangle.size(), 4u);
-  EXPECT_FALSE(rectangle.empty());
-  EXPECT_EQ(rectangle.data(), rectangle.vertices().data());
-  EXPECT_TRUE(math::is_counter_clockwise(rectangle.vertices()));
-  EXPECT_EQ(rectangle.vertices().front(), (common::Point2d{-1.0, -2.0}));
-  EXPECT_DOUBLE_EQ(rectangle.aabb().min_x, -1.0);
-  EXPECT_DOUBLE_EQ(rectangle.aabb().min_y, -2.0);
-  EXPECT_DOUBLE_EQ(rectangle.aabb().max_x, 3.0);
-  EXPECT_DOUBLE_EQ(rectangle.aabb().max_y, 4.0);
+  EXPECT_EQ(rectangle.polygon.size(), 4u);
+  EXPECT_FALSE(rectangle.polygon.empty());
+  EXPECT_EQ(rectangle.polygon.data(), rectangle.polygon.vertices().data());
+  EXPECT_TRUE(math::is_counter_clockwise(rectangle.polygon.vertices()));
+  EXPECT_EQ(rectangle.polygon.vertices().front(), (common::Point2d{-1.0, -2.0}));
+  EXPECT_DOUBLE_EQ(rectangle.polygon.aabb().min_x, -1.0);
+  EXPECT_DOUBLE_EQ(rectangle.polygon.aabb().min_y, -2.0);
+  EXPECT_DOUBLE_EQ(rectangle.polygon.aabb().max_x, 3.0);
+  EXPECT_DOUBLE_EQ(rectangle.polygon.aabb().max_y, 4.0);
 
   const auto clockwise =
       collision::Obstacle::convex_polygon("cw", {{0.0, 0.0}, {0.0, 2.0}, {2.0, 2.0}, {2.0, 0.0}});
-  ASSERT_TRUE(clockwise.valid());
-  EXPECT_TRUE(math::is_counter_clockwise(clockwise.vertices()));
-  EXPECT_DOUBLE_EQ(clockwise.aabb().max_x, 2.0);
-  EXPECT_DOUBLE_EQ(clockwise.aabb().max_y, 2.0);
+  ASSERT_TRUE(clockwise.polygon.valid());
+  EXPECT_TRUE(math::is_counter_clockwise(clockwise.polygon.vertices()));
+  EXPECT_DOUBLE_EQ(clockwise.polygon.aabb().max_x, 2.0);
+  EXPECT_DOUBLE_EQ(clockwise.polygon.aabb().max_y, 2.0);
 
   const auto invalid =
       collision::Obstacle::convex_polygon("bad", {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}});
-  EXPECT_TRUE(invalid.empty());
-  EXPECT_FALSE(invalid.valid());
-  EXPECT_DOUBLE_EQ(invalid.aabb().min_x, 0.0);
-  EXPECT_DOUBLE_EQ(invalid.aabb().max_x, 0.0);
+  EXPECT_TRUE(invalid.polygon.empty());
+  EXPECT_FALSE(invalid.polygon.valid());
+  EXPECT_DOUBLE_EQ(invalid.polygon.aabb().min_x, 0.0);
+  EXPECT_DOUBLE_EQ(invalid.polygon.aabb().max_x, 0.0);
 
   const auto inverted = collision::Obstacle::rectangle("inverted", 2.0, 0.0, 1.0, 1.0);
-  EXPECT_TRUE(inverted.empty());
-  EXPECT_FALSE(inverted.valid());
+  EXPECT_TRUE(inverted.polygon.empty());
+  EXPECT_FALSE(inverted.polygon.valid());
 }
 
 TEST(CollisionObstacle, StringViewIdIsCopied) {

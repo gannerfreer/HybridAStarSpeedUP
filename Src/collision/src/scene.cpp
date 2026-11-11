@@ -53,8 +53,6 @@ Obstacle Obstacle::convex_polygon(std::string_view id, std::vector<Point2d> vert
   return obstacle;
 }
 
-bool Obstacle::valid(std::string* reason) const { return polygon.valid(reason); }
-
 // ---------------------------------------------------------------------------
 // 场景环境 Scene
 // ---------------------------------------------------------------------------
@@ -93,7 +91,7 @@ bool Scene::valid(std::string* reason) const {
   }
   std::string obstacle_reason;
   for (std::size_t i = 0; i < obstacles.size(); ++i) {
-    if (!obstacles[i].valid(&obstacle_reason)) {
+    if (!obstacles[i].polygon.valid(&obstacle_reason)) {
       if (reason) {
         *reason = "obstacle " + std::to_string(i) + ": " + obstacle_reason;
       }

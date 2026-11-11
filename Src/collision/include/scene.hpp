@@ -57,43 +57,6 @@ struct Obstacle {
    * @return 包含逆时针顶点的 Obstacle，若非凸或退化则返回空多边形
    */
   static Obstacle convex_polygon(std::string_view id, std::vector<Point2d> vertices);
-
-  /**
-   * @brief 校验障碍物顶点坐标、数量、面积及凸性是否合法
-   * @param[out] reason 失败时的诊断说明文本指针
-   * @return 若为有效凸多边形则返回 true
-   */
-  bool valid(std::string* reason = nullptr) const;
-
-  /**
-   * @brief 获取逆时针顶点序列
-   * @return 顶点序列只读引用
-   */
-  const std::vector<Point2d>& vertices() const noexcept { return polygon.vertices(); }
-
-  /**
-   * @brief 获取顶点连续存储首地址
-   * @return 顶点数组指针
-   */
-  const Point2d* data() const noexcept { return polygon.data(); }
-
-  /**
-   * @brief 获取顶点数量
-   * @return 顶点数量
-   */
-  std::size_t size() const noexcept { return polygon.size(); }
-
-  /**
-   * @brief 判定障碍物多边形是否为空
-   * @return 若无顶点返回 true
-   */
-  bool empty() const noexcept { return polygon.empty(); }
-
-  /**
-   * @brief 获取构造时缓存的紧密轴对齐包围盒
-   * @return 对应的 math::Aabb2d
-   */
-  const math::Aabb2d& aabb() const noexcept { return polygon.aabb(); }
 };
 
 /**
