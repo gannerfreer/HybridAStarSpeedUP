@@ -49,14 +49,14 @@ enum class CollisionReason {
 /**
  * @brief 将 CheckStatus 状态码转换为易读的字符串
  * @param[in] status 检测状态枚举值
- * @return 对应的字符串视图；未知枚举值返回 "unknown"
+ * @return 对应的字符串；未知枚举值返回 "unknown"
  */
 [[nodiscard]] std::string_view to_string(CheckStatus status) noexcept;
 
 /**
  * @brief 将 CollisionReason 原因枚举转换为易读的字符串
  * @param[in] reason 碰撞原因枚举值
- * @return 对应的字符串视图；未知枚举值返回 "unknown"
+ * @return 对应的字符串；未知枚举值返回 "unknown"
  */
 [[nodiscard]] std::string_view to_string(CollisionReason reason) noexcept;
 
