@@ -9,7 +9,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -87,7 +86,6 @@ struct UserAstar::Impl {
   common::UserAstarConfig config;
   detail::SearchEngine engine;
   std::function<bool()> cancel_callback;
-  std::int64_t expanded_nodes{0};
   bool potential_valid{false};
   std::uint64_t potential_key{0};
   internal::GridPotential potential;
@@ -116,7 +114,6 @@ void UserAstar::reset_cache() {
   impl_->potential_valid = false;
   impl_->potential_key = 0;
   impl_->potential = internal::GridPotential{};
-  impl_->expanded_nodes = 0;
   // 清空引擎搜索状态，但保留其容器已分配的容量以便跨规划复用
   impl_->engine.reset_state();
 }
@@ -166,8 +163,6 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
       (request.node_budget && *request.node_budget < 1)) {
     return fail(common::Status::kInvalidInput, "invalid time or node budget");
   }
-
-  impl_->expanded_nodes = 0;
 
   const Clock::time_point plan_start = Clock::now();
   const double time_budget_s = request.time_budget_s.value_or(impl_->config.default_time_budget_s);
@@ -274,6 +269,12 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
   rs::RsPath connector;
   std::int64_t goal_hook_calls = 0;
 
+  // 目标捕获半径的平方距离预筛，避免对远离目标的节点反复调用 hypot
+  const double capture_radius = impl_->config.goal_capture_radius_m;
+  const double capture_guard = 1e-9 * std::max(1.0, capture_radius);
+  const double capture_bound = capture_radius + capture_guard;
+  const double capture_bound_sq = capture_bound * capture_bound;
+
   // 车辆多边形轮廓位姿与运动线段碰撞检测钩子
   impl_->engine.set_pose_collision_hook([&](const math::Pose2d& pose) {
     const collision::CheckResult check = collision_checker.check_pose(pose);
@@ -307,8 +308,14 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
       });
   impl_->engine.set_goal_hook([&](const detail::SearchState& state) {
     const math::Pose2d& pose = state.pose;
-    const double distance = std::hypot(pose.x_m - request.goal.x_m, pose.y_m - request.goal.y_m);
-    if (distance > impl_->config.goal_capture_radius_m) {
+    const double dx = pose.x_m - request.goal.x_m;
+    const double dy = pose.y_m - request.goal.y_m;
+    const double d2 = dx * dx + dy * dy;
+    if (d2 > capture_bound_sq) {
+      return false;
+    }
+    const double distance = std::hypot(dx, dy);
+    if (distance > capture_radius) {
       return false;
     }
     ++goal_hook_calls;
@@ -384,9 +391,7 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
   // 执行 Hybrid A* 搜索
   // ------------------------------------------------------------------
   const detail::SearchResult search =
-      impl_->engine.search(request.start, request.goal, common::Direction::kForward, node_budget);
-
-  impl_->expanded_nodes = search.iterations;
+      impl_->engine.search(request.start, request.goal, node_budget);
 
   if (search.status != common::Status::kSuccess) {
     if (search.status == common::Status::kCancelled) {

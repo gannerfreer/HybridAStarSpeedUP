@@ -91,13 +91,13 @@ TEST(SearchEngineRegression, MissingHooksReturnInvalidInput) {
   const common::VehicleModel vehicle = regression_vehicle();
   const common::UserAstarConfig config;
   hybrid_astar::detail::SearchEngine engine(vehicle, config);
-  const auto missing_all = engine.search({0, 0, 0}, {1, 0, 0}, common::Direction::kForward, 10);
+  const auto missing_all = engine.search({0, 0, 0}, {1, 0, 0}, 10);
   EXPECT_EQ(missing_all.status, common::Status::kInvalidInput);
   EXPECT_NE(missing_all.reason.find("hook"), std::string::npos);
 
   engine.set_pose_collision_hook([](const math::Pose2d&) { return false; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return true; });
-  const auto missing_motion = engine.search({0, 0, 0}, {1, 0, 0}, common::Direction::kForward, 10);
+  const auto missing_motion = engine.search({0, 0, 0}, {1, 0, 0}, 10);
   EXPECT_EQ(missing_motion.status, common::Status::kInvalidInput);
   EXPECT_NE(missing_motion.reason.find("hook"), std::string::npos);
 }
@@ -111,7 +111,7 @@ TEST(SearchEngineRegression, AbortReturnsCancelled) {
                                       const hybrid_astar::detail::SearchState&) { return false; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return false; });
   engine.set_abort_callback([] { return true; });
-  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, common::Direction::kForward, 100);
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, 100);
   EXPECT_EQ(result.status, common::Status::kCancelled);
   EXPECT_EQ(result.reason, "aborted");
   EXPECT_EQ(result.iterations, 0);
@@ -125,7 +125,7 @@ TEST(SearchEngineRegression, NodeBudgetReturnsTimeout) {
   engine.set_motion_collision_hook([](const hybrid_astar::detail::SearchState&,
                                       const hybrid_astar::detail::SearchState&) { return false; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return false; });
-  const auto result = engine.search({0, 0, 0}, {100, 0, 0}, common::Direction::kForward, 2);
+  const auto result = engine.search({0, 0, 0}, {100, 0, 0}, 2);
   EXPECT_EQ(result.status, common::Status::kTimeout);
   EXPECT_EQ(result.iterations, 2);
   EXPECT_NE(result.reason.find("node budget"), std::string::npos);
@@ -139,7 +139,7 @@ TEST(SearchEngineRegression, RejectedSuccessorsReturnNoPath) {
   engine.set_motion_collision_hook([](const hybrid_astar::detail::SearchState&,
                                       const hybrid_astar::detail::SearchState&) { return true; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return false; });
-  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, common::Direction::kForward, 100);
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, 100);
   EXPECT_EQ(result.status, common::Status::kNoPath);
   EXPECT_TRUE(result.path.empty());
 }
@@ -152,7 +152,7 @@ TEST(SearchEngineRegression, StartPoseCollisionReturnsInvalidInput) {
   engine.set_motion_collision_hook([](const hybrid_astar::detail::SearchState&,
                                       const hybrid_astar::detail::SearchState&) { return false; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return false; });
-  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, common::Direction::kForward, 100);
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, 100);
   EXPECT_EQ(result.status, common::Status::kInvalidInput);
   EXPECT_NE(result.reason.find("collision"), std::string::npos);
 }
@@ -170,7 +170,7 @@ TEST(SearchEngineRegression, ReconstructsMultiNodePathFromOrigin) {
   engine.set_goal_hook([&](const hybrid_astar::detail::SearchState& state) {
     return std::hypot(state.pose.x_m - goal.x_m, state.pose.y_m - goal.y_m) <= 1.1;
   });
-  const auto result = engine.search({0, 0, 0}, goal, common::Direction::kForward, 100);
+  const auto result = engine.search({0, 0, 0}, goal, 100);
   ASSERT_EQ(result.status, common::Status::kSuccess);
   ASSERT_GE(result.path.size(), 2u);
   EXPECT_NEAR(result.path.front().pose.x_m, 0.0, 1e-12);
@@ -191,12 +191,12 @@ TEST(SearchEngineRegression, ReuseClearsPreviousSearchState) {
   engine.set_goal_hook([&](const hybrid_astar::detail::SearchState& state) {
     return std::hypot(state.pose.x_m - target.x_m, state.pose.y_m - target.y_m) <= 1.1;
   });
-  const auto first = engine.search({0, 0, 0}, target, common::Direction::kForward, 100);
+  const auto first = engine.search({0, 0, 0}, target, 100);
   ASSERT_EQ(first.status, common::Status::kSuccess);
   ASSERT_GE(first.path.size(), 2u);
 
   target = {3.0, 0.0, 0.0};
-  const auto second = engine.search({0, 0, 0}, target, common::Direction::kForward, 100);
+  const auto second = engine.search({0, 0, 0}, target, 100);
   EXPECT_EQ(second.status, common::Status::kSuccess);
   EXPECT_GE(second.path.size(), 2u);
   EXPECT_NEAR(second.path.front().pose.x_m, 0.0, 1e-12);
@@ -211,7 +211,7 @@ TEST(SearchEngineRegression, ReconstructsStartAtNegativePi) {
                                       const hybrid_astar::detail::SearchState&) { return false; });
   engine.set_goal_hook([](const hybrid_astar::detail::SearchState&) { return true; });
   const math::Pose2d boundary{0.0, 0.0, -math::kPi};
-  const auto result = engine.search(boundary, boundary, common::Direction::kForward, 10);
+  const auto result = engine.search(boundary, boundary, 10);
   ASSERT_EQ(result.status, common::Status::kSuccess);
   ASSERT_FALSE(result.path.empty());
   EXPECT_NEAR(result.path.front().pose.x_m, 0.0, 1e-12);
@@ -240,7 +240,7 @@ TEST(SearchEngineRegression, MotionHookReceivesSiPrimitive) {
     }
     return true;
   });
-  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, common::Direction::kForward, 1);
+  const auto result = engine.search({0, 0, 0}, {10, 0, 0}, 1);
   EXPECT_EQ(result.status, common::Status::kTimeout);
   ASSERT_GT(calls, 0);
   const double expected_curvature =

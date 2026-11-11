@@ -8,7 +8,6 @@
 #include <cmath>
 #include <cstring>
 #include <queue>
-#include <utility>
 
 #include "planner/common/grid_view.hpp"
 
@@ -49,7 +48,9 @@ std::uint64_t grid_cache_key(const common::GridView& grid, int goal_row, int goa
   hash_double(&hash, grid.origin.yaw_rad);
   hash_u64(&hash, static_cast<std::uint64_t>(grid.cells.size()));
   for (const int cell : grid.cells) {
-    hash_u64(&hash, static_cast<std::uint64_t>(cell + 1));
+    // 单元格按 32 位整数混合，避免逐字节哈希的循环开销
+    hash ^= static_cast<std::uint64_t>(static_cast<std::uint32_t>(cell) + 1u);
+    hash *= 1099511628211ull;
   }
   hash_u64(&hash, static_cast<std::uint64_t>(goal_row));
   hash_u64(&hash, static_cast<std::uint64_t>(goal_col));

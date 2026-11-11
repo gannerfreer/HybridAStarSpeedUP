@@ -7,8 +7,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <limits>
 #include <utility>
 
 #include "planner/math/kinematics/arc.hpp"
@@ -27,6 +25,17 @@ void SearchEngine::configure(const common::VehicleModel& vehicle,
                              const common::UserAstarConfig& config) {
   vehicle_ = vehicle;
   config_ = config;
+  heading_bin_rad_ = 2.0 * kPi / static_cast<double>(config_.heading_bins);
+
+  const int steering_num = std::max(2, config_.steering_samples);
+  const double steer_min_rad = -vehicle_.max_steer_rad;
+  const double delta_steer_rad =
+      (vehicle_.max_steer_rad - steer_min_rad) / static_cast<double>(steering_num - 1);
+  curvature_samples_.resize(steering_num);
+  for (int i = 0; i < steering_num; ++i) {
+    const double steering = steer_min_rad + static_cast<double>(i) * delta_steer_rad;
+    curvature_samples_[i] = math::kinematics::curvature_from_steer(steering, vehicle_.wheelbase_m);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +73,7 @@ void SearchEngine::reset_state() {
 }
 
 SearchResult SearchEngine::search(const math::Pose2d& start, const math::Pose2d& goal,
-                                  common::Direction goal_direction, std::int64_t node_budget) {
+                                  std::int64_t node_budget) {
   SearchResult result;
   result.status = common::Status::kInvalidInput;
 
@@ -79,7 +88,6 @@ SearchResult SearchEngine::search(const math::Pose2d& start, const math::Pose2d&
   }
 
   reset_state();
-  search_start_pose_ = start;
 
   Vertex3D start_forward;
   start_forward.state.pose.x_m = start.x_m;
@@ -101,7 +109,6 @@ SearchResult SearchEngine::search(const math::Pose2d& start, const math::Pose2d&
   goal_check.state.pose.x_m = goal.x_m;
   goal_check.state.pose.y_m = goal.y_m;
   goal_check.state.pose.yaw_rad = math::normalize_angle_rad(goal.yaw_rad);
-  goal_check.state.direction = goal_direction;
   if (is_collision(start_forward) || is_collision(goal_check)) {
     result.reason = "start or goal in collision";
     return result;
@@ -145,7 +152,7 @@ SearchResult SearchEngine::search(const math::Pose2d& start, const math::Pose2d&
 
     const Vertex3D current = open_it->second;
     open_set_.erase(open_it);
-    closed_set_[current.id] = current;
+    closed_set_.insert(current.id);
 
     if (is_goal(current)) {
       found = true;
@@ -188,9 +195,8 @@ bool SearchEngine::is_goal(const Vertex3D& node) const { return goal_hook_(node.
 std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
   int32_t x_bin = static_cast<int32_t>(std::floor(node.state.pose.x_m / config_.xy_resolution_m));
   int32_t y_bin = static_cast<int32_t>(std::floor(node.state.pose.y_m / config_.xy_resolution_m));
-  const double heading_bin_rad = 2.0 * kPi / static_cast<double>(config_.heading_bins);
   int32_t angle_bin = static_cast<int32_t>(
-      std::floor((math::normalize_angle_rad(node.state.pose.yaw_rad) + kPi) / heading_bin_rad));
+      std::floor((math::normalize_angle_rad(node.state.pose.yaw_rad) + kPi) / heading_bin_rad_));
   if (angle_bin >= config_.heading_bins) {
     angle_bin %= config_.heading_bins;
   }
@@ -222,12 +228,6 @@ std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
 
 void SearchEngine::expand_node(const Vertex3D& current, const math::Pose2d& start,
                                const math::Pose2d& goal) {
-  const int32_t steering_num = std::max(2, config_.steering_samples);
-  const double steer_min_rad = -vehicle_.max_steer_rad;
-  const double steer_max_rad = vehicle_.max_steer_rad;
-  const double delta_steer_rad =
-      (steer_max_rad - steer_min_rad) / static_cast<double>(steering_num - 1);
-
   bool allow_backward = config_.allow_reverse;
   if (allow_backward && config_.backward_search_range_m > 0.0) {
     const double dist2_start_sq =
@@ -239,56 +239,60 @@ void SearchEngine::expand_node(const Vertex3D& current, const math::Pose2d& star
     }
   }
 
-  for (int32_t i = 0; i < steering_num; ++i) {
-    const double steering = steer_min_rad + static_cast<double>(i) * delta_steer_rad;
-    const common::Direction begin_dir = common::Direction::kForward;
-    const common::Direction end_dir =
-        allow_backward ? common::Direction::kReverse : common::Direction::kForward;
+  const double dx_start = current.state.pose.x_m - start.x_m;
+  const double dy_start = current.state.pose.y_m - start.y_m;
+  const double dist_to_start_sq = dx_start * dx_start + dy_start * dy_start;
+  const double coeff = (dist_to_start_sq > config_.linear_preferred_distance_m2) ? 1.0 : 5.0;
 
-    for (int32_t d = static_cast<int32_t>(begin_dir); d <= static_cast<int32_t>(end_dir); ++d) {
-      const common::Direction direction = static_cast<common::Direction>(d);
-      Vertex3D succ = propagate(current, direction, steering);
+  const double cos_yaw = std::cos(current.state.pose.yaw_rad);
+  const double sin_yaw = std::sin(current.state.pose.yaw_rad);
+
+  const common::Direction directions[2] = {common::Direction::kForward,
+                                           common::Direction::kReverse};
+  const int direction_count = allow_backward ? 2 : 1;
+
+  for (const double curvature : curvature_samples_) {
+    for (int d = 0; d < direction_count; ++d) {
+      Vertex3D succ = propagate(current, directions[d], curvature, cos_yaw, sin_yaw);
       succ.id = vertex_hash(succ);
       if (closed_set_.find(succ.id) != closed_set_.end()) {
+        continue;
+      }
+      succ.g = transition_cost(current, succ, coeff);
+
+      auto open_it = open_set_.find(succ.id);
+      if (open_it != open_set_.end() && succ.g >= open_it->second.g) {
         continue;
       }
       if (motion_collision_hook_(current.state, succ.state)) {
         continue;
       }
 
-      succ.g = transition_cost(current, succ);
       succ.h = heuristic(succ, goal);
       succ.f = succ.g + succ.h;
 
-      auto open_it = open_set_.find(succ.id);
-      if (open_it == open_set_.end() || succ.g < open_it->second.g) {
-        open_set_[succ.id] = succ;
-        best_nodes_[succ.id] = succ;
-        open_queue_.push(OpenEntry{succ.f, succ.id});
-      }
+      open_set_[succ.id] = succ;
+      best_nodes_[succ.id] = succ;
+      open_queue_.push(OpenEntry{succ.f, succ.id});
     }
   }
 }
 
 SearchEngine::Vertex3D SearchEngine::propagate(const Vertex3D& start, common::Direction direction,
-                                               double steering_rad) const {
+                                               double curvature_per_m, double cos_yaw,
+                                               double sin_yaw) const {
   Vertex3D end;
   end.parent_id = start.id;
   end.state.direction = direction;
-  end.state.curvature_per_m =
-      math::kinematics::curvature_from_steer(steering_rad, vehicle_.wheelbase_m);
+  end.state.curvature_per_m = curvature_per_m;
   end.state.arc_length_m = config_.motion_step_m;
   const double sign = direction == common::Direction::kForward ? 1.0 : -1.0;
-  end.state.pose = math::integrate_arc(start.state.pose, sign * end.state.arc_length_m,
-                                       end.state.curvature_per_m);
+  end.state.pose = math::integrate_arc_trig(start.state.pose, sign * end.state.arc_length_m,
+                                            curvature_per_m, cos_yaw, sin_yaw);
   return end;
 }
 
-double SearchEngine::transition_cost(const Vertex3D& from, const Vertex3D& to) const {
-  const double dx_start = from.state.pose.x_m - search_start_pose_.x_m;
-  const double dy_start = from.state.pose.y_m - search_start_pose_.y_m;
-  const double dist_to_start_sq = dx_start * dx_start + dy_start * dy_start;
-  const double coeff = (dist_to_start_sq > config_.linear_preferred_distance_m2) ? 1.0 : 5.0;
+double SearchEngine::transition_cost(const Vertex3D& from, const Vertex3D& to, double coeff) const {
   const double heading_change =
       std::fabs(math::normalize_angle_rad(to.state.pose.yaw_rad - from.state.pose.yaw_rad));
   const double direction_cost = (to.state.direction == common::Direction::kReverse)

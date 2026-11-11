@@ -11,6 +11,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "planner/common/path.hpp"
@@ -31,7 +32,7 @@ struct SearchState {
   math::Pose2d pose;                                         ///< 车辆后轴中心位姿
   common::Direction direction{common::Direction::kForward};  ///< 进入当前状态时所采用的行驶方向
   double curvature_per_m{0.0};  ///< 从父驱状态进入当前状态的路径曲率（1/m）
-  double arc_length_m{0.0};  ///< 从父驱状态进入当前状态的圆弧弧长（米，m）
+  double arc_length_m{0.0};     ///< 从父驱状态进入当前状态的圆弧弧长（米，m）
 };
 
 /**
@@ -106,12 +107,11 @@ class SearchEngine {
    * @brief 执行起点与目标位姿间的 Hybrid A* 路径搜索
    * @param[in] start 车辆初始位姿
    * @param[in] goal 车辆目标位姿
-   * @param[in] goal_direction 目标位姿对应的行驶方向
    * @param[in] node_budget 允许执行的最大节点外扩迭代次数
    * @return 包含终止状态、规划轨迹与统计指标的搜索结果对象
    */
   SearchResult search(const math::Pose2d& start, const math::Pose2d& goal,
-                      common::Direction goal_direction, std::int64_t node_budget);
+                      std::int64_t node_budget);
 
   /**
    * @brief 清空开/闭集合、最优节点表与优先队列，但保留容器已分配的容量
@@ -167,17 +167,19 @@ class SearchEngine {
   std::uint64_t vertex_hash(const Vertex3D& node) const;
 
   void expand_node(const Vertex3D& current, const math::Pose2d& start, const math::Pose2d& goal);
-  Vertex3D propagate(const Vertex3D& start, common::Direction direction, double steering_rad) const;
-  double transition_cost(const Vertex3D& from, const Vertex3D& to) const;
+  Vertex3D propagate(const Vertex3D& start, common::Direction direction, double curvature_per_m,
+                     double cos_yaw, double sin_yaw) const;
+  double transition_cost(const Vertex3D& from, const Vertex3D& to, double coeff) const;
   double heuristic(const Vertex3D& node, const math::Pose2d& goal) const;
   bool reconstruct_path(std::uint64_t final_id, std::vector<SearchState>* path) const;
 
   common::VehicleModel vehicle_;
   common::UserAstarConfig config_;
-  math::Pose2d search_start_pose_;
+  std::vector<double> curvature_samples_;
+  double heading_bin_rad_{0.0};
 
   std::unordered_map<std::uint64_t, Vertex3D> open_set_;
-  std::unordered_map<std::uint64_t, Vertex3D> closed_set_;
+  std::unordered_set<std::uint64_t> closed_set_;
   std::unordered_map<std::uint64_t, Vertex3D> best_nodes_;
   OpenQueue open_queue_;
 
