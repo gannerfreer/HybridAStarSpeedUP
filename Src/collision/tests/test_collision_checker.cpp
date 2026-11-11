@@ -116,15 +116,13 @@ TEST(CollisionChecker, RotatedGridFramePoseChecks) {
   // 若栅格系 OBB 航向构造错误，该角点区域将不再与车体相交，检测会漏报
   const double cp = std::cos(pose.yaw_rad);
   const double sp = std::sin(pose.yaw_rad);
-  const common::Point2d near_corner{pose.x_m + cp * 3.3 - sp * 0.9,
-                                    pose.y_m + sp * 3.3 + cp * 0.9};
+  const common::Point2d near_corner{pose.x_m + cp * 3.3 - sp * 0.9, pose.y_m + sp * 3.3 + cp * 0.9};
   const common::GridFrame frame = common::GridFrame::from_grid(scene.grid);
   const auto grid_corner = frame.to_grid_frame(near_corner);
   const int col = static_cast<int>(std::floor(grid_corner.x_m / scene.grid.resolution_m));
   const int row = static_cast<int>(std::floor(grid_corner.y_m / scene.grid.resolution_m));
   ASSERT_TRUE(scene.grid.in_bounds(row, col));
-  scene.grid.cells[static_cast<std::size_t>(row) * scene.grid.width + col] =
-      common::kCellOccupied;
+  scene.grid.cells[static_cast<std::size_t>(row) * scene.grid.width + col] = common::kCellOccupied;
 
   collision::CollisionChecker occupied_checker(vehicle, scene);
   ASSERT_TRUE(occupied_checker.valid()) << occupied_checker.invalid_reason();

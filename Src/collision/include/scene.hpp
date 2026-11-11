@@ -19,7 +19,6 @@
 #include "planner/common/path.hpp"
 #include "planner/common/scenario_config.hpp"
 #include "planner/common/vehicle.hpp"
-#include "planner/math/aabb2d.hpp"
 #include "planner/math/box2d.hpp"
 #include "planner/math/polygon2d.hpp"
 
@@ -98,8 +97,7 @@ struct Footprint {
   double x_max_m{0.0};  ///< 车体系纵向前向极限：wheelbase + front_overhang + margin（米）
   double y_min_m{0.0};  ///< 车体系横向右侧极限：-(width/2 + margin)（米）
   double y_max_m{0.0};  ///< 车体系横向左侧极限：+(width/2 + margin)（米）
-  double corner_radius_m{
-      0.0};  ///< 各角点相对后轴中心的最大回转半径，用于扫掠包围球上界估计（米）
+  double corner_radius_m{0.0};  ///< 各角点相对后轴中心的最大回转半径，用于扫掠包围球上界估计（米）
   double half_width_m{0.0};   ///< 包含安全裕量的车身总半宽（米）
   double half_length_m{0.0};  ///< 包含安全裕量的车身总半长（米）
   double center_x_m{0.0};     ///< 足迹矩形几何中心在车体系下的 X 坐标（米）

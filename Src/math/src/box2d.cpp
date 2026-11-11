@@ -35,9 +35,9 @@ bool Box2d::intersects(const Aabb2d& box, double tol) const noexcept {
       !(box.min_y <= box.max_y) || !(length_m_ >= 0.0) || !(width_m_ >= 0.0) ||
       !(half_length_m_ >= 0.0) || !(half_width_m_ >= 0.0) || !std::isfinite(cos_heading_) ||
       !std::isfinite(sin_heading_) || !in_fast_domain(center_.x_m) ||
-      !in_fast_domain(center_.y_m) || !in_fast_domain(length_m_) ||
-      !in_fast_domain(width_m_) || !in_fast_domain(box.min_x) || !in_fast_domain(box.max_x) ||
-      !in_fast_domain(box.min_y) || !in_fast_domain(box.max_y)) {
+      !in_fast_domain(center_.y_m) || !in_fast_domain(length_m_) || !in_fast_domain(width_m_) ||
+      !in_fast_domain(box.min_x) || !in_fast_domain(box.max_x) || !in_fast_domain(box.min_y) ||
+      !in_fast_domain(box.max_y)) {
     return generic();
   }
 

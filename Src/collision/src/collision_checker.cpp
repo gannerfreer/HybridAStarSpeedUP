@@ -92,8 +92,7 @@ struct CollisionCheckerImpl {
   std::string invalid_reason;
 
   std::vector<math::Aabb2d> obstacle_boxes;
-  std::vector<int>
-      obstacle_order;  ///< 按 aabb.min_x 升序排列的障碍物索引，用于快速剪枝与遍历加速
+  std::vector<int> obstacle_order;  ///< 按 aabb.min_x 升序排列的障碍物索引，用于快速剪枝与遍历加速
   double obstacle_scale_m{0.0};  ///< 所有障碍物包围盒顶点坐标的最大绝对值，用于计算数值容差
   bool use_obstacle_order{false};
 
@@ -361,12 +360,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     const double sg = (length > 0.0) ? edge_x.y_m / length : 0.0;
     const math::Vec2d grid_center{0.5 * (grid[0].x_m + grid[2].x_m),
                                   0.5 * (grid[0].y_m + grid[2].y_m)};
-    const math::Box2d grid_box{grid_center,
-                               length,
-                               width,
-                               pose.yaw_rad - st.scene.grid.origin.yaw_rad,
-                               cg,
-                               sg};
+    const math::Box2d grid_box{
+        grid_center, length, width, pose.yaw_rad - st.scene.grid.origin.yaw_rad, cg, sg};
 
     PoseHit cell_hit;
     const auto test_cell = [&](int row, int col) {
@@ -442,7 +437,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
 
 struct Envelope {
   std::array<Point2d, 8> hull{};  ///< 世界坐标系下的外包凸包顶点（固定容量栈存储）
-  std::size_t hull_size{0};  ///< 凸包有效顶点数量
+  std::size_t hull_size{0};       ///< 凸包有效顶点数量
   double sagitta_m{0.0};  ///< 各顶点圆弧运动相对于弦的最大矢高（Sagitta）偏差
 };
 

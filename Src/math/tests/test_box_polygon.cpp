@@ -140,9 +140,9 @@ TEST(MathBox2d, AabbFastPathFallsBackForInvalidTolerance) {
   };
   const math::Aabb2d overlapping{-1.0, -2.0, 1.0, 1.0};
   const math::Aabb2d separated{4.0, 4.0, 5.0, 5.0};
-  for (double tol : {-1.0, -1e-9, std::numeric_limits<double>::quiet_NaN(),
-                     std::numeric_limits<double>::infinity(),
-                     -std::numeric_limits<double>::infinity()}) {
+  for (double tol :
+       {-1.0, -1e-9, std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()}) {
     SCOPED_TRACE(tol);
     EXPECT_EQ(box.intersects(overlapping, tol), generic(overlapping, tol));
     EXPECT_EQ(box.intersects(separated, tol), generic(separated, tol));
@@ -166,8 +166,7 @@ TEST(MathBox2d, AabbFastPathFallsBackForInvalidGeometry) {
   EXPECT_EQ(negative.intersects(probe, 1e-6), generic(negative, probe, 1e-6));
 
   // 显式角点构造函数注入非有限正余弦时必须回退且不崩溃
-  const std::array<math::Point2d, 4> local{
-      {{-1.0, -0.5}, {1.0, -0.5}, {1.0, 0.5}, {-1.0, 0.5}}};
+  const std::array<math::Point2d, 4> local{{{-1.0, -0.5}, {1.0, -0.5}, {1.0, 0.5}, {-1.0, 0.5}}};
   const double nan = std::numeric_limits<double>::quiet_NaN();
   const math::Vec2d origin{0.0, 0.0};
   const math::Box2d nan_cos{{0.0, 0.0}, 2.0, 1.0, 0.0, nan, 0.0, origin, local};
@@ -189,8 +188,8 @@ TEST(MathBox2d, AabbFastPathMatchesGenericNearTouch) {
     const math::Aabb2d bounds = box.aabb();
     const double height = std::max(0.2, bounds.max_y - bounds.min_y);
     for (double delta : {-1e-6, -1e-9, 1e-9, 1e-6}) {
-      const math::Aabb2d probe{bounds.max_x + delta, bounds.min_y,
-                               bounds.max_x + delta + 1.5, bounds.min_y + height};
+      const math::Aabb2d probe{bounds.max_x + delta, bounds.min_y, bounds.max_x + delta + 1.5,
+                               bounds.min_y + height};
       for (double tol : {0.0, 1e-12, 1e-4, 0.05}) {
         SCOPED_TRACE(tol);
         EXPECT_EQ(box.intersects(probe, tol),
