@@ -16,7 +16,7 @@ namespace planner::hybrid_astar::internal {
 namespace {
 
 void hash_byte_block(std::uint64_t* hash, const void* data, std::size_t size) {
-  const unsigned char* bytes = static_cast<const unsigned char*>(data);
+  const auto* bytes = static_cast<const unsigned char*>(data);
   for (std::size_t i = 0; i < size; ++i) {
     *hash ^= static_cast<std::uint64_t>(bytes[i]);
     *hash *= 1099511628211ull;
@@ -76,7 +76,7 @@ GridPotential compute_grid_potential(const common::GridView& grid, int goal_row,
 
   potential.distance_m.assign(static_cast<std::size_t>(cell_count), kPotentialInfinity);
 
-  const float step_m = static_cast<float>(grid.resolution_m);
+  const auto step_m = static_cast<float>(grid.resolution_m);
   const float diagonal_step_m = step_m * static_cast<float>(std::sqrt(2.0));
 
   struct QueueItem {

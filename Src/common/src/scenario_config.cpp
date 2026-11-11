@@ -60,7 +60,9 @@ bool scenario_config_valid(const ScenarioConfig& scenario, std::string* reason) 
     std::string polygon_reason;
     if (!math::convex_polygon_valid(obstacle.vertices, &polygon_reason)) {
       if (reason) {
-        *reason = prefix + " vertices form an invalid convex polygon: " + polygon_reason;
+        reason->assign(prefix);
+        reason->append(" vertices form an invalid convex polygon: ");
+        reason->append(polygon_reason);
       }
       return false;
     }

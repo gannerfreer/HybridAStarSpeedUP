@@ -32,8 +32,8 @@ Scene make_scene(const common::ScenarioConfig& scenario) {
   if (!common::scenario_config_valid(scenario, &reason)) {
     return invalid_scene();
   }
-  const std::size_t width = static_cast<std::size_t>(scenario.width);
-  const std::size_t height = static_cast<std::size_t>(scenario.height);
+  const auto width = static_cast<std::size_t>(scenario.width);
+  const auto height = static_cast<std::size_t>(scenario.height);
   if (width > std::numeric_limits<std::size_t>::max() / height) {
     return invalid_scene();
   }

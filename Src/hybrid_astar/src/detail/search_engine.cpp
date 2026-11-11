@@ -193,9 +193,9 @@ bool SearchEngine::is_collision(const Vertex3D& node) const {
 bool SearchEngine::is_goal(const Vertex3D& node) const { return goal_hook_(node.state); }
 
 std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
-  int32_t x_bin = static_cast<int32_t>(std::floor(node.state.pose.x_m / config_.xy_resolution_m));
-  int32_t y_bin = static_cast<int32_t>(std::floor(node.state.pose.y_m / config_.xy_resolution_m));
-  int32_t angle_bin = static_cast<int32_t>(
+  auto x_bin = static_cast<int32_t>(std::floor(node.state.pose.x_m / config_.xy_resolution_m));
+  auto y_bin = static_cast<int32_t>(std::floor(node.state.pose.y_m / config_.xy_resolution_m));
+  auto angle_bin = static_cast<int32_t>(
       std::floor((math::normalize_angle_rad(node.state.pose.yaw_rad) + kPi) / heading_bin_rad_));
   if (angle_bin >= config_.heading_bins) {
     angle_bin %= config_.heading_bins;

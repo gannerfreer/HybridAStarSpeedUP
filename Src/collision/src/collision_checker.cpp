@@ -57,7 +57,6 @@ constexpr int kGridChunkCells = 8;                ///< 栅格分块加速的像�
 #endif
 constexpr int kPrefixLevels =
     PLANNER_COLLISION_PREFIX_LEVELS > 0 ? PLANNER_COLLISION_PREFIX_LEVELS : 0;
-constexpr double kObstacleHashCell_m = 4.0;
 constexpr double kEnvelopeSafetyFactor = 1.0 + 1e-12;
 constexpr double kEnvelopeSafetyOffset_m = 1e-12;
 
@@ -891,15 +890,14 @@ CollisionChecker::CollisionChecker(const VehicleModel& vehicle, const Scene& sce
   state->scene = scene;
   state->options = options;
   std::string reason;
-  if (!vehicle_footprint_valid(vehicle, &reason)) {
-    state->valid = false;
-  } else if (!scene.valid(&reason)) {
-    state->valid = false;
-  } else if (!std::isfinite(options.sweep_precision_m) || !(options.sweep_precision_m > 0.0)) {
+  state->valid = vehicle_footprint_valid(vehicle, &reason);
+  if (state->valid) {
+    state->valid = scene.valid(&reason);
+  }
+  if (state->valid &&
+      (!std::isfinite(options.sweep_precision_m) || !(options.sweep_precision_m > 0.0))) {
     reason = "sweep precision must be finite and positive";
     state->valid = false;
-  } else {
-    state->valid = true;
   }
   state->invalid_reason = reason;
   state->footprint = make_footprint(vehicle);

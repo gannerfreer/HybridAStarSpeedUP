@@ -115,7 +115,15 @@ class Loader {
       if (options_.allow_unknown_keys) {
         continue;
       }
-      const std::string key_path = prefix.empty() ? name : prefix + "." + name;
+      std::string key_path;
+      if (prefix.empty()) {
+        key_path = name;
+      } else {
+        key_path.reserve(prefix.size() + 1 + name.size());
+        key_path.assign(prefix);
+        key_path.append(".");
+        key_path.append(name);
+      }
       return fail(Status::kInvalidInput, key_path, &entry.second, &key, "unknown key", 0, 0);
     }
     return true;
@@ -543,7 +551,7 @@ ConfigResult<common::UserAstarConfig> load_planner_config(std::string_view path_
       loader.fail_validation(root, "", reason, fields);
       return loader.error_result<common::UserAstarConfig>();
     }
-    return make_value_result(std::move(config));
+    return make_value_result(config);
   } catch (const std::exception& exception) {
     return make_error_result<common::UserAstarConfig>(
         make_error(Status::kInvalidInput, path, "", 0, 0,

@@ -113,7 +113,7 @@ std::vector<common::PathPoint> sample(const RsPath& path, double ds_m) {
     throw std::invalid_argument(
         "rs::sample: ds_m is too small for this path (sample limit exceeded)");
   }
-  const std::size_t grid_count = static_cast<std::size_t>(std::floor(expected));
+  const auto grid_count = static_cast<std::size_t>(std::floor(expected));
 
   // 将固定步长 ds_m 网格点与各分段精确边界（换向尖点 cusp 必须精确采样）合并
   // 在数值容差内去重时，分段边界采样点享有更高优先级

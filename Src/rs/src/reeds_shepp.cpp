@@ -194,9 +194,8 @@ void CSC(double x, double y, const PhiFrames& frames, RawPath& path) {
     Lmin = L;
   }
   if (LpSpRp(-x, -y, frames.positive, t, u, v) &&  // 时间反转 + 镜像反射
-      Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
+      Lmin > std::fabs(t) + std::fabs(u) + std::fabs(v)) {
     path = makeRawPath(13, -t, -u, -v);
-    Lmin = L;
   }
 }
 
@@ -257,9 +256,8 @@ void CCC(double x, double y, const PhiFrames& frames, RawPath& path) {
     Lmin = L;
   }
   if (LpRmL(-xb, -yb, frames.positive, t, u, v) &&  // 时间反转 + 镜像反射
-      Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
+      Lmin > std::fabs(t) + std::fabs(u) + std::fabs(v)) {
     path = makeRawPath(1, -v, -u, -t);
-    Lmin = L;
   }
 }
 
@@ -329,9 +327,8 @@ void CCCC(double x, double y, const PhiFrames& frames, RawPath& path) {
     Lmin = L;
   }
   if (LpRumLumRp(-x, -y, frames.positive, t, u, v) &&  // 时间反转 + 镜像反射
-      Lmin > (L = std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v))) {
+      Lmin > std::fabs(t) + 2.0 * std::fabs(u) + std::fabs(v)) {
     path = makeRawPath(3, -t, -u, -u, -v);
-    Lmin = L;
   }
 }
 
@@ -449,9 +446,8 @@ void CCSC(double x, double y, const PhiFrames& frames, RawPath& path) {
     Lmin = L;
   }
   if (LpRmSmRm(-xb, -yb, frames.positive, t, u, v) &&  // 时间反转 + 镜像反射
-      Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
+      Lmin > std::fabs(t) + std::fabs(u) + std::fabs(v)) {
     path = makeRawPath(11, -v, -u, 0.5 * kPi, -t);
-    Lmin = L;
   }
 }
 
@@ -491,9 +487,8 @@ void CCSCC(double x, double y, const PhiFrames& frames, RawPath& path) {
     Lmin = L;
   }
   if (LpRmSLmRp(-x, -y, frames.positive, t, u, v) &&  // 时间反转 + 镜像反射
-      Lmin > (L = std::fabs(t) + std::fabs(u) + std::fabs(v))) {
+      Lmin > std::fabs(t) + std::fabs(u) + std::fabs(v)) {
     path = makeRawPath(17, -t, 0.5 * kPi, -u, 0.5 * kPi, -v);
-    Lmin = L;
   }
 }
 
