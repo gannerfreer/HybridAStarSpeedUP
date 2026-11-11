@@ -149,6 +149,79 @@ TEST(MathBox2d, AabbFastPathFallsBackForInvalidTolerance) {
   }
 }
 
+TEST(MathBox2d, AabbFastPathExactTouchReproducerMatchesGeneric) {
+  const math::Box2d box{{0.2, 0.0}, 0.3, 0.4, 0.0};
+  const math::Aabb2d aabb{0.35, -0.1, 1.35, 0.1};
+  const std::array<math::Point2d, 4> corners = box.corners();
+  const bool generic =
+      math::convex_polygon_intersects_aabb(corners.data(), corners.size(), aabb, 0.0);
+  EXPECT_TRUE(generic);
+  EXPECT_TRUE(box.intersects(aabb, 0.0));
+  EXPECT_EQ(box.intersects(aabb, 0.0), generic);
+}
+
+TEST(MathBox2d, AabbFastPathRandomTouchMatchesGeneric) {
+  std::mt19937 engine(20261116);
+  std::uniform_real_distribution<double> center(-0.7, 0.7);
+  std::uniform_real_distribution<double> dimension(0.05, 2.0);
+  std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
+  const std::array<double, 3> tolerances{0.0, 1e-16, 1e-12};
+  const std::array<double, 5> shifts{-1e-12, -1e-16, 0.0, 1e-16, 1e-12};
+  int comparisons = 0;
+  for (int i = 0; i < 400; ++i) {
+    SCOPED_TRACE(i);
+    const math::Box2d box{{center(engine), center(engine)},
+                          dimension(engine),
+                          dimension(engine),
+                          (i % 7 == 0) ? 0.0 : angle(engine)};
+    const std::array<math::Point2d, 4> corners = box.corners();
+    const math::Aabb2d bounds = box.aabb();
+    const double pad = 0.5;
+    const std::array<math::Aabb2d, 8> base{{
+        {bounds.max_x, bounds.min_y - pad, bounds.max_x + pad, bounds.max_y + pad},
+        {bounds.min_x - pad, bounds.min_y - pad, bounds.min_x, bounds.max_y + pad},
+        {bounds.min_x - pad, bounds.max_y, bounds.max_x + pad, bounds.max_y + pad},
+        {bounds.min_x - pad, bounds.min_y - pad, bounds.max_x + pad, bounds.min_y},
+        {bounds.max_x, bounds.max_y, bounds.max_x + pad, bounds.max_y + pad},
+        {bounds.max_x, bounds.min_y - pad, bounds.max_x + pad, bounds.min_y},
+        {bounds.min_x - pad, bounds.max_y, bounds.min_x, bounds.max_y + pad},
+        {bounds.min_x - pad, bounds.min_y - pad, bounds.min_x, bounds.min_y},
+    }};
+    for (int side = 0; side < 8; ++side) {
+      for (double shift : shifts) {
+        math::Aabb2d probe = base[static_cast<std::size_t>(side)];
+        // 沿接触面外法向平移整个 AABB：正值为分离，负值为重叠
+        const bool positive_x = side == 0 || side == 4 || side == 5;
+        const bool negative_x = side == 1 || side == 6 || side == 7;
+        const bool positive_y = side == 2 || side == 4 || side == 6;
+        const bool negative_y = side == 3 || side == 5 || side == 7;
+        if (positive_x) {
+          probe.min_x += shift;
+          probe.max_x += shift;
+        }
+        if (negative_x) {
+          probe.min_x -= shift;
+          probe.max_x -= shift;
+        }
+        if (positive_y) {
+          probe.min_y += shift;
+          probe.max_y += shift;
+        }
+        if (negative_y) {
+          probe.min_y -= shift;
+          probe.max_y -= shift;
+        }
+        for (double tol : tolerances) {
+          ++comparisons;
+          EXPECT_EQ(box.intersects(probe, tol), math::convex_polygon_intersects_aabb(
+                                                    corners.data(), corners.size(), probe, tol));
+        }
+      }
+    }
+  }
+  EXPECT_GE(comparisons, 10000);
+}
+
 TEST(MathBox2d, AabbFastPathFallsBackForInvalidGeometry) {
   const math::Aabb2d probe{0.2, -0.3, 1.7, 0.9};
   const auto generic = [](const math::Box2d& box, const math::Aabb2d& aabb, double tol) {

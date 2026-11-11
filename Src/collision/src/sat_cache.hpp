@@ -4,7 +4,8 @@
  * @details 碰撞检测查询热点路径的核心优化机制：
  *          - 采用未归一化的边法向投影轴，并在投影间隙平方域进行比较：
  *            `d > 0 && d * d > tol * tol * axis_len_sq`，彻底消除逐轴计算模长开方与浮点除法开销
- *          - 针对单次检测中固定的多边形（如车体足迹或扫掠包络），预先计算并缓存其在各边法向轴上的投影极值区间
+ *          - 当前仅由扫掠包络的保守快速路径使用：针对单次检测中固定的扫掠包络多边形，
+ *            预先计算并缓存其在各边法向轴上的投影极值区间
  *          - 若坐标极值或轴长平方超出安全无溢出范围（|coord| > 1e75, len_sq > 1e300），则自动平滑回退至标准归一化 SAT 路径
  */
 
@@ -142,7 +143,7 @@ struct PolygonSatCache {
       return false;
     }
     if (!usable) {
-      return true;  // 保守处理：通知调用方回退至常规相交测试
+      return true;  // 容量不足时保守返回 true，由调用方执行精确距离检验以避免漏判
     }
     if (!fast_domain || !box_in_fast_domain(box) || !(tol >= 0.0) || !std::isfinite(tol)) {
       return math::convex_polygon_intersects_aabb(points, count, box, tol);

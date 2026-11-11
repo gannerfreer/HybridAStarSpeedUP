@@ -5,7 +5,9 @@
 
 #include "planner/math/box2d.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "planner/math/polygon2d.hpp"
 
@@ -15,6 +17,9 @@ namespace {
 
 /// 专用快速路径允许的最大绝对坐标（防止投影与外包盒计算发生浮点溢出）
 constexpr double kFastMaxAbsCoordinate = 1.0e150;
+
+/// 分离边界附近的 ULP 舍入松弛因子：仅用于判定何时回退通用 SAT，不扩大接触容差
+constexpr double kUlpBoundarySlackFactor = 16.0;
 
 /// 检查标量是否有限且位于快速路径的无溢出坐标域内
 bool in_fast_domain(double value) noexcept {
@@ -46,12 +51,42 @@ bool Box2d::intersects(const Aabb2d& box, double tol) const noexcept {
   const double abs_c = std::abs(c);
   const double abs_s = std::abs(s);
 
-  // 世界 X/Y 轴：用 OBB 的世界系外包半宽直接比较间隙（轴为单位向量，无需除法）
+  // ULP 边界回退是用于保持闭集语义的舍入保护，而非扩大接触容差：
+  // 投影与外扩经过多次浮点运算，精确相切可能被舍入成微小分离；此时交由通用 SAT 判定
+  const auto full_slack = [this, &box, tol]() noexcept {
+    const double base_scale =
+        std::max(std::max(std::abs(center_.x_m), std::abs(center_.y_m)),
+                 std::max(std::max(half_length_m_, half_width_m_), std::max(1.0, std::abs(tol))));
+    const double scale = std::max(base_scale, box.max_abs_coordinate());
+    return kUlpBoundarySlackFactor * std::numeric_limits<double>::epsilon() * scale;
+  };
+
+  // 世界 X/Y 轴：用 OBB 的世界系外包半宽比较间隙
   const double ex = half_length_m_ * abs_c + half_width_m_ * abs_s;
   const double ey = half_length_m_ * abs_s + half_width_m_ * abs_c;
-  if (center_.x_m + ex < box.min_x - tol || center_.x_m - ex > box.max_x + tol ||
-      center_.y_m + ey < box.min_y - tol || center_.y_m - ey > box.max_y + tol) {
-    return false;
+  const double obb_max_x = center_.x_m + ex;
+  const double obb_min_x = center_.x_m - ex;
+  const double world_min_x = box.min_x - tol;
+  const double world_max_x = box.max_x + tol;
+  if (obb_max_x < world_min_x) {
+    const double slack = full_slack();
+    return (obb_max_x < world_min_x - slack) ? false : generic();
+  }
+  if (obb_min_x > world_max_x) {
+    const double slack = full_slack();
+    return (obb_min_x > world_max_x + slack) ? false : generic();
+  }
+  const double obb_max_y = center_.y_m + ey;
+  const double obb_min_y = center_.y_m - ey;
+  const double world_min_y = box.min_y - tol;
+  const double world_max_y = box.max_y + tol;
+  if (obb_max_y < world_min_y) {
+    const double slack = full_slack();
+    return (obb_max_y < world_min_y - slack) ? false : generic();
+  }
+  if (obb_min_y > world_max_y) {
+    const double slack = full_slack();
+    return (obb_min_y > world_max_y + slack) ? false : generic();
   }
 
   // 包围盒局部 X/Y 轴：AABB 中心相对 OBB 中心的投影 vs 双方半宽之和
@@ -63,9 +98,31 @@ bool Box2d::intersects(const Aabb2d& box, double tol) const noexcept {
   const double hy = 0.5 * (box.max_y - box.min_y);
   const double radius_x = hx * abs_c + hy * abs_s;
   const double radius_y = hx * abs_s + hy * abs_c;
-  if (std::abs(proj_x) > half_length_m_ + radius_x + tol ||
-      std::abs(proj_y) > half_width_m_ + radius_y + tol) {
-    return false;
+  const double abs_proj_x = std::abs(proj_x);
+  const double limit_x = half_length_m_ + radius_x + tol;
+  if (abs_proj_x > limit_x) {
+    const double slack = full_slack();
+    return (abs_proj_x > limit_x + slack) ? false : generic();
+  }
+  const double abs_proj_y = std::abs(proj_y);
+  const double limit_y = half_width_m_ + radius_y + tol;
+  if (abs_proj_y > limit_y) {
+    const double slack = full_slack();
+    return (abs_proj_y > limit_y + slack) ? false : generic();
+  }
+
+  // 快速路径未发现分离：还需排除投影恰在边界附近的舍入差异，统一回退通用 SAT
+  const double slack = full_slack();
+  const double gap_world_x = std::min(obb_max_x - world_min_x, world_max_x - obb_min_x);
+  if (gap_world_x <= slack) {
+    return generic();
+  }
+  const double gap_world_y = std::min(obb_max_y - world_min_y, world_max_y - obb_min_y);
+  if (gap_world_y <= slack) {
+    return generic();
+  }
+  if (limit_x - abs_proj_x <= slack || limit_y - abs_proj_y <= slack) {
+    return generic();
   }
   return true;
 }
