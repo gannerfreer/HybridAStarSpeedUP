@@ -7,7 +7,6 @@
 
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/angle.hpp"
-#include "planner/math/detail/sat_cache.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "planner/math/kinematics/bicycle_model.hpp"
 #include "planner/math/polygon2d.hpp"
@@ -91,24 +90,20 @@ TEST(MathGeometry, PrimitivesAndSatFallback) {
     const double x = distribution(engine);
     const double y = distribution(engine);
     const math::Aabb2d box{x, y, x + 1, y + 1};
-    math::internal::PolygonSatCache8 cache;
-    cache.build(rotated.data(), rotated.size());
-    const bool reference = math::internal::convex_polygon_intersects_aabb_normalized(
-        rotated.data(), rotated.size(), box, 1e-10);
-    EXPECT_EQ(math::convex_polygon_intersects_aabb(rotated, box, 1e-10), reference)
-        << "fast/reference SAT mismatch";
-    EXPECT_EQ(cache.maybe_intersects(box, 1e-10), reference) << "cached/reference SAT mismatch";
+    constexpr double kTol = 1e-10;
+    EXPECT_EQ(math::convex_polygon_intersects_aabb(rotated, box, kTol),
+              math::polygon_aabb_distance(rotated, box) <= kTol)
+        << "SAT/distance mismatch";
     const double distance = math::point_polygon_distance({x, y}, rotated);
     expect_near(distance * distance, math::point_polygon_distance_sq({x, y}, rotated), 1e-10);
   }
 
   // 超出平方域快速路径的坐标仍需安全回退，保持相交/分离判定
   const auto huge = math::rectangle_polygon(0, 0, 1e80, 1e80);
-  math::internal::PolygonSatCache8 cache;
-  cache.build(huge.data(), huge.size());
-  EXPECT_FALSE(cache.fast_domain) << "must select numerical fallback";
-  EXPECT_TRUE(cache.maybe_intersects({5e79, 5e79, 2e80, 2e80}, 0)) << "fallback intersection";
-  EXPECT_FALSE(cache.maybe_intersects({2e80, 2e80, 3e80, 3e80}, 0)) << "fallback separation";
+  EXPECT_TRUE(math::convex_polygon_intersects_aabb(huge, {5e79, 5e79, 2e80, 2e80}, 0))
+      << "fallback intersection";
+  EXPECT_FALSE(math::convex_polygon_intersects_aabb(huge, {2e80, 2e80, 3e80, 3e80}, 0))
+      << "fallback separation";
 
   std::array<math::Point2d, 8> input{
       {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {0, 0}, {0.5, 0.5}, {1, 0}, {0, 1}}},

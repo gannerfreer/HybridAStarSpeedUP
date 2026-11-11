@@ -28,11 +28,10 @@
 #include "planner/common/path.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
-#include "planner/math/detail/geometry_utils.hpp"
-#include "planner/math/detail/sat_cache.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "planner/math/vec2d.hpp"
+#include "sat_cache.hpp"
 
 using planner::math::operator+;
 using planner::math::operator-;
@@ -61,6 +60,9 @@ constexpr int kPrefixLevels =
 constexpr double kObstacleHashCell_m = 4.0;
 constexpr double kEnvelopeSafetyFactor = 1.0 + 1e-12;
 constexpr double kEnvelopeSafetyOffset_m = 1e-12;
+
+/// 计算与几何尺度自适应匹配的接触判断数值容差
+double contact_tolerance(double scale_m) noexcept { return 1.0e-12 * std::max(1.0, scale_m); }
 
 /// 检查位姿各坐标分量是否均为有限浮点数
 bool pose_finite(const Pose2d& pose) noexcept {
@@ -300,7 +302,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
   if (!st.obstacle_boxes.empty()) {
     const double footprint_scale = world_box.max_abs_coordinate();
     const double filter_tol =
-        math::contact_tolerance(std::max(footprint_scale, st.obstacle_scale_m)) * 2.0;
+        contact_tolerance(std::max(footprint_scale, st.obstacle_scale_m)) * 2.0;
     PoseHit obstacle_hit;
     for_each_obstacle_near(st, world_box, filter_tol, [&](int idx) {
       if (obstacle_hit.hit) {
@@ -308,7 +310,7 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       }
       const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
       const double tol =
-          math::contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
+          contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
       // O(1) 粗筛：若分离轴投影间隙大于容差 tol，则两多边形最小欧氏距离 d >= gap > tol，
       // 两者绝无接触可能，可安全跳过精确距离计算
       if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.data(),
@@ -353,10 +355,10 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     }
     const double scale = std::max(std::max(std::abs(min_x), std::abs(max_x)),
                                   std::max(std::abs(min_y), std::abs(max_y)));
-    const double tol = math::contact_tolerance(scale);
+    const double tol = contact_tolerance(scale);
     // 栅格单元分离轴定理（SAT）预计算缓存：在 evaluate_pose 内部车辆多边形保持固定，
     // 故包围盒与边法向量仅计算一次，在各个候选单元间复用
-    math::internal::PolygonSatCache8 cell_sat;
+    internal::PolygonSatCache8 cell_sat;
     cell_sat.build(grid.data(), grid.size());
     const double cell_tol_sq = tol * tol;
 
@@ -475,11 +477,11 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
   }
   const math::Aabb2d hull_box = math::aabb_of_raw(envelope.hull.data(), envelope.hull_size);
   const double scale = hull_box.max_abs_coordinate() + 1.0;
-  const double tol = math::contact_tolerance(scale);
+  const double tol = contact_tolerance(scale);
   const double reach = envelope.sagitta_m + tol;
   // 障碍物可能位于较大坐标处；数值容差必须与双边距离策略严格匹配
   const double obstacle_reach =
-      envelope.sagitta_m + math::contact_tolerance(std::max(scale, st.obstacle_scale_m));
+      envelope.sagitta_m + contact_tolerance(std::max(scale, st.obstacle_scale_m));
 
   // 栅格检测：地图边界包含性与阻挡像元相交性
   if (st.scene.has_grid()) {
@@ -512,7 +514,7 @@ bool envelope_provably_clear(const CollisionCheckerImpl& st, const Envelope& env
     const bool grid_empty = prefix_pyramid_empty(st, row0, row1 - 1, col0, col1 - 1);
     bool clear = true;
     // 预先为外包凸包构建 SAT 分离轴缓存
-    math::internal::PolygonSatCache8 hull_sat;
+    internal::PolygonSatCache8 hull_sat;
     hull_sat.build(grid_hull.data(), grid_hull_size);
     const auto test_cell = [&](int row, int col) {
       const int value = grid_view.cells[static_cast<std::size_t>(row) * grid_view.width + col];

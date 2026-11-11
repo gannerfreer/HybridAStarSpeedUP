@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cmath>
 
 namespace planner::math::internal {
@@ -40,23 +39,3 @@ inline bool coordinates_in_fast_domain(double x, double y) noexcept {
 }
 
 }  // namespace planner::math::internal
-
-namespace planner::math {
-
-/**
- * @name 尺度相关数值容差
- * @{
- */
-
-/**
- * @brief 计算与几何尺度自适应匹配的接触判断数值容差
- * @details 当两几何形状的最小欧氏距离小于等于 contact_tolerance(scale) 时，判定为接触碰撞
- * @param[in] scale_m 几何坐标绝对值尺度（米）
- * @return 接触判断的自适应容差（米，约为 1e-12 * scale 级别）
- */
-inline double contact_tolerance(double scale_m) noexcept {
-  return internal::kEpsScale * std::max(1.0, scale_m);
-}
-/// @}
-
-}  // namespace planner::math

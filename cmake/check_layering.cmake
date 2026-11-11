@@ -53,6 +53,7 @@ foreach(layer IN LISTS _layers)
       "planner/hybrid_astar"
       "planner/rs"
       "planner/config"
+      "planner/math/detail/"
       "toml\\+\\+")
   elseif(layer STREQUAL "config")
     # config may include common and toml++ only; project includes from any
@@ -61,9 +62,13 @@ foreach(layer IN LISTS _layers)
       "planner/math"
       "planner/collision"
       "planner/hybrid_astar"
-      "planner/rs")
+      "planner/rs"
+      "planner/math/detail/")
   else()
+    # Math implementation details are private to the math layer: other modules
+    # may rely on public planner/math/*.hpp headers only.
     set(_forbidden
+      "planner/math/detail/"
       "toml\\+\\+"
       "planner/config")
   endif()

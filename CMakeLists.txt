@@ -126,6 +126,8 @@ if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
     planner::math unit 20)
   planner_add_gtest(collision_checker_test
     Src/collision/tests/test_collision_checker.cpp planner::collision unit 20)
+  planner_add_gtest(sat_cache_test Src/collision/tests/test_sat_cache.cpp planner::collision unit 20)
+  target_include_directories(sat_cache_test PRIVATE "${CMAKE_SOURCE_DIR}/Src/collision/src")
   planner_add_gtest(reeds_shepp_test
     Src/rs/tests/test_reeds_shepp.cpp planner::rs unit 20)
   planner_add_gtest(grid_view_test

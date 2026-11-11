@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "planner/math/detail/geometry_utils.hpp"
-#include "planner/math/detail/sat_cache.hpp"
 #include "planner/math/segment2d.hpp"
 
 namespace planner::math {
@@ -205,7 +204,7 @@ bool convex_polygons_intersect_normalized(const Point2d* a, std::size_t na, cons
   return true;
 }
 
-// 通用凸多边形 vs AABB 未归一化相交检测（用于多边形顶点数超过固定栈缓存容量时的快速遍历）
+// 通用凸多边形 vs AABB 未归一化相交检测（快速安全域内免除开方与除法开销）
 bool convex_polygon_intersects_aabb_unnormalized(const Point2d* polygon, std::size_t n,
                                                  const Aabb2d& box, double tol) noexcept {
   double min_x = std::numeric_limits<double>::infinity();
@@ -542,12 +541,6 @@ bool convex_polygon_intersects_aabb(const Point2d* polygon, std::size_t n, const
                                     double tol) noexcept {
   if (n == 0 || polygon == nullptr) {
     return false;
-  }
-  // 针对顶点数 <= 8 的多边形（如车体足迹与 8 顶点扫掠包络）走栈缓存快速路径
-  if (n <= internal::PolygonSatCache8::kCapacity) {
-    internal::PolygonSatCache8 cache;
-    cache.build(polygon, n);
-    return cache.maybe_intersects(box, tol);
   }
   if (!(tol >= 0.0) || !std::isfinite(tol) || !polygon_in_fast_domain(polygon, n) ||
       !internal::box_in_fast_domain(box) || !polygon_axes_in_fast_domain(polygon, n)) {
