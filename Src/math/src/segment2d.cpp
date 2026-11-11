@@ -1,6 +1,6 @@
 /**
  * @file segment2d.cpp
- * @brief 二维线段长度与方向查询实现。
+ * @brief 二维线段长度与方向查询实现
  */
 
 #include "planner/math/segment2d.hpp"

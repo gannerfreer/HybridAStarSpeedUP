@@ -1,4 +1,4 @@
-# 小型仓储 AGV 参数（SI 单位）。
+# 小型仓储 AGV 参数（SI 单位）
 schema_version = 1
 
 id = "mini_agv"

@@ -1,6 +1,6 @@
 /**
  * @file scenario_config.cpp
- * @brief 纯数据场景配置合法性校验的具体实现。
+ * @brief 纯数据场景配置合法性校验的具体实现
  */
 
 #include "planner/common/scenario_config.hpp"

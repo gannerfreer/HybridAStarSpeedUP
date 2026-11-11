@@ -1,6 +1,6 @@
 /**
  * @file status.cpp
- * @brief 执行状态码枚举字符串转换的具体实现。
+ * @brief 执行状态码枚举字符串转换的具体实现
  */
 
 #include "planner/common/status.hpp"

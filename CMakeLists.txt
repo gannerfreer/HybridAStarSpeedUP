@@ -88,10 +88,10 @@ if(PLANNER_BUILD_TOOLS AND PLANNER_WITH_CONFIG)
 endif()
 
 include(CTest)
-# 测试目标同时受 CTest 的 BUILD_TESTING 与本项目的 PLANNER_BUILD_TESTS 控制。
+# 测试目标同时受 CTest 的 BUILD_TESTING 与本项目的 PLANNER_BUILD_TESTS 控制
 if(BUILD_TESTING AND PLANNER_BUILD_TESTS)
   # Conda 的 GTest 可能由更新版本的 libstdc++ 构建，与系统工具链 ABI 不兼容；
-  # 优先使用编译器所在系统安装的 GTest。
+  # 优先使用编译器所在系统安装的 GTest
   if(DEFINED ENV{CONDA_PREFIX})
     list(APPEND CMAKE_IGNORE_PREFIX_PATH "$ENV{CONDA_PREFIX}")
   endif()

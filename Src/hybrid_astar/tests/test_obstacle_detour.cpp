@@ -13,7 +13,7 @@
 namespace {
 using namespace planner;
 
-// GoogleTest 断言在 Release 构建中同样启用。
+// GoogleTest 断言在 Release 构建中同样启用
 TEST(ObstacleDetour, PlansCollisionFreeDetour) {
   common::VehicleModel vehicle;
   vehicle.wheelbase_m = 2.5;
@@ -31,7 +31,7 @@ TEST(ObstacleDetour, PlansCollisionFreeDetour) {
   grid.height = 80;
   grid.resolution_m = 0.5;
   grid.cells.assign(grid.width * grid.height, common::kCellFree);
-  // 40 m × 40 m 地图；矩形障碍物 [19,21] × [8,12] 阻断起终点直线。
+  // 40 m × 40 m 地图；矩形障碍物 [19,21] × [8,12] 阻断起终点直线
   for (int row = 16; row < 24; ++row) {
     for (int col = 38; col < 42; ++col) {
       grid.cells[row * grid.width + col] = common::kCellOccupied;

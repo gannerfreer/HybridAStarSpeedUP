@@ -1,6 +1,6 @@
 /**
  * @file toml_config_loader.cpp
- * @brief 基于 toml++ 的车辆、规划器与场景配置加载及校验实现。
+ * @brief 基于 toml++ 的车辆、规划器与场景配置加载及校验实现
  */
 
 #include <cmath>
@@ -28,9 +28,9 @@ constexpr std::int64_t kSchemaVersion = 1;
 constexpr const char* kSchemaVersionKey = "schema_version";
 
 struct FieldRef {
-  std::string token;       ///< 校验失败原因中用于定位字段的关键词。
-  std::string key_path;    ///< 对应的点分键路径。
-  const toml::node* node;  ///< 对应 TOML 节点（用于行列定位）。
+  std::string token;       ///< 校验失败原因中用于定位字段的关键词
+  std::string key_path;    ///< 对应的点分键路径
+  const toml::node* node;  ///< 对应 TOML 节点（用于行列定位）
 };
 
 std::string location_prefix(const std::string& file, int line, int column) {

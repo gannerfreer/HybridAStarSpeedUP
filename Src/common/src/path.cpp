@@ -1,6 +1,6 @@
 /**
  * @file path.cpp
- * @brief 路径方向字符串转换及路径数据结构相等性比较操作符的具体实现。
+ * @brief 路径方向字符串转换及路径数据结构相等性比较操作符的具体实现
  */
 
 #include "planner/common/path.hpp"

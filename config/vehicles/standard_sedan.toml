@@ -1,4 +1,4 @@
-# 标准乘用车参数（SI 单位）。
+# 标准乘用车参数（SI 单位）
 schema_version = 1
 
 id = "standard_sedan"

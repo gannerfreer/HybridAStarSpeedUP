@@ -1,6 +1,6 @@
 /**
  * @file test_validators.cpp
- * @brief 车辆模型与 Hybrid A* 规划器配置合法性校验单元测试。
+ * @brief 车辆模型与 Hybrid A* 规划器配置合法性校验单元测试
  */
 
 #include <gtest/gtest.h>

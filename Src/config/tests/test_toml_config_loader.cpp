@@ -1,6 +1,6 @@
 /**
  * @file test_toml_config_loader.cpp
- * @brief TOML 配置加载、严格键校验与端到端规划流程测试。
+ * @brief TOML 配置加载、严格键校验与端到端规划流程测试
  */
 
 #include <gtest/gtest.h>

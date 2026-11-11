@@ -91,7 +91,7 @@ double abs_coordinate_scale(const Point2d* points, std::size_t n) {
   return scale;
 }
 
-// 未归一化平方域 SAT 的安全取值边界，确保投影与间隙平方乘积不发生浮点溢出。
+// 未归一化平方域 SAT 的安全取值边界，确保投影与间隙平方乘积不发生浮点溢出
 constexpr double kFastMaxAxisLenSq = internal::kFastMaxAxisLenSq;
 
 bool polygon_in_fast_domain(const Point2d* points, std::size_t n) noexcept {
@@ -150,8 +150,8 @@ bool separating_axis_normalized(const Point2d* a, std::size_t na, const Point2d*
   return max_a < min_b - tol || max_b < min_a - tol;
 }
 
-// 未归一化分离轴判定：在投影间隙平方域比较，彻底免除开方与除法计算。
-// 调用方需保证 tol >= 0 且几何数据落在无溢出安全域内。
+// 未归一化分离轴判定：在投影间隙平方域比较，彻底免除开方与除法计算
+// 调用方需保证 tol >= 0 且几何数据落在无溢出安全域内
 bool separating_axis_unnormalized(const Point2d* a, std::size_t na, const Point2d* b,
                                   std::size_t nb, const Point2d& axis, double tol_sq) noexcept {
   const double axis_len_sq = axis.x_m * axis.x_m + axis.y_m * axis.y_m;
@@ -267,7 +267,7 @@ double signed_area_twice_raw(const Point2d* polygon, std::size_t n) noexcept {
   return area2;
 }
 
-// 多边形内点判断；reverse 为 true 时按反向索引访问以保持 CCW 语义。
+// 多边形内点判断；reverse 为 true 时按反向索引访问以保持 CCW 语义
 bool point_in_ccw_polygon(const Point2d& p, const Point2d* polygon, std::size_t n,
                           bool reverse) noexcept {
   const double area_scale = abs_coordinate_scale(polygon, n) + 1.0;
@@ -346,7 +346,7 @@ Segment2d polygon_edge(const Point2d* polygon, std::size_t n, std::size_t i) noe
 
 namespace internal {
 
-// 归一化 SAT 回退实现：单位外法向轴结合显式模长与除法运算。
+// 归一化 SAT 回退实现：单位外法向轴结合显式模长与除法运算
 bool convex_polygon_intersects_aabb_normalized(const Point2d* polygon, std::size_t count,
                                                const Aabb2d& box, double tol) noexcept {
   if (count == 0) {

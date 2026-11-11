@@ -1,6 +1,6 @@
 /**
  * @file path_sampling.cpp
- * @brief Reeds-Shepp 路径离散采样与连续航迹点计算实现。
+ * @brief Reeds-Shepp 路径离散采样与连续航迹点计算实现
  */
 
 #include <algorithm>
@@ -26,8 +26,8 @@ struct PathView {
 
 double tolerance_for(double length_m) { return 1e-12 * std::max(1.0, length_m); }
 
-// 校验分段几何有效性，并预先计算各分段起点位姿与累计弧长边界。
-// 若路径结构异常则抛出 std::invalid_argument。
+// 校验分段几何有效性，并预先计算各分段起点位姿与累计弧长边界
+// 若路径结构异常则抛出 std::invalid_argument
 PathView make_view(const RsPath& path) {
   PathView view;
   view.length_m = path.length_m;
@@ -61,11 +61,11 @@ PathView make_view(const RsPath& path) {
   } else if (std::fabs(cumulative - path.length_m) > tol) {
     throw std::invalid_argument("rs::sample: path.length_m does not match the segment sum");
   }
-  // 保持以 path.length_m 为基准总长，使采样的 s_m 与调用方预期精确一致；局部段内偏移钳位在分段长度内。
+  // 保持以 path.length_m 为基准总长，使采样的 s_m 与调用方预期精确一致；局部段内偏移钳位在分段长度内
   return view;
 }
 
-// 快速检索包含指定弧长 s 的分段索引；换向尖点归属于下一段（终点归属于最后一段）。
+// 快速检索包含指定弧长 s 的分段索引；换向尖点归属于下一段（终点归属于最后一段）
 std::size_t locate_segment(const PathView& view, double s) {
   const std::size_t n = view.seg_start.size();
   const double tol = tolerance_for(view.length_m);
@@ -116,8 +116,8 @@ std::vector<common::PathPoint> sample(const RsPath& path, double ds_m) {
   }
   const std::size_t grid_count = static_cast<std::size_t>(std::floor(expected));
 
-  // 将固定步长 ds_m 网格点与各分段精确边界（换向尖点 cusp 必须精确采样）合并。
-  // 在数值容差内去重时，分段边界采样点享有更高优先级。
+  // 将固定步长 ds_m 网格点与各分段精确边界（换向尖点 cusp 必须精确采样）合并
+  // 在数值容差内去重时，分段边界采样点享有更高优先级
   struct Target {
     double s;
     bool boundary;

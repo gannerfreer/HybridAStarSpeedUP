@@ -1,4 +1,4 @@
-# 默认 Hybrid A* 规划器参数（与 UserAstarConfig 默认值一致）。
+# 默认 Hybrid A* 规划器参数（与 UserAstarConfig 默认值一致）
 schema_version = 1
 
 [search]

@@ -1,6 +1,6 @@
 /**
  * @file grid_view.cpp
- * @brief 栅格视图单元查询、相等性比较与栅格坐标系变换的具体实现。
+ * @brief 栅格视图单元查询、相等性比较与栅格坐标系变换的具体实现
  */
 
 #include "planner/common/grid_view.hpp"

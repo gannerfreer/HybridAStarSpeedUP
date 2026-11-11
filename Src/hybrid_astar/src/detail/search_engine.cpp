@@ -1,6 +1,6 @@
 /**
  * @file search_engine.cpp
- * @brief Hybrid A* 路径搜索算法及动力学状态外扩的具体实现。
+ * @brief Hybrid A* 路径搜索算法及动力学状态外扩的具体实现
  */
 
 #include "planner/hybrid_astar/detail/search_engine.hpp"
@@ -213,7 +213,7 @@ std::uint64_t SearchEngine::vertex_hash(const Vertex3D& node) const {
   hash |= (static_cast<std::uint64_t>(angle_bin) & 0xFFFULL) << 48U;
   hash |= (static_cast<std::uint64_t>(x_bin) & 0xFFFFFFULL) << 24U;
   hash |= static_cast<std::uint64_t>(y_bin) & 0xFFFFFFULL;
-  // kInvalidNodeId 保留为根节点父驱/重建终止哨兵，哈希不得占用该值。
+  // kInvalidNodeId 保留为根节点父驱/重建终止哨兵，哈希不得占用该值
   if (hash == kInvalidNodeId) {
     hash &= ~0x1ULL;
   }

@@ -51,7 +51,7 @@ TEST(MathArc, MatchesClosedFormAndRoundTrips) {
     expect_near(out.x_m, cached.x_m, 0);
     expect_near(out.y_m, cached.y_m, 0);
     expect_near(out.yaw_rad, cached.yaw_rad, 0);
-    // 独立的长双精度中点公式，避免差分正余弦在近直线时相消。
+    // 独立的长双精度中点公式，避免差分正余弦在近直线时相消
     const long double h = static_cast<long double>(k) * s / 2;
     const long double scale = h == 0 ? 1 : std::sin(h) / h;
     expect_near(out.x_m, static_cast<double>(start.x_m + s * scale * std::cos(start.yaw_rad + h)));
@@ -102,7 +102,7 @@ TEST(MathGeometry, PrimitivesAndSatFallback) {
     expect_near(distance * distance, math::point_polygon_distance_sq({x, y}, rotated), 1e-10);
   }
 
-  // 超出平方域快速路径的坐标仍需安全回退，保持相交/分离判定。
+  // 超出平方域快速路径的坐标仍需安全回退，保持相交/分离判定
   const auto huge = math::rectangle_polygon(0, 0, 1e80, 1e80);
   math::internal::PolygonSatCache8 cache;
   cache.build(huge.data(), huge.size());

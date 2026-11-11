@@ -1,6 +1,6 @@
 /**
  * @file scene_config.cpp
- * @brief 由纯数据场景配置构建碰撞检测场景的具体实现。
+ * @brief 由纯数据场景配置构建碰撞检测场景的具体实现
  */
 
 #include <cstddef>
@@ -17,7 +17,7 @@ namespace {
 
 using planner::common::kCellFree;
 
-// 非法输入返回宽高不自洽的空场景，使 Scene::valid() 返回 false。
+// 非法输入返回宽高不自洽的空场景，使 Scene::valid() 返回 false
 Scene invalid_scene() {
   Scene scene;
   scene.grid.width = 1;

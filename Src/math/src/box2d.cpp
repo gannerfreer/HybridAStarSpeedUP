@@ -1,6 +1,6 @@
 /**
  * @file box2d.cpp
- * @brief 二维有向包围盒查询实现；相交判定统一委托至凸多边形 SAT 算法。
+ * @brief 二维有向包围盒查询实现；相交判定统一委托至凸多边形 SAT 算法
  */
 
 #include "planner/math/box2d.hpp"

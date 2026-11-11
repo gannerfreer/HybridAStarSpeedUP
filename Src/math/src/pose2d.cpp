@@ -1,6 +1,6 @@
 /**
  * @file pose2d.cpp
- * @brief 二维位姿坐标系变换实现。
+ * @brief 二维位姿坐标系变换实现
  */
 
 #include "planner/math/pose2d.hpp"

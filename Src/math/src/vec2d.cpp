@@ -1,6 +1,6 @@
 /**
  * @file vec2d.cpp
- * @brief 二维向量基础代数实现。
+ * @brief 二维向量基础代数实现
  */
 
 #include "planner/math/vec2d.hpp"

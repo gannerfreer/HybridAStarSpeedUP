@@ -3,6 +3,7 @@
 
 #include "planner/math/pose2d.hpp"
 namespace planner::math::internal {
+  
 constexpr double kSincSeriesBound = 1e-8;
 inline double sinc(double x) noexcept {
   if (std::abs(x) < kSincSeriesBound) {
@@ -11,6 +12,7 @@ inline double sinc(double x) noexcept {
   }
   return std::sin(x) / x;
 }
+
 inline Pose2d advance_arc_trig_unchecked(const Pose2d& start, double s, double kappa, double cy,
                                          double sy) noexcept {
   const double b = kappa * s;

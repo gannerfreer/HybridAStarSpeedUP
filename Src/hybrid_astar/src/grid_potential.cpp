@@ -1,6 +1,6 @@
 /**
  * @file grid_potential.cpp
- * @brief 基于栅格地图的 8 连通 Dijkstra 势场算法实现文件。
+ * @brief 基于栅格地图的 8 连通 Dijkstra 势场算法实现文件
  */
 
 #include "grid_potential.hpp"

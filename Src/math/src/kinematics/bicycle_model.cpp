@@ -1,6 +1,6 @@
 /**
  * @file bicycle_model.cpp
- * @brief 后轴中心自行车模型运动学换算实现。
+ * @brief 后轴中心自行车模型运动学换算实现
  */
 
 #include "planner/math/kinematics/bicycle_model.hpp"

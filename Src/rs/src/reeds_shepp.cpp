@@ -1,6 +1,6 @@
 /**
  * @file reeds_shepp.cpp
- * @brief 原生 48 类解析 Reeds-Shepp 最短路径求解器的具体实现。
+ * @brief 原生 48 类解析 Reeds-Shepp 最短路径求解器的具体实现
  */
 
 #include "reeds_shepp.hpp"
@@ -66,7 +66,7 @@ struct RawPath {
   double total{std::numeric_limits<double>::max()};
 };
 
-// 18 类基准曲线字类型（L=左转圆弧, R=右转圆弧, S=直行线段，kNone 表示结束）。
+// 18 类基准曲线字类型（L=左转圆弧, R=右转圆弧, S=直行线段，kNone 表示结束）
 constexpr Turn kPathType[18][5] = {
     {Turn::kLeft, Turn::kRight, Turn::kLeft, Turn::kNone, Turn::kNone},       // 0
     {Turn::kRight, Turn::kLeft, Turn::kRight, Turn::kNone, Turn::kNone},      // 1
@@ -473,7 +473,7 @@ void CCSCC(double x, double y, double phi, RawPath& path) {
   }
 }
 
-// 完整枚举 48 类 Reeds-Shepp 曲线形式，返回全局总长最短的有效路径。
+// 完整枚举 48 类 Reeds-Shepp 曲线形式，返回全局总长最短的有效路径
 RawPath reedsSheppUnit(double x, double y, double phi) {
   RawPath path;
   CSC(x, y, phi, path);
@@ -514,7 +514,7 @@ double curvature_for_turn(Turn turn, double radius_m) {
 }
 
 // 沿运动分段快速推进位姿，省去中间步骤的航向角周期归一化开销
-// （正余弦具备天然周期性，对外暴露接口前统一归一化一次即可）。
+// （正余弦具备天然周期性，对外暴露接口前统一归一化一次即可）
 common::Pose2d advance_unchecked(const common::Pose2d& pose, const RsSegment& segment,
                                  double ds_m) {
   const double gear = segment.direction == common::Direction::kForward ? 1.0 : -1.0;
@@ -522,10 +522,10 @@ common::Pose2d advance_unchecked(const common::Pose2d& pose, const RsSegment& se
                                                     std::cos(pose.yaw_rad), std::sin(pose.yaw_rad));
 }
 
-// 将无量纲单位半径路径还原并缩放为具有实际物理尺度的分段路径。
-// 剔除零长分段，并合并相邻同挡位、同曲率的分段，确保换向尖点边界清晰。
+// 将无量纲单位半径路径还原并缩放为具有实际物理尺度的分段路径
+// 剔除零长分段，并合并相邻同挡位、同曲率的分段，确保换向尖点边界清晰
 // 小于 kMinNormalizedStroke（亚纳米级）的微小分段是三角闭式解析的浮点误差假象，
-// 剔除后终点偏差远低于容差上限，同时避免产生虚假退化微段。
+// 剔除后终点偏差远低于容差上限，同时避免产生虚假退化微段
 constexpr double kMinNormalizedStroke = 1e-14;
 
 RsPath build_path(const common::Pose2d& start, const common::Pose2d& goal, double radius_m,

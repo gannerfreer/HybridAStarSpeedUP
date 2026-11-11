@@ -1,6 +1,6 @@
 /**
  * @file segment2d.hpp
- * @brief 二维闭合线段基元及点/线段间精确欧氏距离查询。
+ * @brief 二维闭合线段基元及点/线段间精确欧氏距离查询
  */
 
 #pragma once
@@ -19,38 +19,38 @@ namespace planner::math {
  */
 
 /**
- * @brief 二维有向线段（起点 start、终点 end），几何上按闭集处理。
+ * @brief 二维有向线段（起点 start、终点 end），几何上按闭集处理
  */
 struct Segment2d {
-  Vec2d start;  ///< 线段起点。
-  Vec2d end;    ///< 线段终点。
+  Vec2d start;  ///< 线段起点
+  Vec2d end;    ///< 线段终点
 
   Segment2d() = default;
   Segment2d(const Vec2d& start_point, const Vec2d& end_point) noexcept
       : start(start_point), end(end_point) {}
 
   /**
-   * @brief 计算线段欧氏长度。
-   * @return 线段长度（米）。
+   * @brief 计算线段欧氏长度
+   * @return 线段长度（米）
    */
   double length() const noexcept;
 
   /**
-   * @brief 计算线段长度的平方。
-   * @return 线段长度平方（m^2）。
+   * @brief 计算线段长度的平方
+   * @return 线段长度平方（m^2）
    */
   double length_sq() const noexcept;
 
   /**
-   * @brief 计算线段单位方向向量；退化（零长）线段返回零向量。
-   * @return 单位方向向量或零向量。
+   * @brief 计算线段单位方向向量；退化（零长）线段返回零向量
+   * @return 单位方向向量或零向量
    */
   Vec2d unit_direction() const noexcept;
 
   /**
-   * @brief 计算线段上距离点 p 的最近点（对参数做 [0, 1] 截断）。
-   * @param[in] p 待测点。
-   * @return 线段上的最近点。
+   * @brief 计算线段上距离点 p 的最近点（对参数做 [0, 1] 截断）
+   * @param[in] p 待测点
+   * @return 线段上的最近点
    */
   Vec2d closest_point(const Vec2d& p) const noexcept {
     const Vec2d ab = end - start;
@@ -64,16 +64,16 @@ struct Segment2d {
   }
 
   /**
-   * @brief 计算点到线段 [start, end] 的最小欧氏距离。
-   * @param[in] p 待测点。
-   * @return 最小欧氏距离（米）。
+   * @brief 计算点到线段 [start, end] 的最小欧氏距离
+   * @param[in] p 待测点
+   * @return 最小欧氏距离（米）
    */
   double distance_to(const Vec2d& p) const noexcept { return (p - closest_point(p)).norm(); }
 
   /**
-   * @brief 计算点到线段 [start, end] 的最小欧氏距离的平方。
-   * @param[in] p 待测点。
-   * @return 平方距离（m^2）。
+   * @brief 计算点到线段 [start, end] 的最小欧氏距离的平方
+   * @param[in] p 待测点
+   * @return 平方距离（m^2）
    */
   double distance_sq_to(const Vec2d& p) const noexcept {
     const Vec2d proj = closest_point(p);
@@ -88,9 +88,9 @@ struct Segment2d {
   }
 
   /**
-   * @brief 判定两闭线段是否相交或接触（端点接触与共线重叠均视为相交）。
-   * @param[in] other 另一条线段。
-   * @return 若相交或接触返回 true。
+   * @brief 判定两闭线段是否相交或接触（端点接触与共线重叠均视为相交）
+   * @param[in] other 另一条线段
+   * @return 若相交或接触返回 true
    */
   bool intersects(const Segment2d& other) const noexcept {
     // 标准线段与线段相交测试（包含端点接触和相切）
@@ -110,9 +110,9 @@ struct Segment2d {
   }
 
   /**
-   * @brief 计算两线段 [start, end] 与 [other.start, other.end] 之间的最小欧氏距离。
-   * @param[in] other 另一条线段。
-   * @return 最小欧氏距离（米）。
+   * @brief 计算两线段 [start, end] 与 [other.start, other.end] 之间的最小欧氏距离
+   * @param[in] other 另一条线段
+   * @return 最小欧氏距离（米）
    */
   double distance_to(const Segment2d& other) const noexcept {
     if (intersects(other)) {
@@ -123,9 +123,9 @@ struct Segment2d {
   }
 
   /**
-   * @brief 计算两线段之间的最小欧氏距离的平方。
-   * @param[in] other 另一条线段。
-   * @return 平方距离（m^2）。
+   * @brief 计算两线段之间的最小欧氏距离的平方
+   * @param[in] other 另一条线段
+   * @return 平方距离（m^2）
    */
   double distance_sq_to(const Segment2d& other) const noexcept {
     if (!internal::coordinates_in_fast_domain(start.x_m, start.y_m) ||

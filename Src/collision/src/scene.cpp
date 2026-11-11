@@ -1,6 +1,6 @@
 /**
  * @file scene.cpp
- * @brief 场景环境校验、车体足迹与栅格坐标系变换的具体实现。
+ * @brief 场景环境校验、车体足迹与栅格坐标系变换的具体实现
  */
 
 #include "scene.hpp"

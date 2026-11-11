@@ -7,7 +7,7 @@ namespace planner::math {
 
 double normalize_angle_rad(double angle_rad) {
   if (!std::isfinite(angle_rad)) return std::numeric_limits<double>::quiet_NaN();
-  // 若已落在 [-pi, pi) 区间内，直接返回以确保数值幂等性。
+  // 若已落在 [-pi, pi) 区间内，直接返回以确保数值幂等性
   if (angle_rad >= -kPi && angle_rad < kPi) {
     return angle_rad;
   }
@@ -17,7 +17,7 @@ double normalize_angle_rad(double angle_rad) {
   }
   double result = wrapped - kPi;
   if (result >= kPi) {
-    // 仅在 fmod 发生浮点舍入极值时可能触发；强制约束在半开区间内。
+    // 仅在 fmod 发生浮点舍入极值时可能触发；强制约束在半开区间内
     result = -kPi;
   }
   return result;

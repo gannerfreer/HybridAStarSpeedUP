@@ -1,4 +1,4 @@
-# 窄空间泊车场景：更细的离散化、更频繁的 Reeds-Shepp 解析尝试。
+# 窄空间泊车场景：更细的离散化、更频繁的 Reeds-Shepp 解析尝试
 schema_version = 1
 
 [search]

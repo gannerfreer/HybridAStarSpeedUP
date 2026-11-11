@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief 从 TOML 配置加载车辆、规划器与场景并执行一次 Hybrid A* 规划演示。
+ * @brief 从 TOML 配置加载车辆、规划器与场景并执行一次 Hybrid A* 规划演示
  */
 
 #include <cmath>

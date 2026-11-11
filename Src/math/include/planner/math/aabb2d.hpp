@@ -1,6 +1,6 @@
 /**
  * @file aabb2d.hpp
- * @brief 二维轴对齐包围盒 (AABB) 及精确欧氏距离查询。
+ * @brief 二维轴对齐包围盒 (AABB) 及精确欧氏距离查询
  */
 
 #pragma once
@@ -21,7 +21,7 @@ namespace planner::math {
  */
 
 /**
- * @brief 二维轴对齐矩形包围盒。
+ * @brief 二维轴对齐矩形包围盒
  */
 struct Aabb2d {
   double min_x{0.0};  ///< X 轴坐标下界（米）
@@ -40,8 +40,8 @@ struct Aabb2d {
 
   /**
    * @brief 判定两个闭 AABB 是否相交或接触（边界相碰判定为相交）
-   * @param[in] other 另一个 AABB。
-   * @return 若相交或接触返回 true。
+   * @param[in] other 另一个 AABB
+   * @return 若相交或接触返回 true
    */
   bool intersects(const Aabb2d& other) const noexcept {
     return !(other.min_x > max_x || other.max_x < min_x || other.min_y > max_y ||
@@ -49,7 +49,7 @@ struct Aabb2d {
   }
 
   /**
-   * @brief 四周对称向外扩展包围盒边界。
+   * @brief 四周对称向外扩展包围盒边界
    * @param[in] margin 向外扩充的外扩距离（米）
    */
   void expand(double margin) noexcept {
@@ -80,9 +80,9 @@ struct Aabb2d {
   }
 
   /**
-   * @brief 计算点到闭 AABB 的最小欧氏距离（点在盒内或边界上时为 0）。
-   * @param[in] p 待测点。
-   * @return 最小欧氏距离（米）。
+   * @brief 计算点到闭 AABB 的最小欧氏距离（点在盒内或边界上时为 0）
+   * @param[in] p 待测点
+   * @return 最小欧氏距离（米）
    */
   double distance_to(const Point2d& p) const noexcept {
     const double dx = std::max(std::max(min_x - p.x_m, 0.0), p.x_m - max_x);
@@ -91,9 +91,9 @@ struct Aabb2d {
   }
 
   /**
-   * @brief 计算点到闭 AABB 的最小欧氏距离的平方。
-   * @param[in] p 待测点。
-   * @return 平方距离（m^2）。
+   * @brief 计算点到闭 AABB 的最小欧氏距离的平方
+   * @param[in] p 待测点
+   * @return 平方距离（m^2）
    */
   double distance_sq_to(const Point2d& p) const noexcept {
     const double dx = std::max(std::max(min_x - p.x_m, 0.0), p.x_m - max_x);
@@ -107,18 +107,18 @@ struct Aabb2d {
   }
 
   /**
-   * @brief 计算本包围盒与另一 AABB 在 X 轴上的投影间隙（重叠时为 0）。
-   * @param[in] other 另一个 AABB。
-   * @return 单轴间隙（米）。
+   * @brief 计算本包围盒与另一 AABB 在 X 轴上的投影间隙（重叠时为 0）
+   * @param[in] other 另一个 AABB
+   * @return 单轴间隙（米）
    */
   double gap_x(const Aabb2d& other) const noexcept {
     return std::max(0.0, std::max(min_x - other.max_x, other.min_x - max_x));
   }
 
   /**
-   * @brief 计算本包围盒与另一 AABB 在 Y 轴上的投影间隙（重叠时为 0）。
-   * @param[in] other 另一个 AABB。
-   * @return 单轴间隙（米）。
+   * @brief 计算本包围盒与另一 AABB 在 Y 轴上的投影间隙（重叠时为 0）
+   * @param[in] other 另一个 AABB
+   * @return 单轴间隙（米）
    */
   double gap_y(const Aabb2d& other) const noexcept {
     return std::max(0.0, std::max(min_y - other.max_y, other.min_y - max_y));
@@ -128,9 +128,9 @@ struct Aabb2d {
 namespace internal {
 
 /**
- * @brief 判定 AABB 的全部边界坐标是否均位于未归一化快速 SAT 的无溢出安全域内。
- * @param[in] box 待检查的轴对齐包围盒。
- * @return 若所有坐标有限且绝对值不超过安全上限则返回 true。
+ * @brief 判定 AABB 的全部边界坐标是否均位于未归一化快速 SAT 的无溢出安全域内
+ * @param[in] box 待检查的轴对齐包围盒
+ * @return 若所有坐标有限且绝对值不超过安全上限则返回 true
  */
 inline bool box_in_fast_domain(const Aabb2d& box) noexcept {
   return std::isfinite(box.min_x) && std::isfinite(box.max_x) && std::isfinite(box.min_y) &&
@@ -158,32 +158,32 @@ Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept;
 double aabb_distance(const Aabb2d& a, const Aabb2d& b) noexcept;
 
 /**
- * @brief 平方距离域下的两 AABB 快速可达性粗筛。
- * @details 数学上完全等价于 `aabb_distance(a, b) <= reach`，但省去开方计算开销。
- * @param[in] a 第一个 AABB。
- * @param[in] b 第二个 AABB。
- * @param[in] reach 判定距离阈值（米）。
- * @return 若间距小于等于 reach 则返回 true。
+ * @brief 平方距离域下的两 AABB 快速可达性粗筛
+ * @details 数学上完全等价于 `aabb_distance(a, b) <= reach`，但省去开方计算开销
+ * @param[in] a 第一个 AABB
+ * @param[in] b 第二个 AABB
+ * @param[in] reach 判定距离阈值（米）
+ * @return 若间距小于等于 reach 则返回 true
  */
 bool aabb_within(const Aabb2d& a, const Aabb2d& b, double reach) noexcept;
 
 /**
- * @brief 计算点到闭 AABB 的最小欧氏距离（点在盒内或边界上时为 0）。
- * @param[in] p 待测点。
- * @param[in] box 目标 AABB。
- * @return 最小欧氏距离（米）。
+ * @brief 计算点到闭 AABB 的最小欧氏距离（点在盒内或边界上时为 0）
+ * @param[in] p 待测点
+ * @param[in] box 目标 AABB
+ * @return 最小欧氏距离（米）
  */
 double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept;
 
 /**
- * @brief 计算点到闭 AABB 的最小欧氏距离的平方。
- * @param[in] p 待测点。
- * @param[in] box 目标 AABB。
- * @return 平方距离（m^2）。
+ * @brief 计算点到闭 AABB 的最小欧氏距离的平方
+ * @param[in] p 待测点
+ * @param[in] box 目标 AABB
+ * @return 平方距离（m^2）
  */
 double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept;
 
-// 零动态分配的 AABB 入口；n 为输入点数量。
+// 零动态分配的 AABB 入口；n 为输入点数量
 Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept;
 /// @}
 

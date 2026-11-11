@@ -27,7 +27,7 @@ common::VehicleModel regression_vehicle() {
   return vehicle;
 }
 
-// 极小车体和薄障碍物放大旧采样检查的弧长缺口，确保问题不会被车体尺寸掩盖。
+// 极小车体和薄障碍物放大旧采样检查的弧长缺口，确保问题不会被车体尺寸掩盖
 TEST(SearchRegression, RejectsCollisionInArcTail) {
   common::VehicleModel vehicle;
   vehicle.wheelbase_m = 0.0001;
@@ -81,7 +81,7 @@ TEST(SearchRegression, RejectsCollisionInArcTail) {
   request.node_budget = 1;
   hybrid_astar::UserAstar planner;
   const auto result = planner.plan(request, grid, checker);
-  // 连接必须在目标钩子中被拒绝，让搜索耗尽节点预算；旧代码误接受后返回 validation_failed。
+  // 连接必须在目标钩子中被拒绝，让搜索耗尽节点预算；旧代码误接受后返回 validation_failed
   EXPECT_EQ(result.status, common::Status::kTimeout);
   EXPECT_TRUE(result.path.empty())
       << "colliding RS connector must be rejected before output validation";
@@ -314,7 +314,7 @@ TEST(UserAstarRegression, HooksReverseCancellationBudgetsPiBoundaryAndRsIntegrat
             1e-9)
       << "pi paths must agree";
 
-  // 对外 RS 积分应使用共享内核；包括微小曲率与倒车。
+  // 对外 RS 积分应使用共享内核；包括微小曲率与倒车
   rs::RsSegment segment;
   segment.length_m = 2;
   segment.curvature_per_m = 1e-12;

@@ -1,6 +1,6 @@
 /**
  * @file aabb2d.cpp
- * @brief 二维轴对齐包围盒聚合与自由函数接口实现。
+ * @brief 二维轴对齐包围盒聚合与自由函数接口实现
  */
 
 #include "planner/math/aabb2d.hpp"

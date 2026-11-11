@@ -1,6 +1,6 @@
 /**
  * @file user_astar.cpp
- * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件。
+ * @brief 集成标准运动学倒车自行车模型、扫掠碰撞检测、Reeds-Shepp 解析展开以及 Dijkstra 目标势场启发式的 Hybrid A* 规划器实现文件
  */
 
 #include "user_astar.hpp"
@@ -29,8 +29,8 @@ using Clock = std::chrono::steady_clock;
 
 constexpr double kStartPoseToleranceM = 1e-6;
 constexpr double kStartYawToleranceRad = 1e-6;
-constexpr double kEndpointPositionToleranceM = 0.05;  ///< 终点位置容差阈值（米，m）。
-constexpr double kEndpointYawToleranceRad = 0.02;  ///< 终点航向角容差阈值（弧度，rad）。
+constexpr double kEndpointPositionToleranceM = 0.05;  ///< 终点位置容差阈值（米，m）
+constexpr double kEndpointYawToleranceRad = 0.02;  ///< 终点航向角容差阈值（弧度，rad）
 constexpr double kCurvatureTolerance = 1e-9;
 
 bool finite_pose(const common::Pose2d& pose) {
@@ -51,16 +51,16 @@ std::string collision_detail(const collision::CheckResult& check) {
   return text;
 }
 
-/// 校验两个栅格视图是否拥有相同的快照标识、维度尺寸与单元格占据内容。
+/// 校验两个栅格视图是否拥有相同的快照标识、维度尺寸与单元格占据内容
 bool grids_equal(const common::GridView& a, const common::GridView& b) {
   return a.map_id == b.map_id && a.map_version == b.map_version && a.width == b.width &&
          a.height == b.height && a.resolution_m == b.resolution_m && a.origin == b.origin &&
          a.cells == b.cells;
 }
 
-/// 从 Reeds-Shepp 连接路径中平滑剔除数值退化微段（亚毫米级微小位移）。
+/// 从 Reeds-Shepp 连接路径中平滑剔除数值退化微段（亚毫米级微小位移）
 /// 这些微小位移源自词边界（word boundary）浮点极值情况，不具备几何意义，
-/// 却会产生虚假换向尖点（cusp）并污染终点位姿。
+/// 却会产生虚假换向尖点（cusp）并污染终点位姿
 rs::RsPlan clean_connector(rs::RsPlan plan) {
   constexpr double kDegenerateSegmentM = 1e-3;
   rs::RsPlan cleaned;
@@ -112,12 +112,12 @@ void UserAstar::set_cancel_callback(std::function<bool()> callback) {
 }
 
 void UserAstar::reset_cache() {
-  // 使目标势场缓存失效。
+  // 使目标势场缓存失效
   impl_->potential_valid = false;
   impl_->potential_key = 0;
   impl_->potential = internal::GridPotential{};
   impl_->expanded_nodes = 0;
-  // 清空引擎搜索状态，但保留其容器已分配的容量以便跨规划复用。
+  // 清空引擎搜索状态，但保留其容器已分配的容量以便跨规划复用
   impl_->engine.reset_state();
 }
 
@@ -126,7 +126,7 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
   common::PlanResult result;
   result.request_id = request.request_id;
 
-  // 防御性清空上一轮规划遗留的钩子及其捕获引用；随后统一重新注册。
+  // 防御性清空上一轮规划遗留的钩子及其捕获引用；随后统一重新注册
   impl_->engine.clear_hooks();
 
   const auto fail = [&result](common::Status status, const std::string& reason) {
@@ -186,8 +186,8 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
   impl_->engine.configure(request.vehicle, impl_->config);
 
   // ------------------------------------------------------------------
-  // 目标势场连通性检验与不可达状态预剪枝。
-  // 起点与目标位姿首先由完整的车辆多边形轮廓执行精确碰撞检验。
+  // 目标势场连通性检验与不可达状态预剪枝
+  // 起点与目标位姿首先由完整的车辆多边形轮廓执行精确碰撞检验
   // ------------------------------------------------------------------
   bool potential_usable = false;
   common::GridFrame potential_frame = common::GridFrame::from_grid(grid);
@@ -269,12 +269,12 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
     }
   }
 
-  // Reeds-Shepp 目标连接路径缓存（由目标达成钩子计算并填充）。
+  // Reeds-Shepp 目标连接路径缓存（由目标达成钩子计算并填充）
   bool connector_valid = false;
   rs::RsPath connector;
   std::int64_t goal_hook_calls = 0;
 
-  // 车辆多边形轮廓位姿与运动线段碰撞检测钩子。
+  // 车辆多边形轮廓位姿与运动线段碰撞检测钩子
   impl_->engine.set_pose_collision_hook([&](const math::Pose2d& pose) {
     const collision::CheckResult check = collision_checker.check_pose(pose);
     return !check.is_clear();
@@ -283,7 +283,7 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
       [&](const detail::SearchState& from, const detail::SearchState& to) {
         // 基于连通性松弛的预剪枝（当目标势场可用时）：
         // 在空闲栅格松弛图上均不可达的后继节点不可能构成任何无碰撞可行路径，
-        // 应当立即予以剪枝剔除（详见 grid_potential.hpp）。
+        // 应当立即予以剪枝剔除（详见 grid_potential.hpp）
         if (potential_usable) {
           int row = 0;
           int col = 0;
@@ -324,14 +324,14 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
     if (solved.status != common::Status::kSuccess) {
       return false;
     }
-    // 在对剩余段进行碰撞检测前，剔除退化的亚毫米微段。
+    // 在对剩余段进行碰撞检测前，剔除退化的亚毫米微段
     solved = clean_connector(std::move(solved));
     if (impl_->config.analytic_expansion_max_length_m > 0.0 &&
         solved.path.length_m > impl_->config.analytic_expansion_max_length_m) {
       return false;
     }
     // 短于 min_connector_segment_m 的子基元微段：仅当与相邻段构成虚假换向尖点时剔除连接，
-    // 从而引导搜索继续外扩以寻找更平滑清晰的连接。
+    // 从而引导搜索继续外扩以寻找更平滑清晰的连接
     if (impl_->config.min_connector_segment_m > 0.0) {
       const std::vector<rs::RsSegment>& segments = solved.path.segments;
       for (std::size_t i = 0; i + 1 < segments.size(); ++i) {
@@ -344,7 +344,7 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
         }
       }
     }
-    // 直接检查 RS 原始常曲率段，length_m 是完整弧长，不能用采样点间弦长代替。
+    // 直接检查 RS 原始常曲率段，length_m 是完整弧长，不能用采样点间弦长代替
     common::Pose2d cursor = solved.path.start;
     try {
       for (const rs::RsSegment& rs_segment : solved.path.segments) {
@@ -439,7 +439,7 @@ common::PlanResult UserAstar::plan(const common::PlanRequest& request, const com
     }
     flat.push_back(point);
     if (i + 1 < node_count) {
-      // 底层运动基元的圆弧长度对前进和倒车均固定为 motion_step_m。
+      // 底层运动基元的圆弧长度对前进和倒车均固定为 motion_step_m
       s_cum += search.path[i + 1].arc_length_m;
     }
   }

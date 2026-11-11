@@ -1,6 +1,6 @@
 /**
  * @file planner_config.cpp
- * @brief Hybrid A* 规划器配置参数合法性校验的具体实现。
+ * @brief Hybrid A* 规划器配置参数合法性校验的具体实现
  */
 
 #include "planner/common/planner_config.hpp"

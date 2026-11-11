@@ -1,6 +1,6 @@
 /**
  * @file vehicle.cpp
- * @brief 车辆模型合法性校验与相等性比较操作符的具体实现。
+ * @brief 车辆模型合法性校验与相等性比较操作符的具体实现
  */
 
 #include "planner/common/vehicle.hpp"
