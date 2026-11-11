@@ -93,6 +93,106 @@ TEST(MathBox2d, IntersectsBoxTouchOverlapAndSeparation) {
   EXPECT_DOUBLE_EQ(a.distance_sq_to({1.0, 1.0}), 0.0);
 }
 
+TEST(MathBox2d, HeadingTrigAccessorsExposeCachedValues) {
+  const math::Box2d box{{1.0, -2.0}, 4.0, 2.0, 0.7};
+  EXPECT_DOUBLE_EQ(box.cos_heading(), std::cos(0.7));
+  EXPECT_DOUBLE_EQ(box.sin_heading(), std::sin(0.7));
+
+  const math::Box2d cached{{0.0, 0.0}, 2.0, 1.0, 1.234, 0.25, -0.75};
+  EXPECT_DOUBLE_EQ(cached.cos_heading(), 0.25);
+  EXPECT_DOUBLE_EQ(cached.sin_heading(), -0.75);
+}
+
+TEST(MathBox2d, AabbFastPathClosedSetAndToleranceBoundary) {
+  const math::Box2d box{{0.0, 0.0}, 2.0, 2.0, 0.0};
+  const std::array<math::Point2d, 4> corners = box.corners();
+  const auto generic = [&](const math::Aabb2d& aabb, double tol) {
+    return math::convex_polygon_intersects_aabb(corners.data(), corners.size(), aabb, tol);
+  };
+
+  const math::Aabb2d edge_touch{1.0, -0.5, 2.0, 0.5};
+  const math::Aabb2d corner_touch{1.0, 1.0, 2.0, 2.0};
+  EXPECT_TRUE(box.intersects(edge_touch)) << "exact edge touch";
+  EXPECT_TRUE(box.intersects(corner_touch)) << "exact corner touch";
+  EXPECT_EQ(box.intersects(edge_touch), generic(edge_touch, 0.0));
+  EXPECT_EQ(box.intersects(corner_touch), generic(corner_touch, 0.0));
+
+  const math::Aabb2d just_beyond{1.0 + 1e-6, -0.5, 2.0 + 1e-6, 0.5};
+  EXPECT_FALSE(box.intersects(just_beyond, 1e-7));
+  EXPECT_TRUE(box.intersects(just_beyond, 1e-5));
+  EXPECT_EQ(box.intersects(just_beyond, 1e-7), generic(just_beyond, 1e-7));
+  EXPECT_EQ(box.intersects(just_beyond, 1e-5), generic(just_beyond, 1e-5));
+
+  const math::Box2d rotated{{0.3, -0.2}, 3.0, 1.5, 0.37};
+  const std::array<math::Point2d, 4> rc = rotated.corners();
+  const math::Aabb2d rotated_corner{rc[2].x_m, rc[2].y_m, rc[2].x_m + 1.0, rc[2].y_m + 1.0};
+  // 旋转盒角点坐标含浮点舍入，使用微小正容差验证闭集接触语义
+  EXPECT_TRUE(rotated.intersects(rotated_corner, 1e-12));
+  EXPECT_EQ(rotated.intersects(rotated_corner, 1e-12),
+            math::convex_polygon_intersects_aabb(rc.data(), rc.size(), rotated_corner, 1e-12));
+}
+
+TEST(MathBox2d, AabbFastPathFallsBackForInvalidTolerance) {
+  const math::Box2d box{{0.1, -0.2}, 2.0, 1.0, 0.4};
+  const std::array<math::Point2d, 4> corners = box.corners();
+  const auto generic = [&](const math::Aabb2d& aabb, double tol) {
+    return math::convex_polygon_intersects_aabb(corners.data(), corners.size(), aabb, tol);
+  };
+  const math::Aabb2d overlapping{-1.0, -2.0, 1.0, 1.0};
+  const math::Aabb2d separated{4.0, 4.0, 5.0, 5.0};
+  for (double tol : {-1.0, -1e-9, std::numeric_limits<double>::quiet_NaN(),
+                     std::numeric_limits<double>::infinity(),
+                     -std::numeric_limits<double>::infinity()}) {
+    SCOPED_TRACE(tol);
+    EXPECT_EQ(box.intersects(overlapping, tol), generic(overlapping, tol));
+    EXPECT_EQ(box.intersects(separated, tol), generic(separated, tol));
+  }
+}
+
+TEST(MathBox2d, AabbFastPathMatchesGenericNearTouch) {
+  std::mt19937 engine(20261112);
+  std::uniform_real_distribution<double> center(-5.0, 5.0);
+  std::uniform_real_distribution<double> size(0.1, 2.5);
+  std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
+  for (int i = 0; i < 300; ++i) {
+    SCOPED_TRACE(i);
+    const math::Box2d box{
+        {center(engine), center(engine)}, size(engine), size(engine), angle(engine)};
+    const std::array<math::Point2d, 4> corners = box.corners();
+    const math::Aabb2d bounds = box.aabb();
+    const double height = std::max(0.2, bounds.max_y - bounds.min_y);
+    for (double delta : {-1e-6, -1e-9, 1e-9, 1e-6}) {
+      const math::Aabb2d probe{bounds.max_x + delta, bounds.min_y,
+                               bounds.max_x + delta + 1.5, bounds.min_y + height};
+      for (double tol : {0.0, 1e-12, 1e-4, 0.05}) {
+        SCOPED_TRACE(tol);
+        EXPECT_EQ(box.intersects(probe, tol),
+                  math::convex_polygon_intersects_aabb(corners.data(), corners.size(), probe, tol));
+      }
+    }
+  }
+}
+
+TEST(MathBox2d, AabbFastPathMatchesGenericAtExtremeCoordinates) {
+  for (double scale : {1e80, 1e160}) {
+    SCOPED_TRACE(scale);
+    const math::Box2d box{{scale, -scale}, 4.4, 2.0, 0.37};
+    const std::array<math::Point2d, 4> corners = box.corners();
+    const auto generic = [&](const math::Aabb2d& aabb, double tol) {
+      return math::convex_polygon_intersects_aabb(corners.data(), corners.size(), aabb, tol);
+    };
+    const double offset = scale * 1e-10;
+    const math::Aabb2d overlapping{scale - 1.0, -scale - 1.0, scale + 1.0, -scale + 1.0};
+    const math::Aabb2d separated{scale + offset, -scale - offset, scale + 2.0 * offset,
+                                 -scale + offset};
+    for (double tol : {0.0, 1e-4, 2.0 * offset}) {
+      SCOPED_TRACE(tol);
+      EXPECT_EQ(box.intersects(overlapping, tol), generic(overlapping, tol));
+      EXPECT_EQ(box.intersects(separated, tol), generic(separated, tol));
+    }
+  }
+}
+
 TEST(MathBox2d, RandomDifferentialAgainstPolygonFunctions) {
   std::mt19937 engine(20261111);
   std::uniform_real_distribution<double> center(-6.0, 6.0);

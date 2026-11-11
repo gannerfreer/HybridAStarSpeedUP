@@ -13,6 +13,7 @@
 #include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
 #include "planner/math/angle.hpp"
+#include "planner/math/box2d.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "scene.hpp"
@@ -98,6 +99,14 @@ int main() {
     g_sink = g_sink + (math::convex_polygon_intersects_aabb(polygon, box, 0.0) ? 1.0 : 0.0);
   });
   report_ns_per_op("math::convex_polygon_intersects_aabb", 2000000, seconds);
+
+  const math::Box2d obb{{0.0, 0.0}, 4.4, 2.0, 0.37};
+  seconds = measure_seconds(2000000, [&](int i) {
+    const double offset = (i % 100) * 0.01;
+    const math::Aabb2d box{-2.2 + offset, -1.0, 2.2 + offset, 1.0};
+    g_sink = g_sink + (obb.intersects(box, 0.0) ? 1.0 : 0.0);
+  });
+  report_ns_per_op("math::Box2d::intersects(Aabb2d)", 2000000, seconds);
 
   const auto vehicle = bench_vehicle();
   const auto scene = bench_scene();

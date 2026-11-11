@@ -28,6 +28,7 @@
 #include "planner/common/path.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/aabb2d.hpp"
+#include "planner/math/box2d.hpp"
 #include "planner/math/kinematics/arc.hpp"
 #include "planner/math/polygon2d.hpp"
 #include "planner/math/vec2d.hpp"
@@ -239,15 +240,6 @@ struct PoseHit {
   std::string detail;
 };
 
-std::array<Point2d, 4> grid_corners_from_world(const CollisionCheckerImpl& st,
-                                               const std::array<Point2d, 4>& world) {
-  std::array<Point2d, 4> out;
-  for (std::size_t i = 0; i < 4; ++i) {
-    out[i] = st.frame.to_grid_frame(world[i]);
-  }
-  return out;
-}
-
 std::string format_double(double value) {
   char buffer[32];
   std::snprintf(buffer, sizeof(buffer), "%.12g", value);
@@ -287,12 +279,18 @@ void for_each_obstacle_near(const CollisionCheckerImpl& st, const math::Aabb2d& 
 PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
   PoseHit result;
   const std::array<Point2d, 4> world = st.footprint.world_box(pose).corners();
-  // 复用世界坐标系顶点：直接变换至栅格坐标系，避免重复调用昂贵的三角函数
-  const std::array<Point2d, 4> grid = grid_corners_from_world(st, world);
-  const math::Aabb2d world_box = math::aabb_of_raw(world.data(), world.size());
+  const math::Aabb2d world_aabb = math::aabb_of_raw(world.data(), world.size());
+
+  // 栅格坐标系角点与轴向范围；仅在存在栅格地图时计算
+  std::array<Point2d, 4> grid{};
+  math::Aabb2d grid_aabb{};
 
   // 1) 地图边界外判定：车辆轮廓中若有任何点落在闭合地图矩形外部，则直接判定为碰撞
   if (st.scene.has_grid()) {
+    for (std::size_t i = 0; i < 4; ++i) {
+      grid[i] = st.frame.to_grid_frame(world[i]);
+    }
+    grid_aabb = math::aabb_of_raw(grid.data(), grid.size());
     for (const Point2d& p : grid) {
       if (!st.frame.inside_map(p)) {
         result.hit = true;
@@ -303,53 +301,43 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     }
   }
 
-  // 2) 凸多边形障碍物碰撞检测（世界坐标系）：当两多边形间的最小欧氏距离 <= 依赖于几何尺度的接触容差时，判定为碰撞
+  // 2) 凸多边形障碍物碰撞检测（世界坐标系）：SAT 在接触容差 tol 下即为精确闭集谓词，
+  //    判定相交或接触后无需再做二次欧氏距离检验
   if (!st.obstacle_boxes.empty()) {
-    const double footprint_scale = world_box.max_abs_coordinate();
+    const double footprint_scale = world_aabb.max_abs_coordinate();
     const double filter_tol =
         contact_tolerance(std::max(footprint_scale, st.obstacle_scale_m)) * 2.0;
     PoseHit obstacle_hit;
-    for_each_obstacle_near(st, world_box, filter_tol, [&](int idx) {
+    for_each_obstacle_near(st, world_aabb, filter_tol, [&](int idx) {
       if (obstacle_hit.hit) {
         return;
       }
       const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
       const double tol =
           contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
-      // O(1) 粗筛：若分离轴投影间隙大于容差 tol，则两多边形最小欧氏距离 d >= gap > tol，
-      // 两者绝无接触可能，可安全跳过精确距离计算
+      // SAT 使用接触容差 tol：命中即表示两闭集最小距离 <= tol
       if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.data(),
                                            obstacle.size(), tol)) {
         return;
       }
-      if (math::convex_polygon_distance_sq(world.data(), world.size(), obstacle.data(),
-                                           obstacle.size()) <= tol * tol) {
-        obstacle_hit.hit = true;
-        obstacle_hit.reason = CollisionReason::kObstacle;
-        obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
-      }
+      obstacle_hit.hit = true;
+      obstacle_hit.reason = CollisionReason::kObstacle;
+      obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
     });
     if (obstacle_hit.hit) {
       return obstacle_hit;
     }
   }
 
-  // 3) 被阻挡栅格单元碰撞检测（栅格坐标系，每个单元视为轴对齐包围盒 AABB）
+  // 3) 被阻挡栅格单元碰撞检测（栅格坐标系，每个单元视为轴对齐包围盒 AABB；
+  //    车体足迹 OBB 与单元 AABB 使用 4 轴 SAT 快速判定）
   if (st.scene.has_grid()) {
     const GridView& grid_view = st.scene.grid;
     const double res = st.frame.resolution_m;
-    double min_x = grid[0].x_m, max_x = grid[0].x_m;
-    double min_y = grid[0].y_m, max_y = grid[0].y_m;
-    for (const Point2d& p : grid) {
-      min_x = std::min(min_x, p.x_m);
-      max_x = std::max(max_x, p.x_m);
-      min_y = std::min(min_y, p.y_m);
-      max_y = std::max(max_y, p.y_m);
-    }
-    int col0 = static_cast<int>(std::floor(min_x / res)) - 1;
-    int col1 = static_cast<int>(std::floor(max_x / res)) + 1;
-    int row0 = static_cast<int>(std::floor(min_y / res)) - 1;
-    int row1 = static_cast<int>(std::floor(max_y / res)) + 1;
+    int col0 = static_cast<int>(std::floor(grid_aabb.min_x / res)) - 1;
+    int col1 = static_cast<int>(std::floor(grid_aabb.max_x / res)) + 1;
+    int row0 = static_cast<int>(std::floor(grid_aabb.min_y / res)) - 1;
+    int row1 = static_cast<int>(std::floor(grid_aabb.max_y / res)) + 1;
     col0 = std::max(col0, 0);
     row0 = std::max(row0, 0);
     col1 = std::min(col1, grid_view.width - 1);
@@ -358,14 +346,19 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     if (prefix_pyramid_empty(st, row0, row1, col0, col1)) {
       return PoseHit{};
     }
-    const double scale = std::max(std::max(std::abs(min_x), std::abs(max_x)),
-                                  std::max(std::abs(min_y), std::abs(max_y)));
+    const double scale = grid_aabb.max_abs_coordinate();
     const double tol = contact_tolerance(scale);
-    // 栅格单元分离轴定理（SAT）预计算缓存：在 evaluate_pose 内部车辆多边形保持固定，
-    // 故包围盒与边法向量仅计算一次，在各个候选单元间复用
-    internal::PolygonSatCache8 cell_sat;
-    cell_sat.build(grid.data(), grid.size());
-    const double cell_tol_sq = tol * tol;
+
+    // 仅在确需扫描候选单元时构造栅格坐标系车体 OBB，避免空场景快速路径的额外开销
+    const math::Box2d world_box = st.footprint.world_box(pose);
+    const double grid_yaw = st.scene.grid.origin.yaw_rad;
+    const double cg = st.frame.cos_yaw * world_box.cos_heading() +
+                      st.frame.sin_yaw * world_box.sin_heading();
+    const double sg = st.frame.cos_yaw * world_box.sin_heading() -
+                      st.frame.sin_yaw * world_box.cos_heading();
+    const math::Vec2d grid_center = st.frame.to_grid_frame(world_box.center());
+    const math::Box2d grid_box{grid_center, world_box.length_m(), world_box.width_m(),
+                               world_box.heading_rad() - grid_yaw, cg, sg};
 
     PoseHit cell_hit;
     const auto test_cell = [&](int row, int col) {
@@ -377,12 +370,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         return;
       }
       const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res, (row + 1) * res};
-      // O(1) 粗筛：若分离轴投影间隙超过容差，则最小距离必大于 tol，两者不可能发生接触
-      if (!cell_sat.maybe_intersects(cell_box, tol)) {
-        return;
-      }
-      // 在平方距离域执行精确欧氏距离检验
-      if (math::polygon_aabb_distance_sq(grid.data(), grid.size(), cell_box) > cell_tol_sq) {
+      // OBB-AABB 4 轴 SAT 快速路径：tol 下即为精确闭集谓词
+      if (!grid_box.intersects(cell_box, tol)) {
         return;
       }
       cell_hit.hit = true;

@@ -112,6 +112,18 @@ class Box2d {
   double heading_rad() const noexcept { return heading_rad_; }
 
   /**
+   * @brief 获取缓存的航向角余弦值
+   * @return 航向角余弦（无量纲）
+   */
+  double cos_heading() const noexcept { return cos_heading_; }
+
+  /**
+   * @brief 获取缓存的航向角正弦值
+   * @return 航向角正弦（无量纲）
+   */
+  double sin_heading() const noexcept { return sin_heading_; }
+
+  /**
    * @brief 计算按逆时针排列的 4 个世界系角点：
    *        (-hl,-hw), (+hl,-hw), (+hl,+hw), (-hl,+hw)
    * @return 包含 4 个世界系角点的定长数组
@@ -152,6 +164,8 @@ class Box2d {
 
   /**
    * @brief 判定包围盒与闭 AABB 是否相交或接触
+   * @details 使用 4 条单位分离轴（世界 X/Y 轴与包围盒局部 X/Y 轴）的专用 SAT 快速路径；
+   *          遇到非有限、乱序、负尺寸或超大坐标等异常输入时回退至通用凸多边形-AABB SAT
    * @param[in] box 目标 AABB
    * @param[in] tol 接触判定距离容差（米）
    * @return 若相交或接触返回 true

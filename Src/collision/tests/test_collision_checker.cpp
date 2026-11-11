@@ -97,6 +97,51 @@ TEST(CollisionChecker, PoseObstacleOutsideMapAndEmptyGrid) {
   EXPECT_TRUE(empty_checker.check_pose({1000.0, -500.0, 1.0}).is_clear());
 }
 
+TEST(CollisionChecker, RotatedGridFramePoseChecks) {
+  const auto vehicle = test_vehicle();
+  auto scene = make_scene(20, 20, 0.5);
+  scene.grid.origin = {0.3, -0.4, 0.7};
+  collision::CollisionChecker clear_checker(vehicle, scene);
+  ASSERT_TRUE(clear_checker.valid()) << clear_checker.invalid_reason();
+
+  // 选取栅格坐标系中心附近的位姿，保证旋转地图内足迹完全位于边界内
+  const double c = std::cos(scene.grid.origin.yaw_rad);
+  const double s = std::sin(scene.grid.origin.yaw_rad);
+  const common::Pose2d pose{scene.grid.origin.x_m + c * 5.25 - s * 5.25,
+                            scene.grid.origin.y_m + s * 5.25 + c * 5.25, 0.2};
+  EXPECT_TRUE(clear_checker.check_pose(pose).is_clear());
+
+  const common::GridFrame frame = common::GridFrame::from_grid(scene.grid);
+  const auto grid_pose = frame.to_grid_frame({pose.x_m, pose.y_m});
+  const int col = static_cast<int>(std::floor(grid_pose.x_m / scene.grid.resolution_m));
+  const int row = static_cast<int>(std::floor(grid_pose.y_m / scene.grid.resolution_m));
+  ASSERT_TRUE(scene.grid.in_bounds(row, col));
+  scene.grid.cells[static_cast<std::size_t>(row) * scene.grid.width + col] =
+      common::kCellOccupied;
+
+  collision::CollisionChecker occupied_checker(vehicle, scene);
+  ASSERT_TRUE(occupied_checker.valid()) << occupied_checker.invalid_reason();
+  const auto occupied = occupied_checker.check_pose(pose);
+  EXPECT_TRUE(occupied.collided());
+  EXPECT_EQ(occupied.reason_code, collision::CollisionReason::kGridOccupied);
+}
+
+TEST(CollisionChecker, PoseObstacleToleranceBoundary) {
+  const auto vehicle = test_vehicle();
+  auto scene = make_scene(20, 20);
+  // 足迹前缘位于 pose.x + 3.4 m（轴距 2.5 + 前悬 0.8 + 安全裕量 0.1）
+  scene.obstacles.push_back(collision::Obstacle::rectangle("front_touch", 8.4, 4.0, 9.4, 6.0));
+  collision::CollisionChecker checker(vehicle, scene);
+  ASSERT_TRUE(checker.valid()) << checker.invalid_reason();
+
+  const auto touching = checker.check_pose({5.0, 5.0, 0.0});
+  EXPECT_TRUE(touching.collided());
+  EXPECT_EQ(touching.reason_code, collision::CollisionReason::kObstacle);
+
+  // 后退 1e-6 m 后间隙超过接触容差，应判定为无碰撞
+  EXPECT_TRUE(checker.check_pose({5.0 - 1e-6, 5.0, 0.0}).is_clear());
+}
+
 TEST(CollisionChecker, MotionClearAndCollide) {
   const auto vehicle = test_vehicle();
   auto scene = make_scene();
