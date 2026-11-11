@@ -149,6 +149,33 @@ TEST(MathBox2d, AabbFastPathFallsBackForInvalidTolerance) {
   }
 }
 
+TEST(MathBox2d, AabbFastPathFallsBackForInvalidGeometry) {
+  const math::Aabb2d probe{0.2, -0.3, 1.7, 0.9};
+  const auto generic = [](const math::Box2d& box, const math::Aabb2d& aabb, double tol) {
+    const std::array<math::Point2d, 4> corners = box.corners();
+    return math::convex_polygon_intersects_aabb(corners.data(), corners.size(), aabb, tol);
+  };
+
+  // 乱序 AABB：min > max 必须回退至通用实现
+  const math::Box2d normal{{0.5, 0.1}, 2.0, 1.0, 0.5};
+  const math::Aabb2d unordered{1.7, 0.9, 0.2, -0.3};
+  EXPECT_EQ(normal.intersects(unordered, 1e-6), generic(normal, unordered, 1e-6));
+
+  // 负尺寸包围盒必须回退
+  const math::Box2d negative{{0.5, 0.1}, -2.0, 1.0, 0.5};
+  EXPECT_EQ(negative.intersects(probe, 1e-6), generic(negative, probe, 1e-6));
+
+  // 显式角点构造函数注入非有限正余弦时必须回退且不崩溃
+  const std::array<math::Point2d, 4> local{
+      {{-1.0, -0.5}, {1.0, -0.5}, {1.0, 0.5}, {-1.0, 0.5}}};
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  const math::Vec2d origin{0.0, 0.0};
+  const math::Box2d nan_cos{{0.0, 0.0}, 2.0, 1.0, 0.0, nan, 0.0, origin, local};
+  const math::Box2d nan_sin{{0.0, 0.0}, 2.0, 1.0, 0.0, 1.0, nan, origin, local};
+  EXPECT_EQ(nan_cos.intersects(probe, 1e-6), generic(nan_cos, probe, 1e-6));
+  EXPECT_EQ(nan_sin.intersects(probe, 1e-6), generic(nan_sin, probe, 1e-6));
+}
+
 TEST(MathBox2d, AabbFastPathMatchesGenericNearTouch) {
   std::mt19937 engine(20261112);
   std::uniform_real_distribution<double> center(-5.0, 5.0);

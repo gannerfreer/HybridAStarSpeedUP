@@ -184,7 +184,18 @@ double point_aabb_distance(const Point2d& p, const Aabb2d& box) noexcept;
 double point_aabb_distance_sq(const Point2d& p, const Aabb2d& box) noexcept;
 
 // 零动态分配的 AABB 入口；n 为输入点数量
-Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept;
+inline Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
+  Aabb2d box;
+  if (n == 0 || points == nullptr) {
+    return box;
+  }
+  box.min_x = box.max_x = points[0].x_m;
+  box.min_y = box.max_y = points[0].y_m;
+  for (std::size_t i = 1; i < n; ++i) {
+    box.merge_point(points[i]);
+  }
+  return box;
+}
 /// @}
 
 }  // namespace planner::math

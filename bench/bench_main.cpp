@@ -122,6 +122,17 @@ int main() {
   });
   report_ns_per_op("CollisionChecker::check_pose", 200000, seconds);
 
+  const common::Pose2d near_cell_pose{15.2, 10.0, 0.0};
+  if (!checker.check_pose(near_cell_pose).is_clear()) {
+    std::fprintf(stderr, "near-cell benchmark pose must be clear\n");
+    return EXIT_FAILURE;
+  }
+  seconds = measure_seconds(200000, [&](int i) {
+    const common::Pose2d pose{15.2 + (i % 10) * 0.01, 10.0, 0.0};
+    g_sink = g_sink + (checker.check_pose(pose).is_clear() ? 1.0 : 0.0);
+  });
+  report_ns_per_op("CollisionChecker::check_pose (near cells)", 200000, seconds);
+
   seconds = measure_seconds(20000, [&](int i) {
     collision::MotionSegment motion;
     motion.start = {10.0, 10.0, 0.0};

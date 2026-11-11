@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -111,10 +112,16 @@ TEST(CollisionChecker, RotatedGridFramePoseChecks) {
                             scene.grid.origin.y_m + s * 5.25 + c * 5.25, 0.2};
   EXPECT_TRUE(clear_checker.check_pose(pose).is_clear());
 
+  // 标记足迹前左角附近的内点（车体系 (3.3, 0.9)）所在像元：
+  // 若栅格系 OBB 航向构造错误，该角点区域将不再与车体相交，检测会漏报
+  const double cp = std::cos(pose.yaw_rad);
+  const double sp = std::sin(pose.yaw_rad);
+  const common::Point2d near_corner{pose.x_m + cp * 3.3 - sp * 0.9,
+                                    pose.y_m + sp * 3.3 + cp * 0.9};
   const common::GridFrame frame = common::GridFrame::from_grid(scene.grid);
-  const auto grid_pose = frame.to_grid_frame({pose.x_m, pose.y_m});
-  const int col = static_cast<int>(std::floor(grid_pose.x_m / scene.grid.resolution_m));
-  const int row = static_cast<int>(std::floor(grid_pose.y_m / scene.grid.resolution_m));
+  const auto grid_corner = frame.to_grid_frame(near_corner);
+  const int col = static_cast<int>(std::floor(grid_corner.x_m / scene.grid.resolution_m));
+  const int row = static_cast<int>(std::floor(grid_corner.y_m / scene.grid.resolution_m));
   ASSERT_TRUE(scene.grid.in_bounds(row, col));
   scene.grid.cells[static_cast<std::size_t>(row) * scene.grid.width + col] =
       common::kCellOccupied;
@@ -140,6 +147,53 @@ TEST(CollisionChecker, PoseObstacleToleranceBoundary) {
 
   // 后退 1e-6 m 后间隙超过接触容差，应判定为无碰撞
   EXPECT_TRUE(checker.check_pose({5.0 - 1e-6, 5.0, 0.0}).is_clear());
+}
+
+TEST(CollisionChecker, PoseObstacleCornerSliverUsesEuclideanDistance) {
+  const auto vehicle = test_vehicle();
+  const double tol = 1e-12 * std::max(1.0, 9.4);
+  const auto check = [&](double factor) {
+    const double delta = factor * tol;
+    auto scene = make_scene(20, 20);
+    scene.obstacles.push_back(collision::Obstacle::rectangle(
+        "corner_sliver", 8.4 + delta, 6.0 + delta, 9.4 + delta, 7.0 + delta));
+    collision::CollisionChecker checker(vehicle, scene);
+    EXPECT_TRUE(checker.valid()) << checker.invalid_reason();
+    return checker.check_pose({5.0, 5.0, 0.0});
+  };
+
+  // 两轴间隙均为 0.9*tol，欧氏距离约 1.27*tol：SAT 粗筛通过但精确距离应拒绝
+  EXPECT_TRUE(check(0.9).is_clear());
+  // 两轴间隙均为 0.5*tol，欧氏距离约 0.71*tol：应判定为碰撞
+  const auto touching = check(0.5);
+  EXPECT_TRUE(touching.collided());
+  EXPECT_EQ(touching.reason_code, collision::CollisionReason::kObstacle);
+}
+
+TEST(CollisionChecker, PoseGridCornerSliverUsesEuclideanDistance) {
+  const auto vehicle = test_vehicle();
+  const auto footprint = collision::make_footprint(vehicle);
+  const double res = 0.5;
+  const double cell_min = 6.0;
+  const double tol = 1e-12 * std::max(1.0, cell_min);
+  const auto check = [&](double factor) {
+    const double delta = factor * tol;
+    auto scene = make_scene(20, 20, res);
+    scene.grid.cells[12 * scene.grid.width + 12] = common::kCellOccupied;
+    collision::CollisionChecker checker(vehicle, scene);
+    EXPECT_TRUE(checker.valid()) << checker.invalid_reason();
+    // 使足迹前左角恰好位于阻塞像元左下角 (6,6) 的左上方向 delta 处
+    const common::Pose2d pose{cell_min - delta - footprint.x_max_m,
+                              cell_min - delta - footprint.y_max_m, 0.0};
+    return checker.check_pose(pose);
+  };
+
+  // 两轴间隙 0.9*tol，欧氏距离约 1.27*tol：SAT 粗筛通过但精确距离应拒绝
+  EXPECT_TRUE(check(0.9).is_clear());
+  // 两轴间隙 0.5*tol，欧氏距离约 0.71*tol：应判定为碰撞
+  const auto touching = check(0.5);
+  EXPECT_TRUE(touching.collided());
+  EXPECT_EQ(touching.reason_code, collision::CollisionReason::kGridOccupied);
 }
 
 TEST(CollisionChecker, MotionClearAndCollide) {
@@ -271,6 +325,31 @@ TEST(CollisionFootprint, BoxGeometryPreservesLegacyCornerValues) {
     const auto aabb = footprint.world_box(pose).aabb();
     for (const auto& p : box_corners) {
       EXPECT_TRUE(aabb.contains(p));
+    }
+  }
+}
+
+TEST(CollisionFootprint, ExplicitCornerWorldBoxMatchesGenericAabbPredicate) {
+  const auto vehicle = test_vehicle();
+  const auto footprint = collision::make_footprint(vehicle);
+  std::mt19937 engine(20261113);
+  std::uniform_real_distribution<double> coordinate(-20.0, 20.0);
+  std::uniform_real_distribution<double> size(0.2, 4.0);
+  std::uniform_real_distribution<double> angle(-math::kPi, math::kPi);
+  for (int i = 0; i < 200; ++i) {
+    SCOPED_TRACE(i);
+    const common::Pose2d pose{coordinate(engine), coordinate(engine), angle(engine)};
+    const math::Box2d box = footprint.world_box(pose);
+    const auto corners = box.corners();
+    EXPECT_EQ(corners, footprint.world_corners(pose));
+    for (double tol : {0.0, 1e-9, 0.01}) {
+      const double x = coordinate(engine);
+      const double y = coordinate(engine);
+      const double w = size(engine);
+      const double h = size(engine);
+      const math::Aabb2d probe{x, y, x + w, y + h};
+      EXPECT_EQ(box.intersects(probe, tol),
+                math::convex_polygon_intersects_aabb(corners.data(), corners.size(), probe, tol));
     }
   }
 }

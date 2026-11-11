@@ -12,19 +12,6 @@
 
 namespace planner::math {
 
-Aabb2d aabb_of_raw(const Point2d* points, std::size_t n) noexcept {
-  Aabb2d box;
-  if (n == 0) {
-    return box;
-  }
-  box.min_x = box.max_x = points[0].x_m;
-  box.min_y = box.max_y = points[0].y_m;
-  for (std::size_t i = 1; i < n; ++i) {
-    box.merge_point(points[i]);
-  }
-  return box;
-}
-
 Aabb2d aabb_of(const std::vector<Point2d>& points) noexcept {
   return aabb_of_raw(points.data(), points.size());
 }

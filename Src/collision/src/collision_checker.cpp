@@ -301,8 +301,8 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     }
   }
 
-  // 2) 凸多边形障碍物碰撞检测（世界坐标系）：SAT 在接触容差 tol 下即为精确闭集谓词，
-  //    判定相交或接触后无需再做二次欧氏距离检验
+  // 2) 凸多边形障碍物碰撞检测（世界坐标系）：SAT 仅作为保守的轴向粗筛，
+  //    命中后仍需以精确欧氏距离确认接触
   if (!st.obstacle_boxes.empty()) {
     const double footprint_scale = world_aabb.max_abs_coordinate();
     const double filter_tol =
@@ -315,14 +315,17 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
       const Obstacle& obstacle = st.scene.obstacles[static_cast<std::size_t>(idx)];
       const double tol =
           contact_tolerance(std::max(footprint_scale, obstacle.aabb().max_abs_coordinate()));
-      // SAT 使用接触容差 tol：命中即表示两闭集最小距离 <= tol
+      // SAT 粗筛：若所有分离轴投影间隙均不大于 tol，则可能接触，继续精确距离检验
       if (!math::convex_polygons_intersect(world.data(), world.size(), obstacle.data(),
                                            obstacle.size(), tol)) {
         return;
       }
-      obstacle_hit.hit = true;
-      obstacle_hit.reason = CollisionReason::kObstacle;
-      obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
+      if (math::convex_polygon_distance_sq(world.data(), world.size(), obstacle.data(),
+                                           obstacle.size()) <= tol * tol) {
+        obstacle_hit.hit = true;
+        obstacle_hit.reason = CollisionReason::kObstacle;
+        obstacle_hit.detail = "obstacle '" + obstacle.id + "' overlaps the vehicle footprint";
+      }
     });
     if (obstacle_hit.hit) {
       return obstacle_hit;
@@ -349,16 +352,21 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     const double scale = grid_aabb.max_abs_coordinate();
     const double tol = contact_tolerance(scale);
 
-    // 仅在确需扫描候选单元时构造栅格坐标系车体 OBB，避免空场景快速路径的额外开销
-    const math::Box2d world_box = st.footprint.world_box(pose);
-    const double grid_yaw = st.scene.grid.origin.yaw_rad;
-    const double cg = st.frame.cos_yaw * world_box.cos_heading() +
-                      st.frame.sin_yaw * world_box.sin_heading();
-    const double sg = st.frame.cos_yaw * world_box.sin_heading() -
-                      st.frame.sin_yaw * world_box.cos_heading();
-    const math::Vec2d grid_center = st.frame.to_grid_frame(world_box.center());
-    const math::Box2d grid_box{grid_center, world_box.length_m(), world_box.width_m(),
-                               world_box.heading_rad() - grid_yaw, cg, sg};
+    // 由已变换的栅格系角点直接推导车体 OBB，避免重复调用 world_box(pose) 与三角函数
+    const math::Vec2d edge_x = grid[1] - grid[0];
+    const math::Vec2d edge_y = grid[3] - grid[0];
+    const double length = edge_x.norm();
+    const double width = edge_y.norm();
+    const double cg = (length > 0.0) ? edge_x.x_m / length : 1.0;
+    const double sg = (length > 0.0) ? edge_x.y_m / length : 0.0;
+    const math::Vec2d grid_center{0.5 * (grid[0].x_m + grid[2].x_m),
+                                  0.5 * (grid[0].y_m + grid[2].y_m)};
+    const math::Box2d grid_box{grid_center,
+                               length,
+                               width,
+                               pose.yaw_rad - st.scene.grid.origin.yaw_rad,
+                               cg,
+                               sg};
 
     PoseHit cell_hit;
     const auto test_cell = [&](int row, int col) {
@@ -370,8 +378,11 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
         return;
       }
       const math::Aabb2d cell_box{col * res, row * res, (col + 1) * res, (row + 1) * res};
-      // OBB-AABB 4 轴 SAT 快速路径：tol 下即为精确闭集谓词
+      // OBB-AABB 4 轴 SAT 仅作为保守轴向粗筛，命中后仍需精确欧氏距离确认
       if (!grid_box.intersects(cell_box, tol)) {
+        return;
+      }
+      if (math::polygon_aabb_distance_sq(grid.data(), grid.size(), cell_box) > tol * tol) {
         return;
       }
       cell_hit.hit = true;
