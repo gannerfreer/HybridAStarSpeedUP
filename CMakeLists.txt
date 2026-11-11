@@ -68,6 +68,7 @@ if(PLANNER_WITH_CONFIG)
   endif()
 endif()
 
+add_subdirectory(third_party)
 add_subdirectory(Src/math)
 add_subdirectory(Src/common)
 if(PLANNER_WITH_CONFIG)

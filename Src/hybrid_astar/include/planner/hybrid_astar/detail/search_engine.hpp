@@ -5,13 +5,13 @@
 
 #pragma once
 
+#include <ankerl/unordered_dense.h>
+
 #include <cstdint>
 #include <functional>
 #include <limits>
 #include <queue>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "planner/common/path.hpp"
@@ -178,9 +178,9 @@ class SearchEngine {
   std::vector<double> curvature_samples_;
   double heading_bin_rad_{0.0};
 
-  std::unordered_map<std::uint64_t, Vertex3D> open_set_;
-  std::unordered_set<std::uint64_t> closed_set_;
-  std::unordered_map<std::uint64_t, Vertex3D> best_nodes_;
+  ankerl::unordered_dense::map<std::uint64_t, Vertex3D> open_set_;
+  ankerl::unordered_dense::set<std::uint64_t> closed_set_;
+  ankerl::unordered_dense::map<std::uint64_t, Vertex3D> best_nodes_;
   OpenQueue open_queue_;
 
   std::function<bool()> abort_callback_;

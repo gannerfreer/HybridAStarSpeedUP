@@ -1,0 +1,5 @@
+add_library(planner_unordered_dense INTERFACE)
+add_library(planner::unordered_dense ALIAS planner_unordered_dense)
+target_include_directories(planner_unordered_dense SYSTEM INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/unordered_dense/include")
+target_compile_features(planner_unordered_dense INTERFACE cxx_std_17)
