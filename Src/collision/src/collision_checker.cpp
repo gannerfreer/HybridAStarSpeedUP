@@ -61,7 +61,12 @@ constexpr double kObstacleHashCell_m = 4.0;
 constexpr double kEnvelopeSafetyFactor = 1.0 + 1e-12;
 constexpr double kEnvelopeSafetyOffset_m = 1e-12;
 
-/// 计算与几何尺度自适应匹配的接触判断数值容差
+/**
+ * @brief 计算与几何尺度自适应匹配的接触判断数值容差
+ * @details 当两几何形状的最小欧氏距离小于等于 contact_tolerance(scale) 时，判定为接触碰撞
+ * @param[in] scale_m 几何坐标绝对值尺度（米）
+ * @return 接触判断的自适应容差（米，约为 1e-12 * scale 级别）
+ */
 double contact_tolerance(double scale_m) noexcept { return 1.0e-12 * std::max(1.0, scale_m); }
 
 /// 检查位姿各坐标分量是否均为有限浮点数

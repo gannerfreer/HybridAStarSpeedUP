@@ -47,11 +47,32 @@ TEST(SatCache, MatchesPublicIntersectionForInvalidTolerances) {
   collision::internal::PolygonSatCache8 cache;
   cache.build(polygon.data(), polygon.size());
   ASSERT_TRUE(cache.usable);
-  const math::Aabb2d box{0.5, 0.5, 1.5, 1.5};
+  const math::Aabb2d overlapping{0.5, 0.5, 1.5, 1.5};
+  // x 方向间隙 5e-4 小于 |tol| = 1e-3：负容差下快速路径会误判相交，必须走归一化回退
+  const math::Aabb2d separated{1.0005, -0.5, 2.0, 0.5};
   for (double tol : {0.0, 1e-9, 0.25, -1e-3, std::numeric_limits<double>::quiet_NaN()}) {
     SCOPED_TRACE(tol);
-    EXPECT_EQ(cache.maybe_intersects(box, tol),
-              math::convex_polygon_intersects_aabb(polygon, box, tol));
+    for (const math::Aabb2d& box : {overlapping, separated}) {
+      EXPECT_EQ(cache.maybe_intersects(box, tol),
+                math::convex_polygon_intersects_aabb(polygon, box, tol));
+    }
+  }
+}
+
+TEST(SatCache, SupportsEightVertexPolygon) {
+  std::vector<math::Point2d> octagon;
+  octagon.reserve(8);
+  for (int i = 0; i < 8; ++i) {
+    const double angle = 2.0 * math::kPi * static_cast<double>(i) / 8.0;
+    octagon.push_back(math::Point2d{std::cos(angle), std::sin(angle)});
+  }
+  collision::internal::PolygonSatCache8 cache;
+  cache.build(octagon.data(), octagon.size());
+  ASSERT_TRUE(cache.usable);
+  for (const math::Aabb2d& box :
+       {math::Aabb2d{-0.25, -0.25, 0.25, 0.25}, math::Aabb2d{3.0, 3.0, 4.0, 4.0}}) {
+    EXPECT_EQ(cache.maybe_intersects(box, 0.0),
+              math::convex_polygon_intersects_aabb(octagon, box, 0.0));
   }
 }
 

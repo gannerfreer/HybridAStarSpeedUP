@@ -26,7 +26,8 @@ namespace planner::collision::internal {
 using math::Aabb2d;
 using math::Point2d;
 
-/// 快速未归一化平方距离域下的坐标与轴长安全上限（防止乘法浮点溢出）
+/// 快速未归一化平方距离域下的坐标与轴长安全上限（防止乘法浮点溢出）；
+/// 与 math 层快速域上限保持一致，若 math 侧调整必须同步更新
 constexpr double kFastMaxAbsCoordinate = 1.0e75;
 constexpr double kFastMaxAxisLenSq = 1.0e300;
 
