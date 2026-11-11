@@ -16,10 +16,12 @@
 #include <string_view>
 #include <vector>
 
+#include "planner/common/path.hpp"
 #include "scene.hpp"
 
 namespace planner::collision {
 
+using planner::common::Direction;
 using planner::common::PathSegment;
 
 /**

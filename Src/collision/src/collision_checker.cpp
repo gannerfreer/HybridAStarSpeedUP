@@ -20,7 +20,6 @@
 #include <cstdio>
 #include <limits>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -351,13 +350,13 @@ PoseHit evaluate_pose(const CollisionCheckerImpl& st, const Pose2d& pose) {
     const double scale = grid_aabb.max_abs_coordinate();
     const double tol = contact_tolerance(scale);
 
-    // 由已变换的栅格系角点直接推导车体 OBB，避免重复调用 world_box(pose) 与三角函数
+    // 由已变换的栅格系角点直接推导车体 OBB：长度与宽度复用足迹刚体尺寸（刚体变换保持尺度不变），
+    // 航向由变换后的边向量直接给出，避免重复开方与三角函数运算
     const math::Vec2d edge_x = grid[1] - grid[0];
-    const math::Vec2d edge_y = grid[3] - grid[0];
-    const double length = edge_x.norm();
-    const double width = edge_y.norm();
-    const double cg = (length > 0.0) ? edge_x.x_m / length : 1.0;
-    const double sg = (length > 0.0) ? edge_x.y_m / length : 0.0;
+    const double length = st.footprint.x_max_m - st.footprint.x_min_m;
+    const double width = st.footprint.y_max_m - st.footprint.y_min_m;
+    const double cg = edge_x.x_m / length;
+    const double sg = edge_x.y_m / length;
     const math::Vec2d grid_center{0.5 * (grid[0].x_m + grid[2].x_m),
                                   0.5 * (grid[0].y_m + grid[2].y_m)};
     const math::Box2d grid_box{

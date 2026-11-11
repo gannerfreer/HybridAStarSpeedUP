@@ -53,10 +53,6 @@ template <std::size_t Capacity>
 struct PolygonSatCache {
   static constexpr std::size_t kCapacity = Capacity;
 
-  /// 快速未归一化平方距离域下的坐标与轴长安全上限（防止乘法浮点溢出）
-  static constexpr double kFastMaxAbsCoordinate = internal::kFastMaxAbsCoordinate;
-  static constexpr double kFastMaxAxisLenSq = internal::kFastMaxAxisLenSq;
-
   const Point2d* points{nullptr};  ///< 指向多边形外部顶点缓冲区的无所有权指针
   std::size_t count{0};            ///< 多边形顶点总数
   bool usable{false};  ///< 容量是否足够（count <= Capacity）；若超出则置 false 触发回退

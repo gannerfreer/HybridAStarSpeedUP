@@ -16,14 +16,12 @@
 #include <vector>
 
 #include "planner/common/grid_view.hpp"
-#include "planner/common/path.hpp"
 #include "planner/common/scenario_config.hpp"
 #include "planner/common/vehicle.hpp"
 #include "planner/math/box2d.hpp"
 #include "planner/math/polygon2d.hpp"
 
 namespace planner::collision {
-using common::Direction;
 using common::Point2d;
 using common::Pose2d;
 
