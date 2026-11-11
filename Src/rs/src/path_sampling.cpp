@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
-#include <utility>
 #include <vector>
 
 #include "reeds_shepp.hpp"
